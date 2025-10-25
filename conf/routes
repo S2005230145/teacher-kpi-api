@@ -1,0 +1,84 @@
+# Routes
+# This file defines all application routes (Higher priority routes first)
+# ~~~~
+
+#upload
+GET          /v2/shop/captcha/gen/noauth/                                        controllers.captcha.ImageCaptchaController.getCaptcha(request: Request)
+POST         /v2/shop/captcha/check/noauth/                                      controllers.captcha.ImageCaptchaController.validate(request: Request)
+
+
++nocsrf
+POST         /v2/shop/upload/                                                    controllers.basic.UploaderManager.upload(request: Request)
+POST         /v2/shop/upload2/                                                   controllers.basic.UploaderManager.upload2(request: Request)
+POST         /v2/shop/upload_base64/                                             controllers.basic.UploaderManager.uploadBase64(request: Request)
+#ADMIN MODULE
+
+POST         /v2/shop/request_sms/                                               controllers.basic.SmsController.requestVCode(request: Request)
+POST         /v2/shop/requestd_user_vcode/                                       controllers.basic.SmsController.requestUserVCode(request: Request)
+
+POST         /v2/shop/reset_login_password/                                      controllers.basic.LoginController.resetLoginPassword(request: Request)
+POST         /v2/shop/set_login_password/                                        controllers.basic.LoginController.setLoginPassword(request: Request)
+
++nocsrf
+POST         /v2/shop/login/noauth/                                              controllers.basic.LoginController.login(request:Request)
++nocsrf
+GET          /v2/shop/is_login/                                                  controllers.basic.LoginController.isLogin(request:Request)
++nocsrf
+POST         /v2/shop/user/new/                                                  controllers.basic.LoginController.signUp(request:Request)
+GET          /v2/shop/admin_member/info/                                         controllers.basic.LoginController.getAdminMemberInfo(request:Request)
+POST         /v2/shop/shop_on/                                                   controllers.basic.LoginController.updateShop(request:Request)
+GET          /v2/shop/shop_info/                                                 controllers.basic.LoginController.getShopInfo(request:Request)
+
++nocsrf
+POST         /v2/shop/logout/                                                    controllers.basic.LogoutController.logout(request:Request)
+
+GET          /ws_manager/                                                        controllers.push.PushController.handleWS()
+
+GET          /v2/shop/param_config/                                              controllers.basic.SystemController.listParamConfig(request: Request,key:String?="")
+GET          /v2/shop/param_config/:id/                                          controllers.basic.SystemController.getParamConfig(request: Request,id:Long)
+POST         /v2/shop/param_config/:id/                                          controllers.basic.SystemController.updateParamConfig(request: Request,id:Long)
+
++nocsrf
+
+GET          /v1/tk/captcha/gen/                                                 controllers.captcha.ImageCaptchaController.getCaptcha(request: Request)
+POST         /v1/tk/captcha/check/                                               controllers.captcha.ImageCaptchaController.validate(request: Request)
+
+#ADMIN MODULE
+
+POST         /v1/tk/request_sms/                                                 controllers.basic.SmsController.requestVCode(request: Request)
++nocsrf
+POST         /v1/tk/request_user_vcode/                                          controllers.basic.SmsController.requestUserVCode(request:Request)
+
++nocsrf
+POST         /v1/tk/login/                                                       controllers.manager.LoginManager.login(request:Request)
+#POST         /v1/cp/login_agent/                                                 controllers.manager.LoginManager.loginAgent(request:Request)
++nocsrf
+GET          /v1/tk/is_login/                                                    controllers.manager.LoginManager.isLogin(request:Request)
+
++nocsrf
+POST         /v1/tk/admin_member_password/                                       controllers.manager.LoginManager.updatePassword(request:Request)
++nocsrf
+POST         /v1/tk/logout/                                                      controllers.manager.LogoutManager.logout(request:Request)
+
+GET          /v1/tk/actions/                                                     controllers.manager.ActionController.listActions()
+POST         /v1/tk/action/new/                                                  controllers.manager.ActionController.addAction(request: Request)
+POST         /v1/tk/action/:id/                                                  controllers.manager.ActionController.updateAction(request: Request,id:String)
+POST         /v1/tk/action/                                                      controllers.manager.ActionController.delAction(request: Request)
+GET          /v1/tk/action/:actionId/                                            controllers.manager.ActionController.getAction(actionId:String)
+GET          /v1/tk/actions_by_filter/:groupId/                                  controllers.manager.ActionController.getGroupActionByGroupId(groupId:Int)
+
+GET          /v1/tk/admin_member/info/                                           controllers.manager.MemberManager.getAdminMemberInfo(request:Request)
+GET          /v1/tk/admin_members/                                               controllers.manager.MemberManager.listAdminMembers()
+POST         /v1/tk/admin_member/new/                                            controllers.manager.MemberManager.addAdminMember(request:Request)
+POST         /v1/tk/admin_member/:id/                                            controllers.manager.MemberManager.updateAdminMember(request:Request,id:Long)
+POST         /v1/tk/admin_member/                                                controllers.manager.MemberManager.delAdminMember(request:Request)
+GET          /v1/tk/admin_members/:memberId/                                     controllers.manager.MemberManager.getAdminMember(memberId:Long)
+POST         /v1/tk/admin_members/status/                                        controllers.manager.MemberManager.setAdminMemberStatus(request:Request)
+POST         /v1/tk/bind_member_to_group/                                        controllers.manager.MemberManager.bindMemberToGroup(request:Request)
+GET          /v1/tk/user_groups/                                                 controllers.manager.MemberManager.listUserGroups(request:Request,memberId:Long?=0)
+
+
+
+
+
+GET          /*file                                                              controllers.Assets.versioned(path="/public", file: Asset)

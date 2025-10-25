@@ -1,0 +1,141 @@
+[ {
+  "default" : "",
+  "exportable" : true,
+  "show_in_form" : true,
+  "name" : "id",
+  "show_in_list" : true,
+  "type" : "number",
+  "required" : true,
+  "searchable" : true,
+  "desc" : "ID"
+}, {
+  "default" : "",
+  "exportable" : true,
+  "show_in_form" : true,
+  "name" : "status",
+  "show_in_list" : true,
+  "type" : "number",
+  "required" : true,
+  "searchable" : true,
+  "desc" : "设备名称"
+}, {
+  "default" : "",
+  "exportable" : true,
+  "show_in_form" : true,
+  "name" : "name",
+  "show_in_list" : true,
+  "type" : "string",
+  "required" : true,
+  "searchable" : true,
+  "desc" : "校区名称"
+}, {
+  "default" : "",
+  "exportable" : true,
+  "show_in_form" : true,
+  "name" : "digest",
+  "show_in_list" : true,
+  "type" : "string",
+  "required" : true,
+  "searchable" : true,
+  "desc" : "校区简介"
+}, {
+  "default" : "",
+  "exportable" : true,
+  "show_in_form" : true,
+  "name" : "contactNumber",
+  "show_in_list" : true,
+  "type" : "string",
+  "required" : true,
+  "searchable" : true,
+  "desc" : "联系电话"
+}, {
+  "default" : "",
+  "exportable" : true,
+  "show_in_form" : true,
+  "name" : "contactName",
+  "show_in_list" : true,
+  "type" : "string",
+  "required" : true,
+  "searchable" : true,
+  "desc" : "联系人"
+}, {
+  "default" : "",
+  "exportable" : true,
+  "show_in_form" : true,
+  "name" : "address",
+  "show_in_list" : true,
+  "type" : "string",
+  "required" : true,
+  "searchable" : true,
+  "desc" : "地址"
+}, {
+  "default" : "",
+  "exportable" : true,
+  "show_in_form" : true,
+  "name" : "description",
+  "show_in_list" : true,
+  "type" : "textarea",
+  "required" : true,
+  "searchable" : true,
+  "desc" : "备注"
+}, {
+  "default" : "",
+  "exportable" : true,
+  "show_in_form" : true,
+  "name" : "updateTime",
+  "show_in_list" : true,
+  "type" : "number",
+  "required" : true,
+  "searchable" : true,
+  "desc" : "更新时间"
+}, {
+  "default" : "",
+  "exportable" : true,
+  "show_in_form" : true,
+  "name" : "createTime",
+  "show_in_list" : true,
+  "type" : "number",
+  "required" : true,
+  "searchable" : true,
+  "desc" : "创建时间"
+}, {
+  "default" : "",
+  "exportable" : true,
+  "show_in_form" : true,
+  "name" : "lat",
+  "show_in_list" : true,
+  "type" : "number",
+  "required" : true,
+  "searchable" : true,
+  "desc" : "经度"
+}, {
+  "default" : "",
+  "exportable" : true,
+  "show_in_form" : true,
+  "name" : "lon",
+  "show_in_list" : true,
+  "type" : "number",
+  "required" : true,
+  "searchable" : true,
+  "desc" : "纬度"
+}, {
+  "default" : "",
+  "exportable" : true,
+  "show_in_form" : true,
+  "name" : "avatar",
+  "show_in_list" : true,
+  "type" : "image",
+  "required" : true,
+  "searchable" : true,
+  "desc" : "头像"
+}, {
+  "default" : "",
+  "exportable" : true,
+  "show_in_form" : true,
+  "name" : "rectLogo",
+  "show_in_list" : true,
+  "type" : "string",
+  "required" : true,
+  "searchable" : true,
+  "desc" : "logo"
+} ]

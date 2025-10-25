@@ -1,0 +1,61 @@
+[ {
+  "default" : "",
+  "exportable" : true,
+  "show_in_form" : true,
+  "name" : "id",
+  "show_in_list" : true,
+  "type" : "number",
+  "required" : true,
+  "searchable" : true,
+  "desc" : "ID"
+}, {
+  "default" : "",
+  "exportable" : true,
+  "show_in_form" : true,
+  "name" : "name",
+  "show_in_list" : true,
+  "type" : "string",
+  "required" : true,
+  "searchable" : true,
+  "desc" : "类目名字"
+}, {
+  "default" : "",
+  "exportable" : true,
+  "show_in_form" : true,
+  "name" : "imgUrl",
+  "show_in_list" : true,
+  "type" : "string",
+  "required" : true,
+  "searchable" : true,
+  "desc" : "类目图片"
+}, {
+  "default" : "",
+  "exportable" : true,
+  "show_in_form" : true,
+  "name" : "show",
+  "show_in_list" : true,
+  "type" : "number",
+  "required" : true,
+  "searchable" : true,
+  "desc" : "是否显示"
+}, {
+  "default" : "",
+  "exportable" : true,
+  "show_in_form" : true,
+  "name" : "createTime",
+  "show_in_list" : true,
+  "type" : "number",
+  "required" : true,
+  "searchable" : true,
+  "desc" : ""
+}, {
+  "default" : "",
+  "exportable" : true,
+  "show_in_form" : true,
+  "name" : "updateTime",
+  "show_in_list" : true,
+  "type" : "number",
+  "required" : true,
+  "searchable" : true,
+  "desc" : ""
+} ]

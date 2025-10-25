@@ -1,0 +1,101 @@
+[ {
+  "default" : "",
+  "exportable" : true,
+  "show_in_form" : true,
+  "name" : "id",
+  "show_in_list" : true,
+  "type" : "number",
+  "required" : true,
+  "searchable" : true,
+  "desc" : ""
+}, {
+  "default" : "",
+  "exportable" : true,
+  "show_in_form" : true,
+  "name" : "areaId",
+  "show_in_list" : true,
+  "type" : "number",
+  "required" : true,
+  "searchable" : true,
+  "desc" : ""
+}, {
+  "default" : "",
+  "exportable" : true,
+  "show_in_form" : true,
+  "name" : "shopPlaceId",
+  "show_in_list" : true,
+  "type" : "number",
+  "required" : true,
+  "searchable" : true,
+  "desc" : "店铺位置ID"
+}, {
+  "default" : "",
+  "exportable" : true,
+  "show_in_form" : true,
+  "name" : "shopPlaceName",
+  "show_in_list" : true,
+  "type" : "string",
+  "required" : true,
+  "searchable" : true,
+  "desc" : "店铺位置名字"
+}, {
+  "default" : "",
+  "exportable" : true,
+  "show_in_form" : true,
+  "name" : "storagePlaceId",
+  "show_in_list" : true,
+  "type" : "number",
+  "required" : true,
+  "searchable" : true,
+  "desc" : "存放位置ID"
+}, {
+  "default" : "",
+  "exportable" : true,
+  "show_in_form" : true,
+  "name" : "storagePlaceName",
+  "show_in_list" : true,
+  "type" : "string",
+  "required" : true,
+  "searchable" : true,
+  "desc" : "存放位置名字"
+}, {
+  "default" : "",
+  "exportable" : true,
+  "show_in_form" : true,
+  "name" : "defaultFee",
+  "show_in_list" : true,
+  "type" : "number",
+  "required" : true,
+  "searchable" : true,
+  "desc" : "默认费用"
+}, {
+  "default" : "",
+  "exportable" : true,
+  "show_in_form" : true,
+  "name" : "driverFeeJson",
+  "show_in_list" : true,
+  "type" : "string",
+  "required" : true,
+  "searchable" : true,
+  "desc" : "骑手费用配置"
+}, {
+  "default" : "",
+  "exportable" : true,
+  "show_in_form" : true,
+  "name" : "updateTime",
+  "show_in_list" : true,
+  "type" : "number",
+  "required" : true,
+  "searchable" : true,
+  "desc" : "更新时间"
+}, {
+  "default" : "",
+  "exportable" : true,
+  "show_in_form" : true,
+  "name" : "createTime",
+  "show_in_list" : true,
+  "type" : "number",
+  "required" : true,
+  "searchable" : true,
+  "desc" : "创建时间"
+} ]
