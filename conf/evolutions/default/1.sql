@@ -107,6 +107,37 @@ create table v1_agreement (
   constraint pk_v1_agreement primary key (id)
 );
 
+create table tk_assessment_detail (
+  id                            bigint auto_increment not null,
+  assessment_id                 bigint,
+  category_id                   integer,
+  evaluation_element            varchar(100),
+  evaluation_content            TEXT,
+  evaluation_standard           TEXT,
+  score                         double,
+  max_score                     double,
+  evidence_description          TEXT,
+  evaluator                     varchar(50),
+  evaluate_date                 date,
+  constraint pk_tk_assessment_detail primary key (id)
+);
+
+create table tk_assessment_element_config (
+  id                            bigint auto_increment not null,
+  category_id                   integer,
+  element_name                  varchar(100),
+  element_code                  varchar(50),
+  content_description           TEXT,
+  evaluation_criteria           TEXT,
+  max_score                     double,
+  weight                        double,
+  calculation_method            varchar(50),
+  is_active                     tinyint(1),
+  display_order                 integer,
+  constraint uq_tk_assessment_element_config_element_code unique (element_code),
+  constraint pk_tk_assessment_element_config primary key (id)
+);
+
 create table v1_balance_log (
   id                            bigint auto_increment not null,
   order_no                      varchar(255),
@@ -215,6 +246,31 @@ create table v1_coupon_config (
   constraint pk_v1_coupon_config primary key (id)
 );
 
+create table critical_work_assessment (
+  id                            bigint auto_increment not null,
+  teacher_id                    bigint,
+  assessment_id                 bigint,
+  academic_year                 varchar(20),
+  administrative_positions      varchar(500),
+  work_categories               varchar(200),
+  specific_duties               varchar(500),
+  work_performance              TEXT,
+  work_difficulty_level         varchar(20),
+  work_importance_level         varchar(20),
+  work_completion_evaluation    varchar(50),
+  administrative_work_score     double,
+  temporary_task_types          varchar(200),
+  task_descriptions             TEXT,
+  task_start_date               date,
+  task_end_date                 date,
+  task_urgency_level            varchar(20),
+  task_completion_status        varchar(50),
+  task_achievements             TEXT,
+  temporary_tasks_score         double,
+  total_critical_work_score     double,
+  constraint pk_critical_work_assessment primary key (id)
+);
+
 create table v1_dict (
   id                            bigint auto_increment not null,
   parent_id                     bigint not null,
@@ -231,25 +287,25 @@ create table v1_dict (
   constraint pk_v1_dict primary key (id)
 );
 
-create table teacher_content (
+create table tk_v1_teacher_content (
   id                            bigint auto_increment not null,
   evaluation_content            varchar(255),
   score                         double,
-  constraint pk_teacher_content primary key (id)
+  constraint pk_tk_v1_teacher_content primary key (id)
 );
 
-create table evaluation_element (
+create table tk_v1_evaluation_element (
   id                            bigint auto_increment not null,
   name                          varchar(255),
-  constraint pk_evaluation_element primary key (id)
+  constraint pk_tk_v1_evaluation_element primary key (id)
 );
 
-create table evaluation_indicator (
+create table tk_v1_evaluation_indicator (
   id                            bigint auto_increment not null,
   name                          varchar(255),
   sub_name                      varchar(255),
   kpi_id                        bigint,
-  constraint pk_evaluation_indicator primary key (id)
+  constraint pk_tk_v1_evaluation_indicator primary key (id)
 );
 
 create table v1_everyday_sign_in (
@@ -292,11 +348,11 @@ create table cp_group_user (
   constraint pk_cp_group_user primary key (id)
 );
 
-create table kpi (
+create table tk_v1_kpi (
   id                            bigint auto_increment not null,
   user_id                       bigint,
   parent_id                     bigint,
-  constraint pk_kpi primary key (id)
+  constraint pk_tk_v1_kpi primary key (id)
 );
 
 create table v1_member (
@@ -454,6 +510,20 @@ create table cp_menu (
   active_menu                   varchar(255),
   create_time                   bigint not null,
   constraint pk_cp_menu primary key (id)
+);
+
+create table moral_ethics_evaluation (
+  id                            bigint auto_increment not null,
+  teacher_id                    bigint not null,
+  assessment_id                 bigint,
+  behavior_standard_compliance  tinyint(1),
+  has_violation_behavior        tinyint(1),
+  has_negative_list_behavior    tinyint(1),
+  evaluation_level_id           integer,
+  evaluation_basis              TEXT,
+  evaluator                     varchar(50),
+  evaluate_date                 date,
+  constraint pk_moral_ethics_evaluation primary key (id)
 );
 
 create table v1_msg (
@@ -720,6 +790,42 @@ create table v1_pay_method (
   constraint pk_v1_pay_method primary key (id)
 );
 
+create table personal_development_assessment (
+  id                            bigint auto_increment not null,
+  teacher_id                    bigint,
+  assessment_id                 bigint,
+  academic_year                 varchar(20),
+  demonstration_classes_count   integer,
+  observation_classes_count     integer,
+  special_lectures_count        integer,
+  class_observation_activities  integer,
+  regional_exchange_activities  integer,
+  activity_levels               varchar(100),
+  public_teaching_score         double,
+  education_papers_count        integer,
+  paper_titles                  TEXT,
+  paper_types                   varchar(100),
+  award_status                  varchar(50),
+  compilation_level             varchar(50),
+  publish_date                  date,
+  papers_score                  double,
+  research_projects             TEXT,
+  research_levels               varchar(100),
+  research_roles                varchar(100),
+  subject_proposition_work      tinyint(1),
+  continuing_education_completion tinyint(1),
+  continuing_education_hours    integer,
+  research_participation_score  double,
+  teaching_special_awards       varchar(500),
+  comprehensive_honors          varchar(500),
+  teaching_competition_awards   varchar(500),
+  excellent_teacher_certification varchar(255),
+  award_dates                   varchar(255),
+  personal_awards_score         double,
+  total_personal_development_score double,
+  constraint pk_personal_development_assessment primary key (id)
+);
+
 create table v1_shop (
   id                            bigint auto_increment not null,
   org_id                        bigint not null,
@@ -901,14 +1007,138 @@ create table v1_system_link (
   constraint pk_v1_system_link primary key (id)
 );
 
-create table teacher_performance_assessment (
+create table tk_teacher_performance_assessment (
+  id                            bigint auto_increment not null,
+  teacher_id                    bigint not null,
+  academic_year                 varchar(20),
+  assessment_date               date,
+  total_score                   double,
+  final_grade                   varchar(20),
+  assessor                      varchar(50),
+  assessment_status             varchar(20),
+  constraint pk_tk_teacher_performance_assessment primary key (id)
+);
+
+create table tk_v1_teacher_performance_assessment (
   id                            bigint auto_increment not null,
   element_ids                   varchar(255),
   evaluation_id                 bigint,
   content_ids                   varchar(255),
   evaluation_standard           varchar(255),
   score                         double,
-  constraint pk_teacher_performance_assessment primary key (id)
+  constraint pk_tk_v1_teacher_performance_assessment primary key (id)
+);
+
+create table teaching_achievement_assessment (
+  id                            bigint auto_increment not null,
+  teacher_id                    bigint,
+  assessment_id                 bigint,
+  academic_year                 varchar(20),
+  student_academic_development  varchar(255),
+  exam_types                    varchar(200),
+  average_score                 double,
+  pass_rate                     double,
+  excellence_rate               double,
+  score_improvement             double,
+  city_ranking                  integer,
+  school_ranking                integer,
+  academic_score                double,
+  mentorship_agreement_fulfillment tinyint(1),
+  guidance_effectiveness        varchar(500),
+  research_group_work           varchar(300),
+  master_studio_participation   tinyint(1),
+  training_instructor_role      tinyint(1),
+  rural_teaching_activities     tinyint(1),
+  demonstration_score           double,
+  class_meeting_awards          varchar(500),
+  team_activity_awards          varchar(500),
+  single_competition_awards     varchar(500),
+  comprehensive_honors          varchar(500),
+  award_levels                  varchar(100),
+  class_awards_score            double,
+  subject_competition_guidance  varchar(500),
+  innovation_competition_guidance varchar(500),
+  sports_league_guidance        varchar(500),
+  art_performance_guidance      varchar(500),
+  other_competition_guidance    varchar(500),
+  student_awards_levels         varchar(100),
+  student_guidance_score        double,
+  school_based_curriculum_development tinyint(1),
+  research_learning_guidance    tinyint(1),
+  comprehensive_practice_organization tinyint(1),
+  social_practice_organization  tinyint(1),
+  club_activities_guidance      tinyint(1),
+  extracurricular_tutor_role    tinyint(1),
+  school_activities_score       double,
+  teaching_research_participation tinyint(1),
+  collective_preparation_participation tinyint(1),
+  resource_sharing              tinyint(1),
+  post_training_participation   tinyint(1),
+  training_learning_participation tinyint(1),
+  class_observation_completion  tinyint(1),
+  team_cooperation_score        double,
+  student_satisfaction_rate     double,
+  parent_satisfaction_rate      double,
+  evaluation_participant_count  integer,
+  satisfaction_score            double,
+  total_teaching_achievement_score double,
+  constraint pk_teaching_achievement_assessment primary key (id)
+);
+
+create table teaching_routine_assessment (
+  id                            bigint auto_increment not null,
+  teacher_id                    bigint,
+  assessment_id                 bigint,
+  academic_year                 varchar(20),
+  sick_leave_days               integer,
+  personal_leave_days           integer,
+  late_times                    integer,
+  absence_times                 integer,
+  political_study_attendance    tinyint(1),
+  teaching_research_attendance  tinyint(1),
+  school_meeting_attendance     tinyint(1),
+  other_collective_activities_attendance tinyint(1),
+  attendance_score              double,
+  standard_class_hours          integer,
+  actual_class_hours            integer,
+  substitution_hours            integer,
+  special_class_hours           integer,
+  workload_completion_rate      double,
+  workload_score                double,
+  class_teacher_role            tinyint(1),
+  grade_leader_role             tinyint(1),
+  teaching_research_leader_role tinyint(1),
+  young_pioneer_leader_role     tinyint(1),
+  youth_league_secretary_role   tinyint(1),
+  middle_manager_role           tinyint(1),
+  management_position_description varchar(500),
+  management_work_evaluation    varchar(500),
+  management_score              double,
+  teaching_plan_quality         varchar(255),
+  teaching_organization         varchar(255),
+  classroom_management          varchar(255),
+  teaching_concept              varchar(255),
+  classroom_effectiveness       varchar(255),
+  moral_education_integration   varchar(255),
+  modern_education_tech_integration varchar(255),
+  classroom_teaching_score      double,
+  homework_correction_quality   varchar(255),
+  personalized_guidance         varchar(255),
+  psychological_guidance        varchar(255),
+  student_comprehensive_assessment varchar(255),
+  growth_records_maintenance    varchar(255),
+  learning_difficulty_support   varchar(255),
+  career_planning_guidance      varchar(255),
+  five_education_guidance       varchar(255),
+  learning_behavior_habits_cultivation varchar(255),
+  student_development_score     double,
+  parent_meeting_participation  varchar(255),
+  home_visit_records            varchar(255),
+  parenting_guidance            varchar(255),
+  parent_school_training        varchar(255),
+  parent_contact_score          double,
+  total_teaching_routine_score  double,
+  constraint pk_teaching_routine_assessment primary key (id)
 );
 
 create table v1_user_dict (
@@ -957,6 +1187,10 @@ drop table if exists cp_member;
 
 drop table if exists v1_agreement;
 
+drop table if exists tk_assessment_detail;
+
+drop table if exists tk_assessment_element_config;
+
 drop table if exists v1_balance_log;
 
 drop table if exists v1_card_coupon_config;
@@ -965,13 +1199,15 @@ drop table if exists v1_contact_detail;
 
 drop table if exists v1_coupon_config;
 
+drop table if exists critical_work_assessment;
+
 drop table if exists v1_dict;
 
-drop table if exists teacher_content;
+drop table if exists tk_v1_teacher_content;
 
-drop table if exists evaluation_element;
+drop table if exists tk_v1_evaluation_element;
 
-drop table if exists evaluation_indicator;
+drop table if exists tk_v1_evaluation_indicator;
 
 drop table if exists v1_everyday_sign_in;
 
@@ -983,7 +1219,7 @@ drop table if exists cp_group_menu;
 
 drop table if exists cp_group_user;
 
-drop table if exists kpi;
+drop table if exists tk_v1_kpi;
 
 drop table if exists v1_member;
 
@@ -998,6 +1234,8 @@ drop table if exists v1_member_level;
 drop table if exists v1_member_score_config;
 
 drop table if exists cp_menu;
+
+drop table if exists moral_ethics_evaluation;
 
 drop table if exists v1_msg;
 
@@ -1016,6 +1254,8 @@ drop table if exists v1_system_config;
 drop table if exists v1_system_config_template;
 
 drop table if exists v1_pay_method;
+
+drop table if exists personal_development_assessment;
 
 drop table if exists v1_shop;
 
@@ -1037,7 +1277,13 @@ drop table if exists v1_system_carousel;
 
 drop table if exists v1_system_link;
 
-drop table if exists teacher_performance_assessment;
+drop table if exists tk_teacher_performance_assessment;
+
+drop table if exists tk_v1_teacher_performance_assessment;
+
+drop table if exists teaching_achievement_assessment;
+
+drop table if exists teaching_routine_assessment;
 
 drop table if exists v1_user_dict;
 
