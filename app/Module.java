@@ -36,7 +36,6 @@ public class Module extends AbstractModule implements AkkaGuiceSupport {
         bind(BalanceUtils.class).asEagerSingleton();
         bind(DateUtils.class).asEagerSingleton();
         bind(EncodeUtils.class).asEagerSingleton();
-        bind(CabinetUtil.class).asEagerSingleton();
         bind(Pinyin4j.class).asEagerSingleton();
         bind(AppInit.class).asEagerSingleton();
         bindActor(TokenActor.class, "tokenActor");

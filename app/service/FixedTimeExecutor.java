@@ -36,14 +36,6 @@ public class FixedTimeExecutor {
     @Named("tokenActor")
     ActorRef tokenActorRef;
 
-    @Inject
-    @Named("platformStatActor")
-    ActorRef platformStatActorRef;
-
-    @Inject
-    @Named("shopStatActor")
-    ActorRef shopStatActorRef;
-
 
     @Inject
     public FixedTimeExecutor(ActorSystem system) {
@@ -96,54 +88,6 @@ public class FixedTimeExecutor {
         LocalTime min = LocalTime.MIN;
         LocalDateTime minNextDay = LocalDateTime.of(nextDay.toLocalDate(), min);
         long delay = Timestamp.valueOf(minNextDay).getTime() - Timestamp.valueOf(now).getTime();
-
-        system.scheduler().schedule(
-                Duration.create(delay + 10000, TimeUnit.MILLISECONDS),
-                Duration.create(1, TimeUnit.DAYS),
-                platformStatActorRef,
-                new ActorProtocol.REPORT_LAST_DAY(),
-                system.dispatcher(),
-                ActorRef.noSender()
-        );
-        system.scheduler().scheduleOnce(
-                Duration.create(2, TimeUnit.SECONDS),
-                platformStatActorRef,
-                new ActorProtocol.REPORT_DAY(),
-                system.dispatcher(),
-                ActorRef.noSender()
-        );
-        system.scheduler().schedule(
-                Duration.create(2, TimeUnit.MINUTES),
-                Duration.create(5, TimeUnit.MINUTES),
-                platformStatActorRef,
-                new ActorProtocol.REPORT_DAY(),
-                system.dispatcher(),
-                ActorRef.noSender()
-        );
-
-        system.scheduler().schedule(
-                Duration.create(delay + 20000, TimeUnit.MILLISECONDS),
-                Duration.create(1, TimeUnit.DAYS),
-                shopStatActorRef,
-                new ActorProtocol.REPORT_LAST_DAY(),
-                system.dispatcher(),
-                ActorRef.noSender()
-        );
-        system.scheduler().scheduleOnce(
-                Duration.create(2, TimeUnit.SECONDS),
-                shopStatActorRef,
-                new ActorProtocol.REPORT_DAY(),
-                system.dispatcher(),
-                ActorRef.noSender()
-        );
-        system.scheduler().schedule(
-                Duration.create(2, TimeUnit.MINUTES),
-                Duration.create(5, TimeUnit.MINUTES),
-                shopStatActorRef,
-                new ActorProtocol.REPORT_DAY(),
-                system.dispatcher(),
-                ActorRef.noSender()
-        );
 
     }
 

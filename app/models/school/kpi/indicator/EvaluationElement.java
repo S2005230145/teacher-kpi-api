@@ -17,7 +17,6 @@ public class EvaluationElement extends Model {
     public long id;
 
     //评价要素名称
-    @Id
     @Column(name="name")
     public String name;
 
