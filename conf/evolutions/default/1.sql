@@ -350,6 +350,8 @@ create table cp_group_user (
 
 create table tk_v1_kpi (
   id                            bigint auto_increment not null,
+  start_time                    datetime(6),
+  end_time                      datetime(6),
   user_id                       bigint,
   parent_id                     bigint,
   constraint pk_tk_v1_kpi primary key (id)

@@ -6,6 +6,7 @@ import io.ebean.Model;
 import jakarta.persistence.*;
 import lombok.Data;
 import myannotation.EscapeHtmlAuthoritySerializer;
+import myannotation.StringToLongDeserializer;
 
 import java.util.List;
 
@@ -21,7 +22,7 @@ public class EvaluationIndicator extends Model {
     @Id
     @Column(name = "id")
     @JsonDeserialize(using = EscapeHtmlAuthoritySerializer.class)
-    public long id;
+    public Long id;
 
     //评价指标名称
     @Column(name = "name")
@@ -35,7 +36,7 @@ public class EvaluationIndicator extends Model {
 
     //父级KPI
     @Column(name = "kpi_id")
-    @JsonDeserialize(using = EscapeHtmlAuthoritySerializer.class)
+    @JsonDeserialize(using = StringToLongDeserializer.class)
     public Long kpiId;
 
     //评价要素

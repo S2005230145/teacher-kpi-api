@@ -5,7 +5,9 @@ import io.ebean.Finder;
 import io.ebean.Model;
 import jakarta.persistence.*;
 import lombok.Data;
+import myannotation.DoubleDeserializer;
 import myannotation.EscapeHtmlAuthoritySerializer;
+import myannotation.StringToLongDeserializer;
 
 //评价内容
 @Data
@@ -16,7 +18,7 @@ public class EvaluationContent extends Model {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id")
-    @JsonDeserialize(using = EscapeHtmlAuthoritySerializer.class)
+    @JsonDeserialize(using = StringToLongDeserializer.class)
     public Long id;
 
     // 评价内容
@@ -26,7 +28,7 @@ public class EvaluationContent extends Model {
 
     // 内容得分
     @Column(name = "score")
-    @JsonDeserialize(using = EscapeHtmlAuthoritySerializer.class)
+    @JsonDeserialize(using = DoubleDeserializer.class)
     public Double score;
 
     public static Finder<Long, EvaluationContent> find =

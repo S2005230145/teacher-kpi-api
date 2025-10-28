@@ -19,7 +19,7 @@ public class EvaluationElement extends Model {
     @Id
     @Column(name = "id")
     @JsonDeserialize(using = EscapeHtmlAuthoritySerializer.class)
-    public long id;
+    public Long id;
 
     //评价要素名称
     @Column(name="name")

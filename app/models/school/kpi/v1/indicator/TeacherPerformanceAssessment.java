@@ -5,6 +5,7 @@ import io.ebean.Finder;
 import io.ebean.Model;
 import jakarta.persistence.*;
 import lombok.Data;
+import myannotation.DoubleDeserializer;
 import myannotation.EscapeHtmlAuthoritySerializer;
 
 import java.util.List;
@@ -54,7 +55,7 @@ public class TeacherPerformanceAssessment extends Model {
 
     // 得分
     @Column(name = "score")
-    @JsonDeserialize(using = EscapeHtmlAuthoritySerializer.class)
+    @JsonDeserialize(using = DoubleDeserializer.class)
     public Double score;
 
     public Boolean isBlock(){

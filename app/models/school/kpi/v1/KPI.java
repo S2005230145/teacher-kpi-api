@@ -9,7 +9,7 @@ import lombok.Data;
 import models.school.kpi.v1.indicator.EvaluationIndicator;
 import myannotation.EscapeHtmlAuthoritySerializer;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -28,11 +28,11 @@ public class KPI extends Model {
 
     @Column(name = "start_time")
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
-    public LocalDate startTime;
+    public LocalDateTime startTime;
 
     @Column(name = "end_time")
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
-    public LocalDate endTime;
+    public LocalDateTime endTime;
 
     // 用户ID
     @Column(name = "user_id")
