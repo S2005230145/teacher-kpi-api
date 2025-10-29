@@ -44,6 +44,11 @@ libraryDependencies ++= Seq(
   "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.14.2",
   "com.github.wechatpay-apiv3" % "wechatpay-java" % "0.2.17",
   "com.github.wechatpay-apiv3" % "wechatpay-apache-httpclient" % "0.6.0",
+  "com.itextpdf" % "itext7-core" % "7.2.5",
+  "com.itextpdf" % "layout" % "7.2.5",
+  "com.itextpdf" % "font-asian" % "7.2.5",
+  "org.apache.poi" % "poi" % "5.2.3",
+  "org.apache.poi" % "poi-ooxml" % "5.2.3",
   javaWs
 )
 val akkaVersion = PlayVersion.akkaVersion

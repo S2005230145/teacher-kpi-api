@@ -354,6 +354,7 @@ create table tk_v1_kpi (
   end_time                      datetime(6),
   user_id                       bigint,
   parent_id                     bigint,
+  total_score                   double,
   constraint pk_tk_v1_kpi primary key (id)
 );
 
@@ -828,6 +829,12 @@ create table personal_development_assessment (
   constraint pk_personal_development_assessment primary key (id)
 );
 
+create table tk_v1_role (
+  id                            bigint auto_increment not null,
+  nick_name                     varchar(255),
+  constraint pk_tk_v1_role primary key (id)
+);
+
 create table v1_shop (
   id                            bigint auto_increment not null,
   org_id                        bigint not null,
@@ -1143,6 +1150,14 @@ create table teaching_routine_assessment (
   constraint pk_teaching_routine_assessment primary key (id)
 );
 
+create table tk_v1_user (
+  id                            bigint auto_increment not null,
+  username                      varchar(255),
+  password                      varchar(255),
+  role_id                       bigint,
+  constraint pk_tk_v1_user primary key (id)
+);
+
 create table v1_user_dict (
   id                            bigint auto_increment not null,
   uid                           bigint not null,
@@ -1259,6 +1274,8 @@ drop table if exists v1_pay_method;
 
 drop table if exists personal_development_assessment;
 
+drop table if exists tk_v1_role;
+
 drop table if exists v1_shop;
 
 drop table if exists v1_shop_admin;
@@ -1286,6 +1303,8 @@ drop table if exists tk_v1_teacher_performance_assessment;
 drop table if exists teaching_achievement_assessment;
 
 drop table if exists teaching_routine_assessment;
+
+drop table if exists tk_v1_user;
 
 drop table if exists v1_user_dict;
 

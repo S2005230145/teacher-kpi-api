@@ -369,15 +369,27 @@ public class V1TeacherRepository {
         KPI kpi = KPI.find.query().where().eq("user_id", userId).eq("id",kpiId).setMaxRows(1).findOne();
         if(kpi!=null){
             List<Long> evaluationIndicatorIds = kpi.getEvaluationIndicatorList().stream().map(EvaluationIndicator::getId).toList();
-            String contentIds = TeacherPerformanceAssessment.find.query().where().in("evaluation_id", evaluationIndicatorIds).findList().stream().map(TeacherPerformanceAssessment::getContentIds).collect(Collectors.joining(","));
-            List<EvaluationContent> evaluationContents=EvaluationContent.find.query().where().in("content_ids",contentIds).findList();
+
+            List<TeacherPerformanceAssessment> tpaList = TeacherPerformanceAssessment.find.query().where().in("evaluation_id", evaluationIndicatorIds).findList();
+            String contentIds = tpaList.stream().map(TeacherPerformanceAssessment::getContentIds).collect(Collectors.joining(","));
+            List<EvaluationContent> evaluationContents=EvaluationContent.find.query().where().in("id",contentIds).findList();
             evaluationContentList.forEach(evaluationContent -> this.updateValuesEvaluationContent(evaluationContents,evaluationContent.getEvaluationContent(),evaluationContent.getScore()));
+
+            tpaList.forEach(tpa->{
+                double totalScore = evaluationContents.stream().filter(evaluationContent -> tpa.getContentIds().contains(String.valueOf(evaluationContent.getId()))).map(EvaluationContent::getScore).mapToDouble(Double::doubleValue).sum();
+                tpa.setScore(totalScore);
+            });
+
+            kpi.setTotalScore(tpaList.stream().map(TeacherPerformanceAssessment::getScore).mapToDouble(Double::doubleValue).sum());
             try{
                 DB.updateAll(evaluationContents);
+                DB.updateAll(tpaList);
+                kpi.update();
                 transaction.commit();
             } catch (Exception e) {
                 errorMsg.add("评分出错: "+e);
             }
+
         }else{
             errorMsg.add("该用户没有KPI");
         }
@@ -408,7 +420,6 @@ public class V1TeacherRepository {
         param.setTpalist(tpaParams);
         return param;
     }
-
 
     private TPAParam convertToTPAParam(TeacherPerformanceAssessment tpa) {
         TPAParam param = new TPAParam();

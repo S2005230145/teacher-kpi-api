@@ -13,6 +13,9 @@ import controllers.BaseAdminSecurityController;
 import io.ebean.ExpressionList;
 import io.ebean.PagedList;
 import jakarta.inject.Inject;
+import models.school.kpi.export.TeacherPerformanceExportData;
+import models.school.kpi.export.TeacherPerformanceExportRequest;
+import models.school.kpi.export.TeacherPerformancePdfExporter;
 import models.school.kpi.param.AddEvaluationParam;
 import models.school.kpi.param.TPAParam;
 import models.school.kpi.v1.KPI;
@@ -23,6 +26,9 @@ import play.mvc.Result;
 import repository.V1TeacherRepository;
 import utils.Pair;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -207,9 +213,96 @@ public class V1TeacherController extends BaseAdminSecurityController {
         });
     }
 
-    public CompletionStage<Result> export(){
+
+    @Inject
+    private TeacherPerformancePdfExporter pdfExporter;
+
+    public CompletionStage<Result> export(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
         return CompletableFuture.supplyAsync(()->{
-            return ok();
+            try {
+                TeacherPerformanceExportRequest teacherPerformanceExportRequest=objectMapper.convertValue(jsonNode,TeacherPerformanceExportRequest.class);
+                // 获取考核数据
+                TeacherPerformanceExportData data = getExportData(teacherPerformanceExportRequest);
+
+                // 生成PDF
+                byte[] pdfBytes = pdfExporter.exportToPdf(data);
+
+                // 设置响应头
+                String filename = String.format("teacher_perform_%s_%s",
+                        data.getTeacherName(), data.getAcademicYear());
+
+
+                // 创建临时文件
+                File file = File.createTempFile(filename, ".pdf");
+                try (FileOutputStream fos = new FileOutputStream(file)) {
+                    fos.write(pdfBytes);
+                }
+
+                return ok(file)
+                        .withHeader("Content-Disposition", "attachment; filename=\"" + filename + "\"")
+                        .as( "application/pdf");
+
+            } catch (Exception e) {
+                System.out.println("导出PDF失败 "+e);
+                return internalServerError();
+            }
         });
+    }
+
+    private TeacherPerformanceExportData getExportData(TeacherPerformanceExportRequest request) {
+        // 这里实现从数据库获取考核数据的逻辑
+        // 基于您提供的两张表格图片的结构
+        TeacherPerformanceExportData data = new TeacherPerformanceExportData();
+
+        BigDecimal sc=new BigDecimal(10);
+
+        data.setTeacherName("cjh");
+        data.setAcademicYear("2025");
+        data.setSemester("123");
+        data.setExportDate("sdadadac");
+
+        TeacherPerformanceExportData.MoralEvaluation moralEvaluation = new TeacherPerformanceExportData.MoralEvaluation();
+        moralEvaluation.setEvaluationResult("合格");
+        moralEvaluation.setFollowTenGuidelines(true);
+        moralEvaluation.setNoViolation(true);
+        moralEvaluation.setNoNegativeBehavior(true);
+        moralEvaluation.setComments("666");
+        data.setMoralEvaluation(moralEvaluation);
+
+        TeacherPerformanceExportData.TeachingPerformance teachingPerformance = new TeacherPerformanceExportData.TeachingPerformance();
+        teachingPerformance.setStudentAcademicDevelopment(sc);
+        teachingPerformance.setDemonstrationLeadership(sc);
+        teachingPerformance.setClassAwards(sc);
+        teachingPerformance.setStudentGuidanceAwards(sc);
+        teachingPerformance.setSchoolBasedActivities(sc);
+        teachingPerformance.setTeachingTeamCollaboration(sc);
+        teachingPerformance.setStudentParentEvaluation(sc);
+        TeacherPerformanceExportData.TeachingPerformance.TeachingRoutine teachingRoutine = new TeacherPerformanceExportData.TeachingPerformance.TeachingRoutine();
+        teachingRoutine.setAttendance(sc);
+        teachingRoutine.setTeachingWorkload(sc);
+        teachingRoutine.setClassTeacherWork(sc);
+        teachingRoutine.setClassroomTeaching(sc);
+        teachingRoutine.setStudentDevelopment(sc);
+        teachingRoutine.setHomeSchoolConnection(sc);
+        teachingPerformance.setTeachingRoutine(teachingRoutine);
+        data.setTeachingPerformance(teachingPerformance);
+
+        TeacherPerformanceExportData.ProfessionalDevelopment professionalDevelopment = new TeacherPerformanceExportData.ProfessionalDevelopment();
+        professionalDevelopment.setPublicTeachingActivities(sc);
+        professionalDevelopment.setTeachingPapers(sc);
+        professionalDevelopment.setTeachingResearch(sc);
+        professionalDevelopment.setPersonalAwards(sc);
+        data.setProfessionalDevelopment(professionalDevelopment);
+
+        TeacherPerformanceExportData.SpecialAssignments specialAssignments = new TeacherPerformanceExportData.SpecialAssignments();
+        specialAssignments.setAdministrativeWork(sc);
+        specialAssignments.setTemporaryImportantTasks(sc);
+        data.setSpecialAssignments(specialAssignments);
+
+        data.setTotalScore(sc);
+        data.setEvaluationLevel("合格");
+        // 填充数据...
+        return data;
     }
 }

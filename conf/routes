@@ -81,5 +81,6 @@ POST         /v1/tk/getList                                                     
 POST         /v1/tk/addAll                                                       controllers.school.teacher.kpi.V1TeacherController.addAll(request:Request)
 POST         /v1/tk/deleteAll                                                    controllers.school.teacher.kpi.V1TeacherController.deleteAll(request:Request)
 POST         /v1/tk/audit                                                        controllers.school.teacher.kpi.V1TeacherController.audit(request:Request)
+POST         /v1/tk/export                                                       controllers.school.teacher.kpi.V1TeacherController.export(request:Request)
 
 GET          /*file                                                              controllers.Assets.versioned(path="/public", file: Asset)

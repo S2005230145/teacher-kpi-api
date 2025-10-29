@@ -7,6 +7,7 @@ import io.ebean.Model;
 import jakarta.persistence.*;
 import lombok.Data;
 import models.school.kpi.v1.indicator.EvaluationIndicator;
+import myannotation.DoubleDeserializer;
 import myannotation.EscapeHtmlAuthoritySerializer;
 
 import java.time.LocalDateTime;
@@ -43,6 +44,11 @@ public class KPI extends Model {
     @Column(name = "parent_id")
     @JsonDeserialize(using = EscapeHtmlAuthoritySerializer.class)
     public Long parentId;
+
+    //总分
+    @Column(name = "total_score")
+    @JsonDeserialize(using = DoubleDeserializer.class)
+    public Double totalScore;
 
     // 所有评价指标
     @Transient
