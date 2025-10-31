@@ -1,5 +1,6 @@
 package controllers;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import play.cache.AsyncCacheApi;
 import play.cache.SyncCacheApi;
@@ -13,6 +14,7 @@ import utils.CacheUtils;
 import utils.DateUtils;
 
 import javax.inject.Inject;
+import java.util.List;
 
 /**
  * BaseAdminController 管理员控制器
@@ -92,5 +94,34 @@ public class BaseAdminController extends Controller {
         return node;
     }
 
+    /**
+     * 自定义返回json对象的节点2
+     *
+     * @param status
+     * @param reason
+     * @param obj
+     * @return
+     */
+    public Result okCustomNode(boolean status,List<String> reason,Object obj) {
+        ObjectNode node = Json.newObject();
+        node.put("code", status?200:500);
+        node.set("data",Json.toJson(obj));
+        node.set("reason", Json.toJson(reason));
+        return ok(node);
+    }
+
+    /**
+     * 自定义返回json对象的节点3
+     *
+     * @param status
+     * @param reason
+     * @return
+     */
+    public Result okCustomNode(boolean status,List<String> reason) {
+        ObjectNode node = Json.newObject();
+        node.put("code", status?200:500);
+        node.set("reason", Json.toJson(reason));
+        return ok(node);
+    }
 
 }

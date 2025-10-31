@@ -23,7 +23,7 @@ public class SystemController extends BaseController {
     Logger.ALogger logger = Logger.of(SystemController.class);
 
     /**
-     * @api {GET} /v2/shop/param_config/?page=&key= 01获取配置列表
+     * @api {GET} /v1/tk/param_config/?page=&key= 01获取配置列表
      * @apiName listParamConfig
      * @apiGroup SHOP-PARAM-CONFIG
      * @apiSuccess (Success 200) {int} code 200 请求成功
@@ -39,9 +39,8 @@ public class SystemController extends BaseController {
      */
     public CompletionStage<Result> listParamConfig(Http.Request request, String key) {
         return businessUtils.getUserIdByAuthToken(request).thenApplyAsync((admin) -> {
-            if (null == admin || admin.orgId < 1) return unauth503();
+            if (null == admin ) return unauth503();
             ExpressionList<ParamConfig> expressionList = ParamConfig.find.query().where()
-                    .eq("orgId", admin.orgId)
                     .eq("enable", true);
             if (!ValidationUtil.isEmpty(key)) expressionList.icontains("key", key);
             List<ParamConfig> list = expressionList.orderBy().desc("id").orderBy().asc("key")
@@ -54,7 +53,7 @@ public class SystemController extends BaseController {
     }
 
     /**
-     * @api {GET} /v2/shop/param_config/param_config/:configId/ 02获取配置详情
+     * @api {GET} /v1/tk/param_config/param_config/:configId/ 02获取配置详情
      * @apiName getParamConfig
      * @apiGroup SHOP-PARAM-CONFIG
      * @apiSuccess (Success 200) {int} code 200 请求成功
@@ -68,11 +67,10 @@ public class SystemController extends BaseController {
      */
     public CompletionStage<Result> getParamConfig(Http.Request request, long configId) {
         return businessUtils.getUserIdByAuthToken(request).thenApplyAsync((admin) -> {
-            if (null == admin || admin.orgId < 1) return unauth503();
+            if (null == admin) return unauth503();
             if (configId < 1) return okCustomJson(CODE40001, "参数错误");
             ParamConfig config = ParamConfig.find.query().where()
                     .eq("id", configId)
-                    .eq("orgId", admin.orgId)
                     .eq("enable", true)
                     .setMaxRows(1)
                     .findOne();
@@ -89,7 +87,7 @@ public class SystemController extends BaseController {
     }
 
     /**
-     * @api {POST} /v2/shop/param_config/:id/ 03更新配置value值
+     * @api {POST} /v1/tk/param_config/:id/ 03更新配置value值
      * @apiName getParamConfig
      * @apiGroup SHOP-PARAM-CONFIG
      * @apiSuccess (Success 200){int} id 配置id
@@ -102,12 +100,12 @@ public class SystemController extends BaseController {
     public CompletionStage<Result> updateParamConfig(Http.Request request, long configId) {
         JsonNode jsonNode = request.body().asJson();
         return businessUtils.getUserIdByAuthToken(request).thenApplyAsync((admin) -> {
-            if (null == admin || admin.orgId < 1) return unauth503();
+            if (null == admin ) return unauth503();
             if (null == jsonNode) return okCustomJson(CODE40001, "参数错误");
             String value = jsonNode.findPath("value").asText();
 
             ParamConfig paramConfig = ParamConfig.find.byId(configId);
-            if (null == paramConfig || paramConfig.orgId != admin.orgId) return okCustomJson(CODE40001, "参数不存在");
+            if (null == paramConfig) return okCustomJson(CODE40001, "参数不存在");
             paramConfig.setValue(value);
             paramConfig.save();
             updateParamConfigCache();

@@ -24,6 +24,7 @@ import play.libs.Json;
 import play.mvc.Http;
 import play.mvc.Result;
 import repository.V1TeacherRepository;
+import utils.AssessmentPDF;
 import utils.Pair;
 
 import java.io.File;
@@ -226,7 +227,7 @@ public class V1TeacherController extends BaseAdminSecurityController {
                 TeacherPerformanceExportData data = getExportData(teacherPerformanceExportRequest);
 
                 // 生成PDF
-                byte[] pdfBytes = pdfExporter.exportToPdf(data);
+                byte[] pdfBytes = AssessmentPDF.exportToPdf();
 
                 // 设置响应头
                 String filename = String.format("teacher_perform_%s_%s",

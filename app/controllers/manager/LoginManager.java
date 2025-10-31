@@ -39,24 +39,6 @@ public class LoginManager extends BaseAdminController {
     @NamedCache("redis")
     protected play.cache.redis.AsyncCacheApi redis;
 
-    /**
-     * @api {POST} /v1/cp/login/ 01登录
-     * @apiName login
-     * @apiGroup Admin-Authority
-     * @apiParam {jsonObject} data json串格式
-     * @apiParam {string} username 用户名.
-     * @apiParam {string} password 密码, 6位至20位
-     * @apiParam {string} vcode 手机验证码
-     * @apiSuccess (Success 200){String}  userName 用户名
-     * @apiSuccess (Success 200){String}  realName 真名
-     * @apiSuccess (Success 200){String}  lastLoginTimeForShow 最后登录时间
-     * @apiSuccess (Success 200){String}  lastLoginIP 最后登录ip
-     * @apiSuccess (Success 200){long} id 用户id
-     * @apiSuccess (Success 200){String} token token
-     * @apiSuccess (Success 200){String} groupName 所在组名
-     * @apiSuccess (Error 40001) {int} code 40001  参数错误
-     * @apiSuccess (Error 40003) {int} code 40003 用户名或密码错误
-     */
     @BodyParser.Of(BodyParser.Json.class)
     public CompletionStage<Result> login(Http.Request request) {
         JsonNode jsonNode = request.body().asJson();
@@ -138,17 +120,7 @@ public class LoginManager extends BaseAdminController {
         redis.set(idTokenKey, idToken, expireTime);
     }
 
-    /**
-     * @api {POST} /v1/cp/admin_member_password/ 03修改密码
-     * @apiName updatePassword
-     * @apiGroup Admin-Authority
-     * @apiParam {string} oldPassword 旧密码6-20
-     * @apiParam {string} newPassword 新密码6-20
-     * @apiSuccess (Success 200) {int} code 200 请求成功
-     * @apiSuccess (Success 40001) {int} code 40001 密码错误,6-20位
-     * @apiSuccess (Success 40002) {int} code 40002 该管理员不存在
-     * @apiSuccess (Success 40004) {int} code 40004 密码错误
-     */
+
     @BodyParser.Of(BodyParser.Json.class)
     @Transactional
     public CompletionStage<Result> updatePassword(Http.Request request) {
@@ -171,14 +143,6 @@ public class LoginManager extends BaseAdminController {
         });
     }
 
-    /**
-     * @api {GET} /v1/cp/is_login/ 04是否已登录
-     * @apiName isLogin
-     * @apiGroup Admin-Authority
-     * @apiSuccess (Success 200){int} code 200
-     * @apiSuccess {boolean} login true已登录 false未登录
-     * @apiSuccess (Error 40001){int} code 40001 参数错误
-     */
     public CompletionStage<Result> isLogin(Http.Request request) {
         return CompletableFuture.supplyAsync(() -> {
             Optional<AdminMember> adminMemberOptional = businessUtils.getAdminByAuthToken(request);

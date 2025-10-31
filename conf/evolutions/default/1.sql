@@ -210,6 +210,13 @@ create table v1_contact_detail (
   constraint pk_v1_contact_detail primary key (id)
 );
 
+create table tk_v3_content (
+  id                            bigint auto_increment not null,
+  element_id                    bigint,
+  content                       varchar(255),
+  constraint pk_tk_v3_content primary key (id)
+);
+
 create table v1_coupon_config (
   id                            bigint auto_increment not null,
   coupon_title                  varchar(255),
@@ -287,6 +294,15 @@ create table v1_dict (
   constraint pk_v1_dict primary key (id)
 );
 
+create table tk_v3_element (
+  id                            bigint auto_increment not null,
+  indicator_id                  bigint,
+  element                       varchar(255),
+  criteria                      varchar(255),
+  is_auto                       tinyint(1),
+  constraint pk_tk_v3_element primary key (id)
+);
+
 create table tk_v1_teacher_content (
   id                            bigint auto_increment not null,
   evaluation_content            varchar(255),
@@ -346,6 +362,20 @@ create table cp_group_user (
   realname                      varchar(255),
   create_time                   bigint not null,
   constraint pk_cp_group_user primary key (id)
+);
+
+create table tk_v3_indicator (
+  id                            bigint auto_increment not null,
+  kpi_id                        bigint,
+  indicator_name                varchar(255),
+  sub_name                      varchar(255),
+  constraint pk_tk_v3_indicator primary key (id)
+);
+
+create table tk_v3_kpi (
+  id                            bigint auto_increment not null,
+  title                         varchar(255),
+  constraint pk_tk_v3_kpi primary key (id)
 );
 
 create table tk_v1_kpi (
@@ -1016,6 +1046,32 @@ create table v1_system_link (
   constraint pk_v1_system_link primary key (id)
 );
 
+create table tk_v3_teacher_content_score (
+  id                            bigint auto_increment not null,
+  user_id                       bigint,
+  content_id                    bigint,
+  element_id                    bigint,
+  score                         double,
+  constraint pk_tk_v3_teacher_content_score primary key (id)
+);
+
+create table tk_v3_teacher_element_score (
+  id                            bigint auto_increment not null,
+  user_id                       bigint,
+  element_id                    bigint,
+  kpi_id                        bigint,
+  score                         double,
+  constraint pk_tk_v3_teacher_element_score primary key (id)
+);
+
+create table tk_v3_teacher_kpi_score (
+  id                            bigint auto_increment not null,
+  user_id                       bigint,
+  kpi_id                        bigint,
+  score                         double,
+  constraint pk_tk_v3_teacher_kpi_score primary key (id)
+);
+
 create table tk_teacher_performance_assessment (
   id                            bigint auto_increment not null,
   teacher_id                    bigint not null,
@@ -1152,8 +1208,10 @@ create table teaching_routine_assessment (
 
 create table tk_v1_user (
   id                            bigint auto_increment not null,
-  username                      varchar(255),
+  user_name                     varchar(255),
   password                      varchar(255),
+  type_name                     varchar(255),
+  status                        integer not null,
   role_id                       bigint,
   constraint pk_tk_v1_user primary key (id)
 );
@@ -1214,11 +1272,15 @@ drop table if exists v1_card_coupon_config;
 
 drop table if exists v1_contact_detail;
 
+drop table if exists tk_v3_content;
+
 drop table if exists v1_coupon_config;
 
 drop table if exists critical_work_assessment;
 
 drop table if exists v1_dict;
+
+drop table if exists tk_v3_element;
 
 drop table if exists tk_v1_teacher_content;
 
@@ -1235,6 +1297,10 @@ drop table if exists cp_group_action;
 drop table if exists cp_group_menu;
 
 drop table if exists cp_group_user;
+
+drop table if exists tk_v3_indicator;
+
+drop table if exists tk_v3_kpi;
 
 drop table if exists tk_v1_kpi;
 
@@ -1295,6 +1361,12 @@ drop table if exists v1_sms_template;
 drop table if exists v1_system_carousel;
 
 drop table if exists v1_system_link;
+
+drop table if exists tk_v3_teacher_content_score;
+
+drop table if exists tk_v3_teacher_element_score;
+
+drop table if exists tk_v3_teacher_kpi_score;
 
 drop table if exists tk_teacher_performance_assessment;
 

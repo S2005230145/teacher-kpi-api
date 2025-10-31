@@ -14,7 +14,7 @@ import static constants.RedisKeyConstant.ADMIN_KEY_MEMBER_ID_AUTH_TOKEN_PREFIX;
  */
 public class LogoutController extends BaseController {
     /**
-     * @api {POST} /v1/cp/logout/ 03注销
+     * @api {POST} /v1/tk/logout/ 03注销
      * @apiName logout
      * @apiGroup Admin-Authority
      * @apiSuccess (Success 200){int} code 200 注销成功.

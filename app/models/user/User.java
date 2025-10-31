@@ -20,7 +20,7 @@ public class User extends Model {
     @JsonDeserialize(using = EscapeHtmlAuthoritySerializer.class)
     public Long id;
 
-    @Column(name = "username")
+    @Column(name = "user_name")
     @JsonDeserialize(using = EscapeHtmlSerializer.class)
     public String userName;
 
@@ -28,9 +28,19 @@ public class User extends Model {
     @JsonIgnore
     public String password;
 
+    @Column(name = "type_name")
+    @JsonDeserialize(using = EscapeHtmlSerializer.class)
+    public String typeName;
+
+    @Column(name = "status")
+    public int status;
+
     @Column(name = "role_id")
     @JsonDeserialize(using = EscapeHtmlSerializer.class)
     public Long roleId;
+
+    @Transient
+    public Role role;
 
     public static Finder<Long, User> find =
             new Finder<>(User.class);

@@ -26,6 +26,7 @@ import models.system.PayMethod;
 import models.user.Member;
 import models.user.MemberBalance;
 import models.user.MemberLevel;
+import models.user.User;
 import play.Logger;
 import play.cache.NamedCache;
 import play.libs.Json;
@@ -111,18 +112,18 @@ public class BizUtils {
         return "";
     }
 
-    public ShopAdmin getUserIdByAuthToken2(Http.Request request) {
+    public User getUserIdByAuthToken2(Http.Request request) {
         String authToken = getUIDFromRequest(request);
         if (ValidationUtil.isEmpty(authToken)) return null;
-        Optional<ShopAdmin> optional = redis.sync().get(authToken);
+        Optional<User> optional = redis.sync().get(authToken);
         if (optional.isPresent()) {
-            ShopAdmin member = optional.get();
+            User member = optional.get();
             return member;
         }
         return null;
     }
 
-    public CompletionStage<ShopAdmin> getUserIdByAuthToken(Http.Request request) {
+    public CompletionStage<User> getUserIdByAuthToken(Http.Request request) {
         return CompletableFuture.supplyAsync(() -> getUserIdByAuthToken2(request));
     }
 

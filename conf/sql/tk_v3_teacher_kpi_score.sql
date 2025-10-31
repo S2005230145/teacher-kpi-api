@@ -1,0 +1,16 @@
+-- Created by EntityToSQLGenerator
+-- Table structure for tk_v3_teacher_kpi_score
+
+-- !Ups
+
+drop table if exists tk_v3_teacher_kpi_score;
+create table tk_v3_teacher_kpi_score (
+  id bigint not null auto_increment,
+  user_id bigint,
+  element_id bigint,
+  score double,
+  constraint pk_tk_v3_teacher_kpi_score primary key (id)
+);
+
+-- !Downs
+

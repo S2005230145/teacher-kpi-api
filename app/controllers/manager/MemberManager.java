@@ -59,7 +59,7 @@ public class MemberManager extends BaseAdminSecurityController {
 
 
     /**
-     * @api {POST} /v1/cp/members/?page=&uid=&filter= 01获取用户列表
+     * @api {POST} /v1/tk/members/?page=&uid=&filter= 01获取用户列表
      * @apiName listMembers
      * @apiGroup ADMIN_MEMBER
      * @apiParam {long} uid uid
@@ -141,7 +141,7 @@ public class MemberManager extends BaseAdminSecurityController {
     }
 
     /**
-     * @api {GET} /v1/cp/members/:memberId/ 02获取用户详情
+     * @api {GET} /v1/tk/members/:memberId/ 02获取用户详情
      * @apiName getUser
      * @apiGroup ADMIN_MEMBER
      * @apiSuccess (Success 200){int} code 200
@@ -189,7 +189,7 @@ public class MemberManager extends BaseAdminSecurityController {
     }
 
     /**
-     * @api {POST} /v1/cp/members/status/ 03锁定/解锁用户
+     * @api {POST} /v1/tk/members/status/ 03锁定/解锁用户
      * @apiName setMemberStatus
      * @apiGroup ADMIN_MEMBER
      * @apiParam {long} memberId 用户ID
@@ -238,7 +238,7 @@ public class MemberManager extends BaseAdminSecurityController {
 
 
     /**
-     * @api {GET} /v1/cp/member_balance_log/?page=&uid=&queryType= 04流水记录
+     * @api {GET} /v1/tk/member_balance_log/?page=&uid=&queryType= 04流水记录
      * @apiName listUserBalanceLog
      * @apiGroup ADMIN_MEMBER
      * @apiSuccess (Success 200) {int} code 200 请求成功
@@ -281,7 +281,7 @@ public class MemberManager extends BaseAdminSecurityController {
 
 
     /**
-     * @api {GET} /v1/cp/customer_orders/?page=&uid= 11用户订单列表
+     * @api {GET} /v1/tk/customer_orders/?page=&uid= 11用户订单列表
      * @apiName listCustomerOrders
      * @apiGroup ADMIN_MEMBER
      * @apiSuccess (Success 200){int} pages 页数
@@ -635,7 +635,7 @@ public class MemberManager extends BaseAdminSecurityController {
     }
 
     /**
-     * @api {GET} /v1/cp/admin_member/info/ 08查看自己详情信息
+     * @api {GET} /v1/tk/admin_member/info/ 08查看自己详情信息
      * @apiName getAdminMemberInfo
      * @apiGroup Admin-Member
      * @apiSuccess (Success 200) {int} code 200 请求成功
@@ -697,7 +697,7 @@ public class MemberManager extends BaseAdminSecurityController {
     }
 
     /**
-     * @api {POST} /v1/cp/bind_member_to_group/ 09批量绑定用户到角色组
+     * @api {POST} /v1/tk/bind_member_to_group/ 09批量绑定用户到角色组
      * @apiName bindMemberToGroup
      * @apiGroup Admin-Member
      * @apiParam {long} uid 用户ID
@@ -749,7 +749,7 @@ public class MemberManager extends BaseAdminSecurityController {
     }
 
     /**
-     * @api {GET} /v1/cp/user_groups/?memberId= 10用户所属分组
+     * @api {GET} /v1/tk/user_groups/?memberId= 10用户所属分组
      * @apiName listUserGroups
      * @apiGroup Admin-Member
      * @apiSuccess {json} list

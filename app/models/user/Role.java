@@ -1,6 +1,7 @@
 package models.user;
 
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import io.ebean.Finder;
 import io.ebean.Model;
 import jakarta.persistence.*;
 import lombok.Data;
@@ -20,4 +21,7 @@ public class Role extends Model {
     @Column(name = "nick_name")
     @JsonDeserialize(using = EscapeHtmlAuthoritySerializer.class)
     public String nickName;
+
+    public static Finder<Long, Role> find =
+            new Finder<>(Role.class);
 }

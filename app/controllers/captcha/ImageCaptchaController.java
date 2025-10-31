@@ -42,7 +42,7 @@ public class ImageCaptchaController extends BaseController {
            */
 
     /**
-     * @api {GET} /v2/shop/captcha/gen/noauth/ 01获取验证码图片
+     * @api {GET} /v1/tk/captcha/gen/noauth/ 01获取验证码图片
      * @apiName getCaptcha
      * @apiGroup Captcha
      * @apiSuccess (Success 200){int} code 200
@@ -80,7 +80,7 @@ public class ImageCaptchaController extends BaseController {
     }
 
     /**
-     * @api {POST} /v2/shop/captcha/check/noauth/ 02请求验证
+     * @api {POST} /v1/tk/captcha/check/noauth/  02请求验证
      * @apiName validate
      * @apiGroup Captcha
      * @apiParam {long} id 验证ID

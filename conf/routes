@@ -3,62 +3,44 @@
 # ~~~~
 
 #upload
-GET          /v2/tk/captcha/gen/noauth/                                        controllers.captcha.ImageCaptchaController.getCaptcha(request: Request)
-POST         /v2/tk/captcha/check/noauth/                                      controllers.captcha.ImageCaptchaController.validate(request: Request)
-
 
 +nocsrf
-POST         /v2/tk/upload/                                                    controllers.basic.UploaderManager.upload(request: Request)
-POST         /v2/tk/upload2/                                                   controllers.basic.UploaderManager.upload2(request: Request)
-POST         /v2/tk/upload_base64/                                             controllers.basic.UploaderManager.uploadBase64(request: Request)
+POST         /v1/tk/upload/                                                    controllers.basic.UploaderManager.upload(request: Request)
+POST         /v1/tk/upload2/                                                   controllers.basic.UploaderManager.upload2(request: Request)
+POST         /v1/tk/upload_base64/                                             controllers.basic.UploaderManager.uploadBase64(request: Request)
 #ADMIN MODULE
 
-POST         /v2/tk/request_sms/                                               controllers.basic.SmsController.requestVCode(request: Request)
-POST         /v2/tk/requestd_user_vcode/                                       controllers.basic.SmsController.requestUserVCode(request: Request)
+POST         /v1/tk/request_sms/                                               controllers.basic.SmsController.requestVCode(request: Request)
+POST         /v1/tk/requestd_user_vcode/                                       controllers.basic.SmsController.requestUserVCode(request: Request)
 
-POST         /v2/tk/reset_login_password/                                      controllers.basic.LoginController.resetLoginPassword(request: Request)
-POST         /v2/tk/set_login_password/                                        controllers.basic.LoginController.setLoginPassword(request: Request)
-
-+nocsrf
-POST         /v2/tk/login/noauth/                                              controllers.basic.LoginController.login(request:Request)
-+nocsrf
-GET          /v2/tk/is_login/                                                  controllers.basic.LoginController.isLogin(request:Request)
-+nocsrf
-POST         /v2/tk/user/new/                                                  controllers.basic.LoginController.signUp(request:Request)
-GET          /v2/tk/admin_member/info/                                         controllers.basic.LoginController.getAdminMemberInfo(request:Request)
-POST         /v2/tk/shop_on/                                                   controllers.basic.LoginController.updateShop(request:Request)
-GET          /v2/tk/shop_info/                                                 controllers.basic.LoginController.getShopInfo(request:Request)
+POST         /v1/tk/reset_login_password/                                      controllers.basic.LoginController.resetLoginPassword(request: Request)
+POST         /v1/tk/set_login_password/                                        controllers.basic.LoginController.setLoginPassword(request: Request)
 
 +nocsrf
-POST         /v2/tk/logout/                                                    controllers.basic.LogoutController.logout(request:Request)
-
-GET          /ws_manager/                                                        controllers.push.PushController.handleWS()
-
-GET          /v2/tk/param_config/                                              controllers.basic.SystemController.listParamConfig(request: Request,key:String?="")
-GET          /v2/tk/param_config/:id/                                          controllers.basic.SystemController.getParamConfig(request: Request,id:Long)
-POST         /v2/tk/param_config/:id/                                          controllers.basic.SystemController.updateParamConfig(request: Request,id:Long)
+#登录
+POST         /v1/tk/login/noauth/                                              controllers.basic.LoginController.login(request:Request)
++nocsrf
+GET          /v1/tk/is_login/                                                  controllers.basic.LoginController.isLogin(request:Request)
++nocsrf
+#注册
+POST         /v1/tk/user/new/                                                  controllers.basic.LoginController.signUp(request:Request)
+#管理员信息
+GET          /v1/tk/admin_member/info/                                         controllers.basic.LoginController.getAdminMemberInfo(request:Request)
 
 +nocsrf
+POST         /v1/tk/logout/                                                    controllers.basic.LogoutController.logout(request:Request)
 
+GET          /ws_manager/                                                      controllers.push.PushController.handleWS()
+
+GET          /v1/tk/param_config/                                              controllers.basic.SystemController.listParamConfig(request: Request,key:String?="")
+GET          /v1/tk/param_config/:id/                                          controllers.basic.SystemController.getParamConfig(request: Request,id:Long)
+POST         /v1/tk/param_config/:id/                                          controllers.basic.SystemController.updateParamConfig(request: Request,id:Long)
+
++nocsrf
 GET          /v1/tk/captcha/gen/                                                 controllers.captcha.ImageCaptchaController.getCaptcha(request: Request)
 POST         /v1/tk/captcha/check/                                               controllers.captcha.ImageCaptchaController.validate(request: Request)
 
 #ADMIN MODULE
-
-POST         /v1/tk/request_sms/                                                 controllers.basic.SmsController.requestVCode(request: Request)
-+nocsrf
-POST         /v1/tk/request_user_vcode/                                          controllers.basic.SmsController.requestUserVCode(request:Request)
-
-+nocsrf
-POST         /v1/tk/login/                                                       controllers.manager.LoginManager.login(request:Request)
-#POST         /v1/cp/login_agent/                                                 controllers.manager.LoginManager.loginAgent(request:Request)
-+nocsrf
-GET          /v1/tk/is_login/                                                    controllers.manager.LoginManager.isLogin(request:Request)
-
-+nocsrf
-POST         /v1/tk/admin_member_password/                                       controllers.manager.LoginManager.updatePassword(request:Request)
-+nocsrf
-POST         /v1/tk/logout/                                                      controllers.manager.LogoutManager.logout(request:Request)
 
 GET          /v1/tk/actions/                                                     controllers.manager.ActionController.listActions()
 POST         /v1/tk/action/new/                                                  controllers.manager.ActionController.addAction(request: Request)
@@ -77,10 +59,19 @@ POST         /v1/tk/admin_members/status/                                       
 POST         /v1/tk/bind_member_to_group/                                        controllers.manager.MemberManager.bindMemberToGroup(request:Request)
 GET          /v1/tk/user_groups/                                                 controllers.manager.MemberManager.listUserGroups(request:Request,memberId:Long?=0)
 
-POST         /v1/tk/getList                                                      controllers.school.teacher.kpi.V1TeacherController.getList(request:Request)
-POST         /v1/tk/addAll                                                       controllers.school.teacher.kpi.V1TeacherController.addAll(request:Request)
-POST         /v1/tk/deleteAll                                                    controllers.school.teacher.kpi.V1TeacherController.deleteAll(request:Request)
-POST         /v1/tk/audit                                                        controllers.school.teacher.kpi.V1TeacherController.audit(request:Request)
-POST         /v1/tk/export                                                       controllers.school.teacher.kpi.V1TeacherController.export(request:Request)
+# 教师绩效
+
+POST         /v1/tk/kpi/add/                                                     controllers.school.teacher.kpi.V3TeacherController.addKpi(request:Request)
+POST         /v1/tk/regular/add/                                                 controllers.school.teacher.kpi.V3TeacherController.add(request:Request)
+POST         /v1/tk/getList/                                                     controllers.school.teacher.kpi.V3TeacherController.getList(request:Request)
+POST         /v1/tk/getKpiList/                                                  controllers.school.teacher.kpi.V3TeacherController.getKpiList(request:Request)
+POST         /v1/tk/dispatch/                                                    controllers.school.teacher.kpi.V3TeacherController.dispatch(request:Request)
+POST         /v1/tk/grade/                                                       controllers.school.teacher.kpi.V3TeacherController.grade(request:Request)
+POST         /v1/tk/export/                                                      controllers.school.teacher.kpi.V3TeacherController.export(request:Request)
+POST         /v1/tk/getElementList/                                              controllers.school.teacher.kpi.V3TeacherController.getElementList(request:Request)
+POST         /v1/tk/getContentList/                                              controllers.school.teacher.kpi.V3TeacherController.getContentList(request:Request)
+POST         /v1/tk/export/                                                      controllers.school.teacher.kpi.V3TeacherController.isAutoCalculator(request:Request)
+POST         /v1/tk/delete/                                                      controllers.school.teacher.kpi.V3TeacherController.deleteElementOrContentOrIndicatorOrKpi(request:Request)
+POST         /v1/tk/withDraw/                                                    controllers.school.teacher.kpi.V3TeacherController.withDraw(request:Request)
 
 GET          /*file                                                              controllers.Assets.versioned(path="/public", file: Asset)

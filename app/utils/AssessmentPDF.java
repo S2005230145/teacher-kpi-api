@@ -10,9 +10,14 @@ import com.itextpdf.layout.element.*;
 import com.itextpdf.layout.properties.TextAlignment;
 import com.itextpdf.layout.properties.UnitValue;
 import com.itextpdf.layout.properties.VerticalAlignment;
+import models.school.kpi.v3.*;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 public class AssessmentPDF {
 
@@ -47,7 +52,44 @@ public class AssessmentPDF {
         return baos.toByteArray();
     }
 
+    public static byte[] v3ExportToPdf(Long userId,Long kpiId) throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        PdfWriter writer = new PdfWriter(baos);
+        PdfDocument pdfDoc = new PdfDocument(writer);
+        Document document = new Document(pdfDoc);
 
+        // 设置中文字体
+        setupChineseFont();
+        document.setFont(chineseFont);
+        document.setFontSize(9);
+
+        // 添加文档内容
+        //第一页
+        v3AddTitle(document,kpiId);
+        addTableTop(document);
+        List<Indicator> indicatorList = Indicator.find.query().where().eq("kpi_id",kpiId).findList();
+        List<Indicator> indicatorListFirst=indicatorList.subList(0,2);//取前两个指标
+        List<Element> elementList = Element.find.query().where().in("indicator_id", indicatorList.stream().map(Indicator::getId).toList()).findList();
+        List<Content> contentList = Content.find.query().where().in("element_id",elementList.stream().map(Element::getId).toList()).findList();
+        List<TeacherElementScore> tes = TeacherElementScore.find.query().where().eq("user_id", userId).findList();
+
+        v3AddItem1(document,indicatorListFirst,elementList,contentList,tes);
+
+        document.add(new AreaBreak());
+
+        //第二页
+        v3AddTitle(document,kpiId);
+        addTableTop2(document);
+        List<Indicator> indicatorListSecond=indicatorList.subList(2,indicatorList.size());
+
+        v3AddItem1(document,indicatorListSecond,elementList,contentList,tes);
+
+        Double score = TeacherKPIScore.find.query().where().eq("user_id", userId).eq("kpi_id", kpiId).setMaxRows(1).findOne().getScore();
+        addTotal(document,score);
+
+        document.close();
+        return baos.toByteArray();
+    }
     /**
      * 初始化中文字体
      */
@@ -84,6 +126,22 @@ public class AssessmentPDF {
 
         document.add(title);
     }
+    private static void v3AddTitle(Document document,Long kpiId) {
+        KPI kpi = KPI.find.query().where().eq("id", kpiId).setMaxRows(1).findOne();
+        if(kpi==null){
+            System.out.println("kpi为null");
+            return;
+        }
+        // 标题
+        Paragraph title = new Paragraph(kpi.getTitle())
+                .setTextAlignment(TextAlignment.CENTER)
+                .setFontSize(12)
+                .setBold()
+                .setMarginBottom(5);
+
+
+        document.add(title);
+    }
 
     private static void addTableTop(Document document) {
         Table table = new Table(UnitValue.createPercentArray(new float[]{1, 1, 2, 2, 1})).setWidth(UnitValue.createPercentValue(100));
@@ -93,7 +151,7 @@ public class AssessmentPDF {
         table.addCell(createCell("评 价 标 准",2,1).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
         table.addCell(createCell("得 分\n（100分）",2,1).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
 
-        table.addCell(new Cell(1,1).add(WordVerticalText.createWordVerticalParagraph("一级   二级   三级",chineseFont,6)).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE).setFontSize(6));
+        table.addCell(new Cell(1,1).add(WordVerticalText.createWordVerticalParagraph("一级   二级   三级",chineseFont,4)).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE).setFontSize(6));
         document.add(table);
     }
 
@@ -107,6 +165,52 @@ public class AssessmentPDF {
 
         table.addCell(createCellWithIndent("2.未存在教育部《中小学教师违反职业道德行为处理办法(2018年修订)》、《幼儿园教师违反职业道德行为处理办法》中应予处理的教师违反职业道德的行为",1,2).setTextAlignment(TextAlignment.LEFT).setVerticalAlignment(VerticalAlignment.MIDDLE));
         table.addCell(createCellWithIndent("3.未存在《福州市中小学(幼儿园)教师职业行为负面清单》及《福州市教师职业行为负面清单处理办法》中的师德失范行为",1,2).setTextAlignment(TextAlignment.LEFT).setVerticalAlignment(VerticalAlignment.MIDDLE));
+        document.add(table);
+    }
+    private static void v3AddItem1(Document document,List<Indicator> indicatorList,List<Element> elementList,List<Content> contentList,List<TeacherElementScore> tes) {
+        indicatorList.forEach(indicator -> {
+            Table table = new Table(UnitValue.createPercentArray(new float[]{1, 1, 2, 2, 1})).setWidth(UnitValue.createPercentValue(100));
+            List<Element> filterElementList = elementList.stream().filter(v1 -> Objects.equals(v1.getIndicatorId(), indicator.getId())).toList();
+
+            List<Content> filterContentList = new java.util.ArrayList<>(contentList.stream().filter(v1 -> filterElementList.stream().map(Element::getId).toList().contains(v1.getElementId())).toList());
+            int cell=0;
+            if(filterContentList.stream().anyMatch(str -> str.getContent().contains("、"))){
+                cell=filterContentList.size();
+            }else{
+                cell= filterContentList.stream().map(Content::getElementId).collect(Collectors.toSet()).size();
+            }
+            int finalCell = cell;
+            table.addCell(createCell(indicator.getIndicatorName()+"\n\n"+indicator.getSubName(),cell,1).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
+            filterElementList.forEach(element -> {
+                Double score = Objects.requireNonNull(tes.stream().filter(v1 -> v1.getElementId() == element.getId()).findFirst().orElse(null)).getScore();
+                if(element.getElement()==null){
+                    table.addCell(createCellWithIndent(filterContentList.get(0).getContent(),1,2).setTextAlignment(TextAlignment.LEFT).setVerticalAlignment(VerticalAlignment.MIDDLE));
+                    table.addCell(createCell(element.getCriteria(), finalCell,1).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
+                    table.addCell(createCell(score!=null?score.toString():null, finalCell,1).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
+                    filterContentList.remove(0);
+                    filterContentList.forEach(content -> {
+                        table.addCell(createCellWithIndent(content.getContent(),1,2).setTextAlignment(TextAlignment.LEFT).setVerticalAlignment(VerticalAlignment.MIDDLE));
+                    });
+                }
+                else{
+                    table.addCell(createCell(element.getElement(),null,null).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
+                    table.addCell(createCellWithIndent(filterContentList.stream().filter(v1-> Objects.equals(v1.getElementId(), element.getId())).map(Content::getContent).collect(Collectors.joining(",")),null,null).setTextAlignment(TextAlignment.LEFT).setVerticalAlignment(VerticalAlignment.MIDDLE));
+                    table.addCell(createCell(element.getCriteria(),null,null).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
+                    //TODO分数
+                    table.addCell(createCell(score!=null?score.toString():null,null,null).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
+                }
+            });
+
+            document.add(table);
+        });
+    }
+
+    private static void addTotal(Document document,Double score){
+        Table table = new Table(UnitValue.createPercentArray(new float[]{1, 1, 2, 2, 1})).setWidth(UnitValue.createPercentValue(100));
+
+        table.addCell(createCell("总 分   100 分",1,4).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
+        table.addCell(createCell(score!=null?score.toString():null,1,1).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
+
         document.add(table);
     }
 

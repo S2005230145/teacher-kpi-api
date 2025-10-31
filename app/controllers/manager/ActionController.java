@@ -40,7 +40,7 @@ public class ActionController extends BaseAdminSecurityController {
     EncodeUtils encodeUtils;
 
     /**
-     * @api {GET} /v1/cp/action/:actionId/ 01权限详情
+     * @api {GET} /v1/tk/action/:actionId/ 01权限详情
      * @apiName getAction
      * @apiGroup Admin-Action
      * @apiSuccess (Success 200) {int} code 200 请求成功
@@ -67,7 +67,7 @@ public class ActionController extends BaseAdminSecurityController {
     }
 
     /**
-     * @api {GET} /v1/cp/actions/ 02权限列表
+     * @api {GET} /v1/tk/actions/ 02权限列表
      * @apiName listActions
      * @apiGroup Admin-Action
      * @apiSuccess (Success 200) {int} code 200 请求成功
@@ -104,7 +104,7 @@ public class ActionController extends BaseAdminSecurityController {
 
 
     /**
-     * @api {POST} /v1/cp/action/new/ 03新建权限
+     * @api {POST} /v1/tk/action/new/ 03新建权限
      * @apiName addAction
      * @apiGroup Admin-Action
      * @apiSuccess (Success 200) {int} code 200 请求成功
@@ -149,7 +149,7 @@ public class ActionController extends BaseAdminSecurityController {
 
 
     /**
-     * @api {POST} /v1/cp/action/:id/ 04修改权限
+     * @api {POST} /v1/tk/action/:id/ 04修改权限
      * @apiName updateAction
      * @apiGroup Admin-Action
      * @apiSuccess (Success 200) {int} code 200 请求成功
@@ -211,7 +211,7 @@ public class ActionController extends BaseAdminSecurityController {
     }
 
     /**
-     * @api {POST} /v1/cp/action/ 05删除权限
+     * @api {POST} /v1/tk/action/ 05删除权限
      * @apiName delAction
      * @apiGroup Admin-Action
      * @apiParam {String} id 权限id
@@ -241,7 +241,7 @@ public class ActionController extends BaseAdminSecurityController {
     }
 
     /**
-     * @api {GET} /v1/cp/actions_by_filter/:groupId/ 06根据groupId取出权限
+     * @api {GET} /v1/tk/actions_by_filter/:groupId/ 06根据groupId取出权限
      * @apiName getGroupActionByGroupId
      * @apiGroup Admin-Action
      * @apiSuccess (Success 200) {int} code 200 请求成功

@@ -31,19 +31,6 @@ public class SmsController extends BaseController {
     @Inject
     SmsUtils smsUtils;
 
-    /**
-     * @api {POST} /v1/user/request_vcode/ 02请求短信验证码
-     * @apiName requestVCode
-     * @apiGroup SMS
-     * @apiParam {string} phoneNumber 手机号码
-     * @apiParam {string} [captcha] 校验码
-     * @apiSuccess (Success 200){int} code 200 成功发送短信
-     * @apiSuccess (Error 40001) {int} code 40001 参数错误
-     * @apiSuccess (Error 40002) {int} code 40002 发送失败
-     * @apiSuccess (Error 40003) {int} code 40003 达到限制次数
-     * @apiSuccess (Error 40004) {int} code 40004 校验码错误
-     * @apiSuccess (Error 40005) {int} code 40005 请求验证码太频繁，请稍后再试
-     */
     @BodyParser.Of(BodyParser.Json.class)
     public CompletionStage<Result> requestVCode(Http.Request request) {
         return CompletableFuture.supplyAsync(() -> {
@@ -82,17 +69,6 @@ public class SmsController extends BaseController {
 
     }
 
-    /**
-     * @api {POST} /v1/user/request_user_vcode/ 03请求给用户号码发短信
-     * @apiName requestUserVCode
-     * @apiGroup SMS
-     * @apiSuccess (Success 200){int} code 200 成功发送短信
-     * @apiSuccess (Error 40001) {int} code 40001 参数错误
-     * @apiSuccess (Error 40002) {int} code 40002 发送失败
-     * @apiSuccess (Error 40003) {int} code 40003 达到限制次数
-     * @apiSuccess (Error 40004) {int} code 40004 校验码错误
-     * @apiSuccess (Error 40005) {int} code 40005 请求验证码太频繁，请稍后再试
-     */
     @Security.Authenticated(Secured.class)
     public CompletionStage<Result> requestUserVCode(Http.Request request) {
         return businessUtils.getUserIdByAuthToken(request).thenApplyAsync((memberInCache) -> {

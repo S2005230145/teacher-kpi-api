@@ -17,6 +17,7 @@ import com.qcloud.cos.region.Region;
 import controllers.BaseAdminController;
 import controllers.BaseSecurityController;
 import models.admin.ShopAdmin;
+import models.user.User;
 import myannotation.Json1MParser;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
@@ -52,7 +53,7 @@ public class UploaderManager extends BaseAdminController {
 
 
     /**
-     * @api {POST} /v2/shop/upload/ 上传
+     * @api {POST} /v2/tk/upload/ 上传
      * @apiName upload
      * @apiGroup System
      * @apiSuccess (Success 200){int}code 200
@@ -91,7 +92,7 @@ public class UploaderManager extends BaseAdminController {
     }
 
     /**
-     * @api {POST} /v2/shop/upload2/ 上传
+     * @api {POST} /v2/tk/upload2/ 上传
      * @apiName upload
      * @apiGroup System
      * @apiSuccess (Success 200){int}code 200
@@ -102,14 +103,14 @@ public class UploaderManager extends BaseAdminController {
         Http.MultipartFormData<Files.TemporaryFile> body = request.body().asMultipartFormData();
         Http.MultipartFormData.FilePart<Files.TemporaryFile> uploadFile = body.getFile("file");
         return CompletableFuture.supplyAsync(() -> {
-            ShopAdmin admin = businessUtils.getUserIdByAuthToken2(request);
+            User admin = businessUtils.getUserIdByAuthToken2(request);
             if (null == admin) return unauth403();
             try {
                 if (null == uploadFile) return okCustomJson(CODE500, "上传文件失败，请重试");
                 String fileName = uploadFile.getFilename();
                 Files.TemporaryFile file = uploadFile.getRef();
                 String today = dateUtils.getToday();
-                String key = admin.orgId + "/" + today + "/" + fileName;
+                String key = 1 + "/" + today + "/" + fileName;
                 mkTempDirIfNotExist();
                 String destPath = TEMP_FOLDER + fileName;
                 file.copyTo(Paths.get(destPath), true);
@@ -148,7 +149,7 @@ public class UploaderManager extends BaseAdminController {
     }
 
     /**
-     * @api {POST}   /v2/shop/upload_base64/  03上传base64
+     * @api {POST}   /v2/tk/upload_base64/  03上传base64
      * @apiName uploadBase64
      * @apiGroup System
      * @apiSuccess (Success 200){int}code 200
