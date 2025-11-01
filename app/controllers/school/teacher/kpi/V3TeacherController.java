@@ -39,7 +39,6 @@ public class V3TeacherController  extends BaseAdminSecurityController {
 
     ObjectMapper objectMapper = new ObjectMapper();
 
-
     /**
      * @api {POST} /v1/tk/kpi/add/  01 kpi添加
      * @apiName addKpi

@@ -8,6 +8,7 @@ import jakarta.inject.Singleton;
 import models.school.kpi.v3.*;
 import utils.Pair;
 
+import java.text.DecimalFormat;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -219,7 +220,8 @@ public class V3TeacherRepository {
         List<TeacherContentScore> teacherContentScoreList = TeacherContentScore.find.query().where().eq("user_id", userId).in("content_id",teacherContentScores.stream().map(TeacherContentScore::getContentId).toList()).findList();
         if(teacherContentScoreList.isEmpty()){
             errorMsg.add("没有该教师的评测内容");
-        }else{
+        }
+        else{
             teacherContentScoreList.forEach(tcs->{
                 tcs.setScore(Objects.requireNonNull(teacherContentScores.stream().filter(v1 -> Objects.equals(v1.getContentId(), tcs.getContentId())).findFirst().orElse(null)).getScore());
                 if(tcs.getScore()==null){
@@ -263,7 +265,46 @@ public class V3TeacherRepository {
             }
         }
 
+        errorMsg.addAll(this.autoGrade());
+
         return new Pair<>(errorMsg.stream().filter(value -> !value.contains("warning")).toList().isEmpty(),errorMsg);
+    }
+
+    //自动评分
+    public List<String> autoGrade(){
+        //错误列表
+        List<String> errorMsg=new ArrayList<>();
+        List<Element> elementList = Element.find.query().where().in("is_auto",1).findList();
+        Transaction transaction = DB.beginTransaction();
+
+        if(elementList.isEmpty()){
+            return List.of("warning---没有自动评分要素项");
+        }
+        Set<Long> ids = elementList.stream().map(Element::getId).collect(Collectors.toSet());
+
+        List<TeacherElementScore> teacherElementScoreList = TeacherElementScore.find.query().where().in("element_id", ids).findList();
+        List<TeacherContentScore> teacherContentScoresList = TeacherContentScore.find.query().where().in("element_id", ids).findList();
+
+        teacherElementScoreList.forEach(tes->{
+            List<TeacherContentScore> filterTCSList = teacherContentScoresList.stream().filter(v1 -> Objects.equals(tes.getId(), v1.getElementId())).toList();
+            List<Double> contentScoreList =filterTCSList.stream().map(TeacherContentScore::getScore).filter(Objects::nonNull).toList();
+            //TODO具体系统评测逻辑需确定
+            if(contentScoreList.isEmpty()){
+                tes.setScore(this.randomDoubleInRange(0,10));
+            }else{
+                //当出现用户评分时，累加用户评分以及随机数
+                double tmpScore=contentScoreList.stream().mapToDouble(Double::doubleValue).sum();
+                tes.setScore(tmpScore+this.randomDoubleInRange(0,10-tmpScore));
+            }
+        });
+        try{
+            DB.updateAll(teacherElementScoreList);
+            transaction.commit();
+        } catch (Exception e) {
+            errorMsg.add("自动评分出错");
+            transaction.rollback();
+        }
+        return errorMsg;
     }
 
     public Pair<Boolean, List<String>> withDraw(List<Long> teacherIds){
@@ -343,4 +384,19 @@ public class V3TeacherRepository {
         return contentList;
     }
 
+    private Double randomDoubleInRange(double min, double max) {
+        if (min >= max) {
+            throw new IllegalArgumentException("最小值必须小于最大值");
+        }
+
+        // 检测区间是否非常小（如 10-10.0000）
+        if (Math.abs(max - min) < 0.0001) {
+            return 0.0; // 返回固定值 0
+        }
+
+        Random random = new Random();
+        double value = min + (max - min) * random.nextDouble();
+        DecimalFormat df = new DecimalFormat("#.##");
+        return Double.parseDouble(df.format(value));
+    }
 }
