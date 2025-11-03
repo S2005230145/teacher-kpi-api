@@ -73,5 +73,7 @@ POST         /v1/tk/getContentList/                                             
 POST         /v1/tk/export/                                                      controllers.school.teacher.kpi.V3TeacherController.isAutoCalculator(request:Request)
 POST         /v1/tk/delete/                                                      controllers.school.teacher.kpi.V3TeacherController.deleteElementOrContentOrIndicatorOrKpi(request:Request)
 POST         /v1/tk/withDraw/                                                    controllers.school.teacher.kpi.V3TeacherController.withDraw(request:Request)
+POST         /v1/tk/auto/                                                        controllers.school.teacher.kpi.V3TeacherController.isAutoCalculator(request:Request)
+POST         /v1/tk/singleKpi/add/                                               controllers.school.teacher.kpi.V3TeacherController.addSingleKpi(request:Request)
 
 GET          /*file                                                              controllers.Assets.versioned(path="/public", file: Asset)

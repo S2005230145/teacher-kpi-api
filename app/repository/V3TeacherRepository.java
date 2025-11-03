@@ -29,10 +29,34 @@ public class V3TeacherRepository {
         return new Pair<>(errorMsg.stream().filter(value -> !value.contains("warning")).toList().isEmpty(),errorMsg);
     }
 
+    public Pair<Boolean, List<String>> addKpiSingle(KPI kpi){
+        //错误列表
+        List<String> errorMsg=new ArrayList<>();
+        Transaction transaction = DB.beginTransaction();
+        try{
+            kpi.save();
+        }catch (Exception e){
+            errorMsg.add("kpi添加出错: "+e);
+            transaction.rollback();
+        }
+
+        List<Indicator> oldIndicatorList = kpi.getIndicatorList();
+        oldIndicatorList.forEach(oldIndicator->{
+            oldIndicator.setKpiId(kpi.getId());
+        });
+
+        errorMsg.addAll(this.addAll(oldIndicatorList).second());
+
+        transaction.commit();
+
+        return new Pair<>(errorMsg.stream().filter(value -> !value.contains("warning")).toList().isEmpty(),errorMsg);
+    }
+
     public Pair<Boolean, List<String>> addAll(List<Indicator> indicatorParamList){
         //错误列表
         List<String> errorMsg=new ArrayList<>();
         Transaction transaction = DB.beginTransaction();
+
         //添加队列
         List<Indicator> addIndicatorList=new ArrayList<>();
         List<Element> addElementList=new ArrayList<>();
@@ -60,6 +84,7 @@ public class V3TeacherRepository {
                 element.setIndicatorId(indicatorParam.getId());
                 element.setElement(elementParam.getElement());
                 element.setCriteria(elementParam.getCriteria());
+                element.setType(0);
                 addElementList.add(element);
             });
         });
@@ -128,7 +153,8 @@ public class V3TeacherRepository {
         PagedList<Element> pagedList = expressionList.setFirstRow(current-1).setMaxRows(size).findPagedList();
         List<String> msg=new ArrayList<>();
 
-        List<Content> contentList = Content.find.query().where().eq("element_id", pagedList.getList().stream().map(Element::getId).toList()).findList();
+        List<Long> list = pagedList.getList().stream().map(Element::getId).toList();
+        List<Content> contentList = Content.find.query().where().in("element_id",list).findList();
         pagedList.getList().forEach(ele -> {
             ele.setContentList(contentList.stream().filter(v1-> Objects.equals(v1.getElementId(), ele.getId())).toList());
         });
@@ -274,7 +300,7 @@ public class V3TeacherRepository {
     public List<String> autoGrade(){
         //错误列表
         List<String> errorMsg=new ArrayList<>();
-        List<Element> elementList = Element.find.query().where().in("is_auto",1).findList();
+        List<Element> elementList = Element.find.query().where().in("type",1).findList();
         Transaction transaction = DB.beginTransaction();
 
         if(elementList.isEmpty()){

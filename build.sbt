@@ -49,6 +49,7 @@ libraryDependencies ++= Seq(
   "com.itextpdf" % "font-asian" % "7.2.5",
   "org.apache.poi" % "poi" % "5.2.3",
   "org.apache.poi" % "poi-ooxml" % "5.2.3",
+  "org.apache.poi" % "poi-scratchpad" % "5.2.3",
   javaWs
 )
 val akkaVersion = PlayVersion.akkaVersion

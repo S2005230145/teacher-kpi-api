@@ -8,6 +8,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import myannotation.BooleanDeserializer;
 import myannotation.EscapeHtmlAuthoritySerializer;
+import myannotation.IntegerDeserializer;
 import myannotation.StringToLongDeserializer;
 
 import java.util.List;
@@ -22,7 +23,7 @@ import java.util.List;
 public class Element extends Model {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @JsonDeserialize(using = EscapeHtmlAuthoritySerializer.class)
+    @JsonDeserialize(using = StringToLongDeserializer.class)
     public Long id;
 
     @Column(name = "indicator_id")
@@ -43,9 +44,9 @@ public class Element extends Model {
     public String criteria;
 
     //是否系统自动评价
-    @Column(name = "is_auto")
-    @JsonDeserialize(using = BooleanDeserializer.class)
-    public Boolean isAuto;
+    @Column(name = "type")
+    @JsonDeserialize(using = IntegerDeserializer.class)
+    public Integer type;
 
     // JPA查询器（可选，与原代码保持一致）
     public static Finder<Long, Element> find =

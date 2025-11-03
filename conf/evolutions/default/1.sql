@@ -299,7 +299,7 @@ create table tk_v3_element (
   indicator_id                  bigint,
   element                       varchar(255),
   criteria                      varchar(255),
-  is_auto                       tinyint(1),
+  type                          integer,
   constraint pk_tk_v3_element primary key (id)
 );
 

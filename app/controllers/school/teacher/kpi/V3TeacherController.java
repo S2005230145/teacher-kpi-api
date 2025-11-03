@@ -33,11 +33,13 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
 
-public class V3TeacherController  extends BaseAdminSecurityController {
+public class V3TeacherController extends BaseAdminSecurityController {
     @Inject
     V3TeacherRepository v3TeacherRepository;
 
     ObjectMapper objectMapper = new ObjectMapper();
+
+    private static final Boolean is_DEV=true;
 
     /**
      * @api {POST} /v1/tk/kpi/add/  01 kpi添加
@@ -100,7 +102,7 @@ public class V3TeacherController  extends BaseAdminSecurityController {
      *                     }
      *                 ]
      *             }
-     *         ]
+     *          ]
      *       }
      *     ]
      *
@@ -119,7 +121,52 @@ public class V3TeacherController  extends BaseAdminSecurityController {
     }
 
     /**
-     * @api {POST} /v1/tk/getList/  03 获取所有指标
+     * @api {POST} /v1/tk/singleKpi/add/  03 添加单个kpi指标及其对应内容添加
+     * @apiName addSingleKpi
+     * @apiGroup User
+     *
+     * @apiDescription 添加KPI和其相关信息
+     *
+     * @apiParamExample {json} 请求示例:
+     * {
+     *      "title":"福清市XXX",//KPI标题
+     *      "indicatorList":[//指标列表
+     *          {
+     *              "indicatorName":"师德师范",//指标名称
+     *              "subName":"（优、合格、不合格）",//指标附属信息
+     *              "elementList":[
+     *                  {
+     *                      "element":null,//评价要素名称
+     *                      "criteria":"是否合格",//评价标准
+     *                      "type":0//评分方式 0:手动计算,1:自动计算,2:提交上报(不填默认手动)
+     *                      "contentList":[
+     *                          {
+     *                              "content":"12333@#$231414214@#$asda";//优先对 @#$ 切割，没有的话对、切割
+     *                          }
+     *                      ]
+     *                  }
+     *
+     *              ]
+     *          }
+     *      ]
+     * }
+     *
+     * @apiSuccess (Success 200){int} code 200
+     * @apiSuccess (Success 200){String[]} reason 信息列表
+     */
+    public CompletionStage<Result> addSingleKpi(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+            KPI kpi = objectMapper.convertValue(jsonNode, new TypeReference<>() {});
+
+            Pair<Boolean, List<String>> booleanListPair = v3TeacherRepository.addKpiSingle(kpi);
+
+            return okCustomNode(booleanListPair.first(),booleanListPair.second());
+        });
+    }
+
+    /**
+     * @api {POST} /v1/tk/getList/  04 获取所有指标
      * @apiName getList
      * @apiGroup User
      *
@@ -137,6 +184,105 @@ public class V3TeacherController  extends BaseAdminSecurityController {
      *
      * @apiSuccess (Success 200){int} code 200
      * @apiSuccess (Success 200){Object[]} data 数据
+     * @apiSuccessExample {json} data 数据详情
+     * {
+     *     "data": {
+     *         "list": [
+     *             {
+     *                 "id": 1,
+     *                 "kpiId": 1,
+     *                 "indicatorName": "师德师风",
+     *                 "subName": "（优、合格、不合格）",
+     *                 "elementList": [
+     *                     {
+     *                         "id": 1,
+     *                         "indicatorId": 1,
+     *                         "element": null,
+     *                         "contentList": [
+     *                             {
+     *                                 "id": 1,
+     *                                 "elementId": 1,
+     *                                 "content": "1、按照教育部《新时代中小学教师职业行为十项准则》、《新时代幼儿园教师职业行为十项准则》执行"
+     *                             },
+     *                             {
+     *                                 "id": 2,
+     *                                 "elementId": 1,
+     *                                 "content": "2.未存在教育部《中小学教师违反职业道德行为处理办法（2018年修订）》、《幼儿园教师违反职业道德行为处理办法》中应予处理的教师违反职业道德的行为"
+     *                             },
+     *                             {
+     *                                 "id": 3,
+     *                                 "elementId": 1,
+     *                                 "content": "3.未存在《福州市中小学（幼儿园）教师职业行为负面清单》及《福州市教师职业行为负面清单处理办法》中的师德失范行为"
+     *                             }
+     *                         ],
+     *                         "criteria": "是否合格，不设分值",
+     *                         "type": 0
+     *                     }
+     *                 ]
+     *             },
+     *             {
+     *                 "id": 2,
+     *                 "kpiId": 1,
+     *                 "indicatorName": "教育教学常规",
+     *                 "subName": "30-40 分",
+     *                 "elementList": [
+     *                     {
+     *                         "id": 2,
+     *                         "indicatorId": 2,
+     *                         "element": "1.出勤情况",
+     *                         "contentList": [
+     *                             {
+     *                                 "id": 4,
+     *                                 "elementId": 2,
+     *                                 "content": "病假"
+     *                             },
+     *                             {
+     *                                 "id": 5,
+     *                                 "elementId": 2,
+     *                                 "content": "事假"
+     *                             },
+     *                             {
+     *                                 "id": 6,
+     *                                 "elementId": 2,
+     *                                 "content": "迟到"
+     *                             },
+     *                             {
+     *                                 "id": 7,
+     *                                 "elementId": 2,
+     *                                 "content": "旷课"
+     *                             },
+     *                             {
+     *                                 "id": 8,
+     *                                 "elementId": 2,
+     *                                 "content": "政治学习"
+     *                             },
+     *                             {
+     *                                 "id": 9,
+     *                                 "elementId": 2,
+     *                                 "content": "教研活动"
+     *                             },
+     *                             {
+     *                                 "id": 10,
+     *                                 "elementId": 2,
+     *                                 "content": "学校会议及其他集体活动出勤情况"
+     *                             }
+     *                         ],
+     *                         "criteria": null,
+     *                         "type": 0
+     *                     }
+     *                 ]
+     *             }
+     *         ],
+     *         "totalCount": 5,
+     *         "totalPageCount": 1,
+     *         "pageIndex": 0,
+     *         "futureCount": {
+     *             "cancelled": false,
+     *             "done": true
+     *         },
+     *         "pageSize": 10
+     *     }
+     * }
      * @apiSuccess (Success 200){String[]} reason 错误列表
      */
     public CompletionStage<Result> getList(Http.Request request){
@@ -160,7 +306,7 @@ public class V3TeacherController  extends BaseAdminSecurityController {
     }
 
     /**
-     * @api {POST} /v1/tk/getKpiList/  04 获取所有KPI
+     * @api {POST} /v1/tk/getKpiList/  05 获取所有KPI
      * @apiName getKpiList
      * @apiGroup User
      *
@@ -173,11 +319,69 @@ public class V3TeacherController  extends BaseAdminSecurityController {
      * @apiParamExample {json} 请求示例:
      *       {
      *         "currentPage":1,
-     *         "pageSize":10
+     *         "pageSize":10,
+     *         "userId"1//会查询该用户kpi
      *       }
      *
      * @apiSuccess (Success 200){int} code 200
      * @apiSuccess (Success 200){Object[]} data 数据
+     * @apiParamExample {json} 请求示例:
+     * {
+     *     "code": 200,
+     *     "data": {
+     *         "list": [
+     *             {
+     *                 "id": 1,
+     *                 "title": "福清市中小学、中职学校教师绩效考核要点",
+     *                 "indicatorList": [
+     *                     {
+     *                         "id": 1,
+     *                         "kpiId": 1,
+     *                         "indicatorName": "师德师风",
+     *                         "subName": "（优、合格、不合格）",
+     *                         "elementList": [
+     *                             {
+     *                                 "id": 1,
+     *                                 "indicatorId": 1,
+     *                                 "element": null,
+     *                                 "contentList": [
+     *                                     {
+     *                                         "id": 1,
+     *                                         "elementId": 1,
+     *                                         "content": "1、按照教育部《新时代中小学教师职业行为十项准则》、《新时代幼儿园教师职业行为十项准则》执行"
+     *                                     },
+     *                                     {
+     *                                         "id": 2,
+     *                                         "elementId": 1,
+     *                                         "content": "2.未存在教育部《中小学教师违反职业道德行为处理办法（2018年修订）》、《幼儿园教师违反职业道德行为处理办法》中应予处理的教师违反职业道德的行为"
+     *                                     },
+     *                                     {
+     *                                         "id": 3,
+     *                                         "elementId": 1,
+     *                                         "content": "3.未存在《福州市中小学（幼儿园）教师职业行为负面清单》及《福州市教师职业行为负面清单处理办法》中的师德失范行为"
+     *                                     }
+     *                                 ],
+     *                                 "criteria": "是否合格，不设分值",
+     *                                 "type": 0
+     *                             }
+     *                         ]
+     *                        }
+     *                     }
+     *                 ]
+     *             }
+     *         ],
+     *         "pageIndex": 0,
+     *         "futureCount": {
+     *             "cancelled": false,
+     *             "done": true
+     *         },
+     *         "pageSize": 10,
+     *         "totalPageCount": 1,
+     *         "totalCount": 1
+     *     },
+     *     "reason": []
+     * }
+     *
      * @apiSuccess (Success 200){String[]} reason 错误列表
      */
     public CompletionStage<Result> getKpiList(Http.Request request){
@@ -200,7 +404,7 @@ public class V3TeacherController  extends BaseAdminSecurityController {
     }
 
     /**
-     * @api {POST} /v1/tk/getElementList/  05 获取所有Element
+     * @api {POST} /v1/tk/getElementList/  06 获取所有Element
      * @apiName getElementList
      * @apiGroup User
      *
@@ -213,11 +417,64 @@ public class V3TeacherController  extends BaseAdminSecurityController {
      * @apiParamExample {json} 请求示例:
      *       {
      *         "currentPage":1,
-     *         "pageSize":10
+     *         "pageSize":10,
+     *         "userId":1//会查询该用户的评价要素
      *       }
      *
      * @apiSuccess (Success 200){int} code 200
      * @apiSuccess (Success 200){Object[]} data 数据
+     * @apiParamExample {json} 请求示例:
+     * "data": {
+     *         "list": [
+     *             {
+     *                 "id": 1,
+     *                 "title": "福清市中小学、中职学校教师绩效考核要点",
+     *                 "indicatorList": [
+     *                     {
+     *                         "id": 1,
+     *                         "kpiId": 1,
+     *                         "indicatorName": "师德师风",
+     *                         "subName": "（优、合格、不合格）",
+     *                         "elementList": [
+     *                             {
+     *                                 "id": 1,
+     *                                 "indicatorId": 1,
+     *                                 "element": null,
+     *                                 "contentList": [
+     *                                     {
+     *                                         "id": 1,
+     *                                         "elementId": 1,
+     *                                         "content": "1、按照教育部《新时代中小学教师职业行为十项准则》、《新时代幼儿园教师职业行为十项准则》执行"
+     *                                     },
+     *                                     {
+     *                                         "id": 2,
+     *                                         "elementId": 1,
+     *                                         "content": "2.未存在教育部《中小学教师违反职业道德行为处理办法（2018年修订）》、《幼儿园教师违反职业道德行为处理办法》中应予处理的教师违反职业道德的行为"
+     *                                     },
+     *                                     {
+     *                                         "id": 3,
+     *                                         "elementId": 1,
+     *                                         "content": "3.未存在《福州市中小学（幼儿园）教师职业行为负面清单》及《福州市教师职业行为负面清单处理办法》中的师德失范行为"
+     *                                     }
+     *                                 ],
+     *                                 "criteria": "是否合格，不设分值",
+     *                                 "type": 0
+     *                             }
+     *                         ]
+     *                     }
+     *                 ]
+     *         ],
+     *         "totalCount": 1,
+     *         "totalPageCount": 1,
+     *         "pageIndex": 0,
+     *         "futureCount": {
+     *             "cancelled": false,
+     *             "done": true
+     *         },
+     *         "pageSize": 10
+     *     }
+     *
+     *
      * @apiSuccess (Success 200){String[]} reason 错误列表
      */
     public CompletionStage<Result> getElementList(Http.Request request){
@@ -240,11 +497,11 @@ public class V3TeacherController  extends BaseAdminSecurityController {
     }
 
     /**
-     * @api {POST} /v1/tk/getContentList/  06 获取所有Content
+     * @api {POST} /v1/tk/getContentList/  07 获取所有Content
      * @apiName getContentList
      * @apiGroup User
      *
-     * @apiDescription 获取所有Content的信息，也可获得对应用户的内容，也可以获取对应要素需要的内容
+     * @apiDescription 获取所有Content的信息，也可获得对应用户的内容，也可以获取对应要素的内容
      *
      * @apiParam {int} currentPage 当前页面
      * @apiParam {int} pageSize 显示条数
@@ -254,11 +511,99 @@ public class V3TeacherController  extends BaseAdminSecurityController {
      * @apiParamExample {json} 请求示例:
      *       {
      *         "currentPage":1,
-     *         "pageSize":10
+     *         "pageSize":10,
+     *         "userId":1,//会查询该用户的评价内容
+     *         "elementId":1//会查询该评价要素对应的内容
      *       }
      *
      * @apiSuccess (Success 200){int} code 200
      * @apiSuccess (Success 200){Object[]} data 数据
+     * @apiSuccessExample {json} data 数据详情
+     * {
+     *     "code": 200,
+     *     "data": {
+     *         "list": [
+     *             {
+     *                 "id": 1,
+     *                 "indicatorId": 1,
+     *                 "element": null,
+     *                 "contentList": [
+     *                     {
+     *                         "id": 1,
+     *                         "elementId": 1,
+     *                         "content": "1、按照教育部《新时代中小学教师职业行为十项准则》、《新时代幼儿园教师职业行为十项准则》执行"
+     *                     },
+     *                     {
+     *                         "id": 2,
+     *                         "elementId": 1,
+     *                         "content": "2.未存在教育部《中小学教师违反职业道德行为处理办法（2018年修订）》、《幼儿园教师违反职业道德行为处理办法》中应予处理的教师违反职业道德的行为"
+     *                     },
+     *                     {
+     *                         "id": 3,
+     *                         "elementId": 1,
+     *                         "content": "3.未存在《福州市中小学（幼儿园）教师职业行为负面清单》及《福州市教师职业行为负面清单处理办法》中的师德失范行为"
+     *                     }
+     *                 ],
+     *                 "criteria": "是否合格，不设分值",
+     *                 "type": 0
+     *             },
+     *             {
+     *                 "id": 2,
+     *                 "indicatorId": 2,
+     *                 "element": "1.出勤情况",
+     *                 "contentList": [
+     *                     {
+     *                         "id": 4,
+     *                         "elementId": 2,
+     *                         "content": "病假"
+     *                     },
+     *                     {
+     *                         "id": 5,
+     *                         "elementId": 2,
+     *                         "content": "事假"
+     *                     },
+     *                     {
+     *                         "id": 6,
+     *                         "elementId": 2,
+     *                         "content": "迟到"
+     *                     },
+     *                     {
+     *                         "id": 7,
+     *                         "elementId": 2,
+     *                         "content": "旷课"
+     *                     },
+     *                     {
+     *                         "id": 8,
+     *                         "elementId": 2,
+     *                         "content": "政治学习"
+     *                     },
+     *                     {
+     *                         "id": 9,
+     *                         "elementId": 2,
+     *                         "content": "教研活动"
+     *                     },
+     *                     {
+     *                         "id": 10,
+     *                         "elementId": 2,
+     *                         "content": "学校会议及其他集体活动出勤情况"
+     *                     }
+     *                 ],
+     *                 "criteria": null,
+     *                 "type": 0
+     *             }
+     *         ],
+     *         "pageIndex": 0,
+     *         "futureCount": {
+     *             "cancelled": false,
+     *             "done": false
+     *         },
+     *         "pageSize": 10,
+     *         "totalPageCount": 2,
+     *         "totalCount": 20
+     *     },
+     *     "reason": []
+     * }
+     *
      * @apiSuccess (Success 200){String[]} reason 错误列表
      */
     public CompletionStage<Result> getContentList(Http.Request request){
@@ -285,7 +630,7 @@ public class V3TeacherController  extends BaseAdminSecurityController {
     }
 
     /**
-     * @api {POST} /v1/tk/dispatch/  07 考核规则下发
+     * @api {POST} /v1/tk/dispatch/  08 考核规则下发
      * @apiName dispatch
      * @apiGroup User
      *
@@ -320,7 +665,7 @@ public class V3TeacherController  extends BaseAdminSecurityController {
     }
 
     /**
-     * @api {POST} /v1/tk/grade/  08 评分
+     * @api {POST} /v1/tk/grade/  09 评分
      * @apiName grade
      * @apiGroup User
      *
@@ -366,7 +711,7 @@ public class V3TeacherController  extends BaseAdminSecurityController {
     }
 
     /**
-     * @api {POST} /v1/tk/export/  09 导出
+     * @api {POST} /v1/tk/export/  10 导出
      * @apiName export
      * @apiGroup User
      *
@@ -393,6 +738,15 @@ public class V3TeacherController  extends BaseAdminSecurityController {
             if(userId==null) return ok("userId为空");
             if(kpiId==null) return ok("kpiId为空");
 
+            if(is_DEV){
+                try {
+                    this.testPDF();
+                    return ok("complete");
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+
             try {
                 byte[] pdfBytes = AssessmentPDF.v3ExportToPdf(userId, kpiId);
 
@@ -415,17 +769,19 @@ public class V3TeacherController  extends BaseAdminSecurityController {
     }
 
     /**
-     * @api {POST} /v1/tk/export/  10 批量设置要素为系统计算
+     * @api {POST} /v1/tk/auto/  11 批量设置指标计算模式
      * @apiName isAutoCalculator
      * @apiGroup User
      *
      * @apiDescription 通过要素ID批量设置要素为系统自动计算
      *
      * @apiParam {String} elementIds 要素ID集合
+     * @apiParam {Integer} type 类型  0:手动计算,1:自动计算,2:提交上报(不填默认手动)
      *
      * @apiParamExample {json} 请求示例:
      * {
-     *     "elementIds":"1,2,3"
+     *     "elementIds":"1,2,3",
+     *     "type":1
      * }
      *
      * @apiSuccess (Success 200){int} code 200
@@ -435,10 +791,13 @@ public class V3TeacherController  extends BaseAdminSecurityController {
         JsonNode jsonNode = request.body().asJson();
         return CompletableFuture.supplyAsync(()->{
             List<Long> elementIds=(jsonNode.findPath("elementIds") instanceof MissingNode ?null: Arrays.stream(jsonNode.findPath("elementIds").asText().split(",")).map(String::trim).map(Long::valueOf).toList());
+            Integer type=(jsonNode.findPath("type") instanceof MissingNode ?0: jsonNode.findPath("type").asInt());
+
+            if(elementIds==null) return ok("elementIds为空");
 
             List<Element> elementList=Element.find.query().where().in("id",elementIds).findList();
             elementList.forEach(element -> {
-                element.setIsAuto(true);
+                element.setType(type);
             });
 
             ObjectNode result = Json.newObject();
@@ -456,7 +815,7 @@ public class V3TeacherController  extends BaseAdminSecurityController {
     }
 
     /**
-     * @api {POST} /v1/tk/delete/  11 多功能删除
+     * @api {POST} /v1/tk/delete/  12 多功能删除
      * @apiName deleteElementOrContentOrIndicatorOrKpi
      * @apiGroup User
      *
@@ -551,7 +910,7 @@ public class V3TeacherController  extends BaseAdminSecurityController {
     }
 
     /**
-     * @api {POST} /v1/tk/withDraw/  12 撤销下发
+     * @api {POST} /v1/tk/withDraw/  13 撤销下发
      * @apiName withDraw
      * @apiGroup User
      *
@@ -578,6 +937,8 @@ public class V3TeacherController  extends BaseAdminSecurityController {
             return okCustomNode(booleanListPair.first(),booleanListPair.second());
         });
     }
+
+    //==========================================
 
     //工具
     private void testPDF() throws IOException {
