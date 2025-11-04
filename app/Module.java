@@ -4,8 +4,11 @@ import com.typesafe.config.Config;
 import play.Environment;
 import play.libs.akka.AkkaGuiceSupport;
 import service.AppInit;
+import service.FileParseService;
 import service.FixedTimeExecutor;
 import utils.*;
+import utils.parse.ExcelParser;
+import utils.parse.WordParser;
 
 /**
  * This class is a Guice module that tells Guice how to bind several
@@ -41,5 +44,8 @@ public class Module extends AbstractModule implements AkkaGuiceSupport {
         bindActor(TokenActor.class, "tokenActor");
         bindActor(TimerActor.class, "timerActor");
         bind(FixedTimeExecutor.class).asEagerSingleton();
+        bind(ExcelParser.class).asEagerSingleton();
+        bind(WordParser.class).asEagerSingleton();
+        bind(FileParseService.class).asEagerSingleton();
     }
 }

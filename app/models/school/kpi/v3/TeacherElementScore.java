@@ -35,10 +35,20 @@ public class TeacherElementScore extends Model {
     @JsonDeserialize(using = StringToLongDeserializer.class)
     public Long kpiId;
 
-    //该要数的总分
+    //该要数的初始总分
     @Column(name = "score")
     @JsonDeserialize(using = DoubleDeserializer.class)
     public Double score;
+
+    //父级Id
+    @Column(name = "task_id")
+    @JsonDeserialize(using = StringToLongDeserializer.class)
+    public Long taskId;
+
+    //该要数的最终总分
+    @Column(name = "final_score")
+    @JsonDeserialize(using = DoubleDeserializer.class)
+    public Double finalScore;
 
     // JPA查询器（可选，与原代码保持一致）
     public static Finder<Long, TeacherElementScore> find =

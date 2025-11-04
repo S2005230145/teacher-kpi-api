@@ -6,16 +6,21 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.MissingNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import controllers.BaseAdminSecurityController;
+
 import io.ebean.DB;
 import io.ebean.ExpressionList;
 import io.ebean.PagedList;
 import io.ebean.Transaction;
 import jakarta.inject.Inject;
 import models.school.kpi.v3.*;
+import models.table.ParseResult;
+import models.user.Role;
+import models.user.User;
 import play.libs.Json;
 import play.mvc.Http;
 import play.mvc.Result;
 import repository.V3TeacherRepository;
+import service.FileParseService;
 import utils.AssessmentPDF;
 import utils.Pair;
 
@@ -25,10 +30,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
@@ -37,6 +39,9 @@ public class V3TeacherController extends BaseAdminSecurityController {
     @Inject
     V3TeacherRepository v3TeacherRepository;
 
+    @Inject
+    FileParseService fileParseService;
+
     ObjectMapper objectMapper = new ObjectMapper();
 
     private static final Boolean is_DEV=true;
@@ -44,7 +49,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
     /**
      * @api {POST} /v1/tk/kpi/add/  01 kpi添加
      * @apiName addKpi
-     * @apiGroup User
+     * @apiGroup Teacher
      *
      * @apiDescription 批量创建kpi
      *
@@ -74,7 +79,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
     /**
      * @api {POST} /v1/tk/regular/add/  02 kpi指标及其对应内容添加
      * @apiName add
-     * @apiGroup User
+     * @apiGroup Teacher
      *
      * @apiDescription 批量创建指标及相关要素
      *
@@ -123,7 +128,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
     /**
      * @api {POST} /v1/tk/singleKpi/add/  03 添加单个kpi指标及其对应内容添加
      * @apiName addSingleKpi
-     * @apiGroup User
+     * @apiGroup Teacher
      *
      * @apiDescription 添加KPI和其相关信息
      *
@@ -168,7 +173,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
     /**
      * @api {POST} /v1/tk/getList/  04 获取所有指标
      * @apiName getList
-     * @apiGroup User
+     * @apiGroup Teacher
      *
      * @apiDescription 获取所有指标及相关下的信息,也可以获取用户的所有指标
      *
@@ -308,7 +313,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
     /**
      * @api {POST} /v1/tk/getKpiList/  05 获取所有KPI
      * @apiName getKpiList
-     * @apiGroup User
+     * @apiGroup Teacher
      *
      * @apiDescription 获取所有KPI以及下方的所有信息，也可获得对应用户的KPI
      *
@@ -325,7 +330,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
      *
      * @apiSuccess (Success 200){int} code 200
      * @apiSuccess (Success 200){Object[]} data 数据
-     * @apiParamExample {json} 请求示例:
+     * @apiSuccessExample {json} 请求示例:
      * {
      *     "code": 200,
      *     "data": {
@@ -406,7 +411,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
     /**
      * @api {POST} /v1/tk/getElementList/  06 获取所有Element
      * @apiName getElementList
-     * @apiGroup User
+     * @apiGroup Teacher
      *
      * @apiDescription 获取所有Element以及下方的所有信息，也可获得对应用户的要素
      *
@@ -423,7 +428,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
      *
      * @apiSuccess (Success 200){int} code 200
      * @apiSuccess (Success 200){Object[]} data 数据
-     * @apiParamExample {json} 请求示例:
+     * @apiSuccessExample {json} 请求示例:
      * "data": {
      *         "list": [
      *             {
@@ -499,7 +504,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
     /**
      * @api {POST} /v1/tk/getContentList/  07 获取所有Content
      * @apiName getContentList
-     * @apiGroup User
+     * @apiGroup Teacher
      *
      * @apiDescription 获取所有Content的信息，也可获得对应用户的内容，也可以获取对应要素的内容
      *
@@ -632,7 +637,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
     /**
      * @api {POST} /v1/tk/dispatch/  08 考核规则下发
      * @apiName dispatch
-     * @apiGroup User
+     * @apiGroup Teacher
      *
      * @apiDescription 下发考核给相应教师
      *
@@ -667,7 +672,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
     /**
      * @api {POST} /v1/tk/grade/  09 评分
      * @apiName grade
-     * @apiGroup User
+     * @apiGroup Teacher
      *
      * @apiDescription 教师评分
      *
@@ -713,7 +718,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
     /**
      * @api {POST} /v1/tk/export/  10 导出
      * @apiName export
-     * @apiGroup User
+     * @apiGroup Teacher
      *
      * @apiDescription 导出相应教师的KPI的PDF
      *
@@ -771,7 +776,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
     /**
      * @api {POST} /v1/tk/auto/  11 批量设置指标计算模式
      * @apiName isAutoCalculator
-     * @apiGroup User
+     * @apiGroup Teacher
      *
      * @apiDescription 通过要素ID批量设置要素为系统自动计算
      *
@@ -817,9 +822,9 @@ public class V3TeacherController extends BaseAdminSecurityController {
     /**
      * @api {POST} /v1/tk/delete/  12 多功能删除
      * @apiName deleteElementOrContentOrIndicatorOrKpi
-     * @apiGroup User
+     * @apiGroup Teacher
      *
-     * @apiDescription 可以删除element,content,indicator,kpi 注意越高等级的会连带将低等级的删除
+     * @apiDescription 可以删除element,content,indicator,kpi，注意越高等级的会连带将低等级的删
      *
      * @apiParam {String} elementIds (可选)要素删除
      * @apiParam {String} contentIds (可选)内容删除
@@ -912,7 +917,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
     /**
      * @api {POST} /v1/tk/withDraw/  13 撤销下发
      * @apiName withDraw
-     * @apiGroup User
+     * @apiGroup Teacher
      *
      * @apiDescription 撤销教师的评级
      *
@@ -938,8 +943,273 @@ public class V3TeacherController extends BaseAdminSecurityController {
         });
     }
 
-    //==========================================
+    /**
+     * @api {POST} /v1/tk/post/  14 提交审核
+     * @apiName postAudit
+     * @apiGroup Teacher
+     *
+     * @apiDescription 提交给领导
+     *
+     * @apiParam {Long} userId 用户ID
+     * @apiParam {String} LeaderIds 领导ID，用,号分割
+     *
+     * @apiParamExample {json} 请求示例:
+     * {
+     *     "userId":1,
+     *     "LeaderIds":"1,2,3"
+     * }
+     * @apiSuccess (Success 200){int} code 200
+     * @apiSuccess (Success 200){msg} reason 错误列表
+     */
+    public CompletionStage<Result> postAudit(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+            String LeaderIds=(jsonNode.findPath("LeaderIds") instanceof MissingNode ?null: jsonNode.findPath("LeaderIds").asText());
+            Long userId=(jsonNode.findPath("userId") instanceof MissingNode ?null:jsonNode.findPath("userId").asLong());
 
+            if(LeaderIds==null) return ok("LeaderIds为空");
+            if(userId==null) return ok("userId为空");
+
+            List<TeacherElementScore> teacherElementScoreList = TeacherElementScore.find.query().where().eq("user_id",userId).findList();
+            List<TeacherTask> addTeacherTaskList=new ArrayList<>();
+            List<String> errMsg=new ArrayList<>();
+            boolean status=true;
+            teacherElementScoreList.forEach(tes->{
+                TeacherTask teacherTask=new TeacherTask();
+                teacherTask.setUserId(userId);
+                teacherTask.setParentIds(LeaderIds);
+                teacherTask.setStatus("待完成");
+                teacherTask.setTesId(tes.getId());
+                addTeacherTaskList.add(teacherTask);
+            });
+            try(Transaction transaction = DB.beginTransaction()){
+                DB.saveAll(addTeacherTaskList);
+                transaction.commit();
+            } catch (Exception e) {
+                status=false;
+                errMsg.add("添加审核任务出错: "+e);
+            }
+
+            return okCustomNode(status,errMsg);
+        });
+    }
+
+    /**
+     * @api {POST} /v1/tk/get/leader/  15 获取所有领导
+     * @apiName withDraw
+     * @apiGroup Teacher
+     *
+     * @apiDescription 获取所有领导领导
+     *
+     * @apiSuccess (Success 200){int} code 200
+     * @apiSuccess (Success 200){int} data 所有领导的数据
+     */
+    public CompletionStage<Result> getLeader(){
+        return CompletableFuture.supplyAsync(()->{
+            Long roleId = Objects.requireNonNull(Role.find.query().where().eq("nick_name", "领导").setMaxRows(1).findOne()).getId();
+
+            List<User> leadersList = User.find.query().where().eq("role_id", roleId).findList();
+
+            return okCustomNode(true,null,leadersList);
+        });
+    }
+
+    /**
+     * @api {POST} /v1/tk/get/leader/task/  16 获取上级的代办任务
+     * @apiName getToDoTask
+     * @apiGroup Teacher
+     *
+     * @apiDescription 获取该用户的代办任务
+     *
+     * @apiParam {Long} userId 用户ID
+     *
+     * @apiSuccess (Success 200){int} code 200
+     * @apiSuccess (Success 200){int} data 所有领导的数据
+     * @apiSuccessExample {json} 示例:
+     * {
+     *     "id":1,
+     *     "userId":1,
+     *     "userName":"123",
+     *     "parentIds":"3,4,5",
+     *     "status":"待完成",
+     *     "tesId":1,
+     *     "teacherElementScore":{
+     *         "id":...,
+     *         "userId":...,
+     *         "elementId":...,
+     *         "kpiId":...,
+     *         "score":...,
+     *         "taskId":...,
+     *         "finalScore":...
+     *     }
+     * }
+     */
+    public CompletionStage<Result> getToDoTask(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+            Long userId=(jsonNode.findPath("userId") instanceof MissingNode ?null:jsonNode.findPath("userId").asLong());
+
+            if(userId==null) return ok("userId为空");
+
+            List<TeacherTask> leaderTeacherTaskList = TeacherTask.find.query().where().eq("status", "待完成")
+                    .or()
+                    .eq("parent_ids", userId)
+                    .like("parent_ids", userId + ",%")
+                    .like("parent_ids", "%," + userId)
+                    .like("parent_ids", "%," + userId + ",%")
+                    .endOr().findList();
+            List<TeacherElementScore> teslist = TeacherElementScore.find.query().where().in("id", leaderTeacherTaskList.stream().map(TeacherTask::getTesId)).findList();
+            List<User> userList = User.find.query().where().in("id", leaderTeacherTaskList.stream().map(TeacherTask::getUserId)).findList();
+
+            leaderTeacherTaskList.forEach(tt->{
+                tt.setTeacherElementScore(teslist.stream().filter(tes-> Objects.equals(tt.getTesId(), tes.getId())).findFirst().orElse(null));
+                tt.setUserName(Objects.requireNonNull(userList.stream().filter(user -> Objects.equals(tt.getUserId(), user.getId())).findFirst().orElse(null)).getUserName());
+            });
+
+            return okCustomNode(true,null,leaderTeacherTaskList);
+        });
+    }
+
+    /**
+     * @api {POST} /v1/tk/add/leader/score/  17 上级评分
+     * @apiName addLeaderScore
+     * @apiGroup Teacher
+     *
+     * @apiDescription 该上级用户的评分
+     *
+     * @apiParam {Long} userId 用户ID
+     * @apiParam {Long} tesId 要素ID
+     * @apiParam {Double} score 分数
+     * @apiParamExample {json} 请求示例:
+     * {
+     *      "userId":1,
+     *      "data":[
+     *          {
+     *              "tesId":1,
+     *              "score":12.0
+     *          }
+     *      ]
+     * }
+
+     * @apiSuccess (Success 200){int} code 200
+     * @apiSuccess (Success 200){int} reason 错误信息
+     */
+    public CompletionStage<Result> addLeaderScore(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+            Long userId=(jsonNode.findPath("userId") instanceof MissingNode ?null:jsonNode.findPath("userId").asLong());
+            Map<String,Object> dataMap=objectMapper.convertValue(jsonNode, new TypeReference<>() {});
+
+            if(userId==null) return ok("userId为空");
+            if(dataMap==null) return ok("data为空");
+
+            List<TeacherTask> leaderTeacherTaskList = TeacherTask.find.query().where()
+                    .or()
+                    .eq("parent_ids", userId)
+                    .like("parent_ids", userId + ",%")
+                    .like("parent_ids", "%," + userId)
+                    .like("parent_ids", "%," + userId + ",%")
+                    .endOr().findList().stream().filter(tt->tt.getTesId()==Long.parseLong(dataMap.get("tesId").toString())).toList();
+
+            List<String> errorMsg=new ArrayList<>();
+            Transaction transaction=DB.beginTransaction();
+            List<TeacherElementScore> updateTesList=new ArrayList<>();
+            Set<Long> kpiIds=new HashSet<>();
+            Set<Long> userIds=new HashSet<>();
+            leaderTeacherTaskList.forEach(ltt->{
+                ltt.getTeacherElementScore().setFinalScore(Double.parseDouble(dataMap.get("score").toString()));
+                ltt.setStatus("已完成");
+                updateTesList.add(ltt.getTeacherElementScore());
+                kpiIds.add(ltt.getTeacherElementScore().getKpiId());
+                userIds.add(ltt.getUserId());
+            });
+
+            List<TeacherElementScore> tesList = TeacherElementScore.find.query().where().in("user_id", userIds).in("kpi_id", kpiIds).findList();
+            TeacherKPIScore tks = TeacherKPIScore.find.query().where().in("user_id", userIds).in("kpi_id", kpiIds).setMaxRows(1).findOne();
+            List<Double> totalScore=new ArrayList<>();
+            tesList.forEach(tes->{
+                if(tes.getFinalScore()!=null) totalScore.add(tes.getFinalScore());
+                else totalScore.add(tes.getScore());
+            });
+
+            try{
+                DB.updateAll(updateTesList);
+                transaction.commit();
+            }catch (Exception e){
+                errorMsg.add("更新最终得分出错: "+e);
+                transaction.rollback();
+            }
+            if(tks!=null){
+                tks.setScore(totalScore.stream().mapToDouble(Double::valueOf).sum());
+                try{
+                    tks.update();
+                    transaction.commit();
+                }catch (Exception e){
+                    errorMsg.add("更新总分出错: "+e);
+                    transaction.rollback();
+                }
+            }
+
+            return okCustomNode(true,errorMsg);
+        });
+    }
+
+    /**
+     * @api {POST} /v1/tk/add/rule/import/  18 导入文件
+     * @apiName importFile
+     * @apiGroup Teacher
+     *
+     * @apiDescription 导入规则文件
+     *
+     * @apiParam {File} file 文件
+     *
+     * @apiSuccess (Success 200){int} code 200
+     * @apiSuccess (Success 200){int} reason 错误信息
+     */
+    public CompletionStage<Result> importFile(Http.Request request){
+        return CompletableFuture.supplyAsync(()->{
+            try {
+                Http.MultipartFormData<play.libs.Files.TemporaryFile> body = request.body().asMultipartFormData();
+                Http.MultipartFormData.FilePart<play.libs.Files.TemporaryFile> filePart = body.getFile("file");
+
+                if (filePart == null) {
+                    return badRequest(createErrorResponse("请选择要上传的文件"));
+                }
+
+                String fileName = filePart.getFilename();
+                play.libs.Files.TemporaryFile tempFile = filePart.getRef();
+
+                // 验证文件
+                if (fileName.isEmpty()) {
+                    return badRequest(createErrorResponse("文件名不能为空"));
+                }
+
+                if (!fileParseService.isSupportedFile(fileName)) {
+                    return badRequest(createErrorResponse(
+                            String.format("不支持的文件格式: %s。支持: .xlsx, .xls, .docx, .doc", fileName)
+                    ));
+                }
+
+                if (tempFile.path().toFile().length() > 10 * 1024 * 1024) {
+                    return badRequest(createErrorResponse("文件大小不能超过 10MB"));
+                }
+
+                // 解析文件
+                ParseResult result = fileParseService.parseTemporaryFile(tempFile, fileName);
+
+                if (result.isSuccess()) {
+                    return ok(createSuccessResponse(result));
+                } else {
+                    return badRequest(createErrorResponse(result.getMessage()));
+                }
+
+            } catch (Exception e) {
+                return internalServerError(createErrorResponse("服务器内部错误: " + e.getMessage()));
+            }
+        });
+    }
+
+    //==========================================
     //工具
     private void testPDF() throws IOException {
         byte[] pdfBytes = AssessmentPDF.v3ExportToPdf(1L,1L);
@@ -956,5 +1226,21 @@ public class V3TeacherController extends BaseAdminSecurityController {
         Path file = dir.resolve(filename);
         Files.write(file, data);
         System.out.println("存储完成");
+    }
+
+    private JsonNode createSuccessResponse(ParseResult result) {
+        return objectMapper.createObjectNode()
+                .put("success", true)
+                .put("message", result.getMessage())
+                .put("fileName", result.getFileName())
+                .put("fileType", result.getFileType())
+                .put("totalTables", result.getTotalTables())
+                .set("tables", objectMapper.valueToTree(result.getTables()));
+    }
+
+    private JsonNode createErrorResponse(String message) {
+        return objectMapper.createObjectNode()
+                .put("success", false)
+                .put("message", message);
     }
 }

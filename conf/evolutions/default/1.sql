@@ -1061,6 +1061,8 @@ create table tk_v3_teacher_element_score (
   element_id                    bigint,
   kpi_id                        bigint,
   score                         double,
+  task_id                       bigint,
+  final_score                   double,
   constraint pk_tk_v3_teacher_element_score primary key (id)
 );
 
@@ -1092,6 +1094,15 @@ create table tk_v1_teacher_performance_assessment (
   evaluation_standard           varchar(255),
   score                         double,
   constraint pk_tk_v1_teacher_performance_assessment primary key (id)
+);
+
+create table tk_v3_teacher_task (
+  id                            bigint auto_increment not null,
+  user_id                       bigint,
+  parent_ids                    varchar(255),
+  status                        varchar(255),
+  tes_id                        bigint,
+  constraint pk_tk_v3_teacher_task primary key (id)
 );
 
 create table teaching_achievement_assessment (
@@ -1371,6 +1382,8 @@ drop table if exists tk_v3_teacher_kpi_score;
 drop table if exists tk_teacher_performance_assessment;
 
 drop table if exists tk_v1_teacher_performance_assessment;
+
+drop table if exists tk_v3_teacher_task;
 
 drop table if exists teaching_achievement_assessment;
 

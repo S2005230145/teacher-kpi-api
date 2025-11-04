@@ -362,7 +362,9 @@ public class V3TeacherRepository {
         transaction.commit();
         return new Pair<>(errorMsg.stream().filter(value -> !value.contains("warning")).toList().isEmpty(),errorMsg);
     }
-    //工具
+
+
+    //==========================工具==========================
     //获取所有要素
     private List<Pair<String,List<Element>>> getElementList(List<Indicator> indicatorParamList){
         List<Pair<String,List<Element>>> pairList=new ArrayList<>();

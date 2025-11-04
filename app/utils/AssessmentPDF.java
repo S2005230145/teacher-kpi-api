@@ -12,8 +12,6 @@ import com.itextpdf.layout.element.*;
 import com.itextpdf.layout.properties.TextAlignment;
 import com.itextpdf.layout.properties.UnitValue;
 import com.itextpdf.layout.properties.VerticalAlignment;
-import com.itextpdf.layout.renderer.CellRenderer;
-import com.itextpdf.layout.renderer.TableRenderer;
 import models.school.kpi.v3.*;
 
 import java.io.ByteArrayOutputStream;
@@ -89,7 +87,7 @@ public class AssessmentPDF {
 
         v3AddItem1(document,indicatorListSecond,elementList,contentList,tes);
 
-        Double score = Objects.requireNonNull(TeacherKPIScore.find.query().where().eq("user_id", userId).eq("kpi_id", kpiId).setMaxRows(1).findOne()).getScore();
+        Double score=Objects.requireNonNull(TeacherKPIScore.find.query().where().eq("user_id", userId).eq("kpi_id", kpiId).setMaxRows(1).findOne()).getScore();
         addTotal(document,score);
 
         document.close();
@@ -160,7 +158,7 @@ public class AssessmentPDF {
         document.add(table);
     }
     private static void v3AddTableTop(Document document) {
-        Table table = new Table(UnitValue.createPercentArray(new float[]{1, 1, 2, 2, 2})).setWidth(UnitValue.createPercentValue(100));
+        Table table = new Table(UnitValue.createPercentArray(new float[]{1, 1, 2, 2, 1, 1})).setWidth(UnitValue.createPercentValue(100));
         table.addCell(createCell("评价指标",1,1).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
         table.addCell(createCell("评价要素",2,1).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
         table.addCell(createCell("评 价 内 容",2,1).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
@@ -200,13 +198,14 @@ public class AssessmentPDF {
             int finalCell = cell;
             table.addCell(createCell(indicator.getIndicatorName()+"\n\n"+indicator.getSubName(),cell,1).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
             filterElementList.forEach(element -> {
-                Double score = Objects.requireNonNull(tes.stream().filter(v1 -> v1.getElementId() == element.getId()).findFirst().orElse(null)).getScore();
+                Double score = Objects.requireNonNull(tes.stream().filter(v1 -> Objects.equals(v1.getElementId(), element.getId())).findFirst().orElse(null)).getScore();
+                Double finalScore = Objects.requireNonNull(tes.stream().filter(v1 -> Objects.equals(v1.getElementId(), element.getId())).findFirst().orElse(null)).getFinalScore();
                 if(element.getElement()==null){
                     table.addCell(createCellWithIndent(filterContentList.get(0).getContent(),1,2).setTextAlignment(TextAlignment.LEFT).setVerticalAlignment(VerticalAlignment.MIDDLE));
                     table.addCell(createCell(element.getCriteria(), finalCell,1).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
                     //table.addCell(addScoreElement(score!=null?score.toString():null,finalCell));
                     table.addCell(createCell(score!=null?score.toString():null, finalCell,1).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
-                    table.addCell(createCell(score!=null?score.toString():null, finalCell,1).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
+                    table.addCell(createCell(finalScore!=null?finalScore.toString():null, finalCell,1).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
 
                     filterContentList.remove(0);
                     filterContentList.forEach(content -> {
@@ -219,7 +218,7 @@ public class AssessmentPDF {
                     table.addCell(createCell(element.getCriteria(),null,null).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
                     //TODO分数
                     table.addCell(createCell(score!=null?score.toString():null, null,1).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
-                    table.addCell(createCell(score!=null?score.toString():null, null,1).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
+                    table.addCell(createCell(finalScore!=null?finalScore.toString():null, null,1).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
                 }
             });
 
@@ -228,17 +227,17 @@ public class AssessmentPDF {
     }
 
     private static void addTotal(Document document){
-        Table table = new Table(UnitValue.createPercentArray(new float[]{1, 1, 2, 2, 1})).setWidth(UnitValue.createPercentValue(100));
+        Table table = new Table(UnitValue.createPercentArray(new float[]{1, 1, 2, 2, 1, 1})).setWidth(UnitValue.createPercentValue(100));
 
-        table.addCell(createCell("总 分   100 分",1,4).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
+        table.addCell(createCell("总 分   100 分",1,5).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
         table.addCell(createCell(null,1,1).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
 
         document.add(table);
     }
     private static void addTotal(Document document,Double score){
-        Table table = new Table(UnitValue.createPercentArray(new float[]{1, 1, 2, 2, 1})).setWidth(UnitValue.createPercentValue(100));
+        Table table = new Table(UnitValue.createPercentArray(new float[]{1, 1, 2, 2, 1, 1})).setWidth(UnitValue.createPercentValue(100));
 
-        table.addCell(createCell("总 分   100 分",1,4).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
+        table.addCell(createCell("总 分   100 分",1,5).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
         table.addCell(createCell(score!=null?score.toString():null,1,1).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
 
         document.add(table);
