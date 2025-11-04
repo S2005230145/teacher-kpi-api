@@ -1,6 +1,8 @@
 package utils.parse;
 
 
+import io.ebean.DB;
+import io.ebean.Transaction;
 import jakarta.inject.Singleton;
 import models.school.kpi.v3.Content;
 import models.school.kpi.v3.Element;
@@ -18,7 +20,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 @Singleton
@@ -44,11 +45,6 @@ public class WordParser {
     private ParseResult parseDocx(InputStream inputStream, String fileName) throws Exception {
         List<TableData> tables = new ArrayList<>();
 
-        List<Indicator> indicatorList=new ArrayList<>();
-        List<Element> elementList=new ArrayList<>();
-        List<String> contentNameList=new ArrayList<>();
-        List<Content> contentList=new ArrayList<>();
-
         try (XWPFDocument document = new XWPFDocument(inputStream)) {
             List<XWPFTable> wordTables = document.getTables();
             logger.info("DOCX文件包含 {} 个表格", wordTables.size());
@@ -59,21 +55,7 @@ public class WordParser {
 
                 if (tableData != null && tableData.getRowCount() > 0) {
                     tables.add(tableData);
-                    tableData.getRows().stream().filter(data->data.size()>=5).toList().subList(1,tableData.getRows().size()).forEach(data->{
-                        Indicator indicator = new Indicator();
-                        String[] strings = splitFirstOccurrenceWithIndexOf(data.get(0));
-                        indicator.setIndicatorName(strings[0]);
-                        indicator.setSubName(strings[1]);
-                        logger.info(indicator.toString());
-                        indicatorList.add(indicator);
-
-                        Element element = new Element();
-                        element.setElement(data.get(1));
-                        element.setCriteria(data.get(3));
-                        element.setType(0);
-
-                        contentNameList.add(data.get(2));
-                    });
+                    this.DataInject(tableData);
 
                     logger.info("解析表格 {}: {}", i, tableData);
                 }
@@ -252,6 +234,160 @@ public class WordParser {
         }
 
         return new String[]{input, ""};
+    }
+
+    /**
+     * {
+     *     "success": true,
+     *     "message": "成功解析 2 个表格",
+     *     "fileName": "test.docx",
+     *     "fileType": "WORD_DOCX",
+     *     "totalTables": 2,
+     *     "tables": [
+     *         {
+     *             "fileName": "test.docx",
+     *             "sheetName": null,
+     *             "tableIndex": 0,
+     *             "headers": [
+     *                 "评价指标",
+     *                 "评价要素",
+     *                 "评 价 内 容",
+     *                 "评 价 标 准",
+     *                 "初 始 得 分（100分）",
+     *                 "最 终 得 分（100分）"
+     *             ],
+     *             "rows": [
+     *                 [
+     *                     "一   二   三级   级   级",
+     *                     "",
+     *                     "",
+     *                     "",
+     *                     "",
+     *                     ""
+     *                 ],
+     *                 [
+     *                     "师德师风（优、合格、不合格）",
+     *                     "1、按照教育部《新时代中小学教师职业行为十项准则》、《新时代幼儿园教师职业行为十项准则》执行",
+     *                     "是否合格，不设分值",
+     *                     "7.0",
+     *                     ""
+     *                 ],
+     *                 [
+     *                     "",
+     *                     "2.未存在教育部《中小学教师违反职业道德行为处理办法（2018年修订）》、《幼儿园教师违反职业道德行为处理办法》中应予处理的教师违反职业道德的行为",
+     *                     "",
+     *                     "",
+     *                     ""
+     *                 ],
+     *                 [
+     *                     "",
+     *                     "3.未存在《福州市中小学（幼儿园）教师职业行为负面清单》及《福州市教师职业行为负面清单处理办法》中的师德失范行为",
+     *                     "",
+     *                     "",
+     *                     ""
+     *                 ],
+     *                 [
+     *                     "教育教学常规30-40 分",
+     *                     "1.出勤情况",
+     *                     "病假,事假,迟到,旷课,政治学习,教研活动,学校会议及其他集体活动出勤情况",
+     *                     "",
+     *                     "14.0",
+     *                     ""
+     *                 ],
+     *                 [
+     *                     "",
+     *                     "2.课时工作量",
+     *                     "完成标准课时工作量,代课,特殊课时等",
+     *                     "",
+     *                     "",
+     *                     ""
+     *                 ],
+     *                 [
+     *                     "",
+     *                     "3.班主任等工作",
+     *                     "担任班主任,年段长,教研组长,少先队总辅导员,团委书记及中层以上干部工作",
+     *                     "",
+     *                     "",
+     *                     ""
+     *                 ],
+     *                 [
+     *                     "",
+     *                     "4.课堂教学",
+     *                     "制定教学计划,组织教学,课堂管理,教学理念,课堂实效,德育渗透,现代教育技术手段与学科融合等",
+     *                     "",
+     *                     "",
+     *                     ""
+     *                 ],
+     *                 [
+     *                     "",
+     *                     "5.学生发展指导",
+     *                     "作业批改,个性化辅导,心理辅导,学生综合素质评定,成长档案记录,帮扶学困生（特殊生）生涯规划指导,五育并举指导,学习行为习惯培养等",
+     *                     "",
+     *                     "",
+     *                     ""
+     *                 ],
+     *                 [
+     *                     "",
+     *                     "6.家校联系",
+     *                     "家长会,家访,家教指导,家长学校培训等",
+     *                     "",
+     *                     "",
+     *                     ""
+     *                 ]
+     *             ],
+     *             "columnCount": 6,
+     *             "rowCount": 10
+     *         }
+     *     ]
+     * }
+     *
+     */
+    private void DataInject(TableData tableData){
+        List<Indicator> indicatorList=new ArrayList<>();
+        List<Element> elementList=new ArrayList<>();
+        List<String> contentNameList=new ArrayList<>();
+        List<Content> contentList=new ArrayList<>();
+
+        Transaction transaction= DB.beginTransaction();
+
+        List<String> tmpContentName=new ArrayList<>();
+        tableData.getRows().stream().filter(data->data.size()>=5).toList().subList(1,tableData.getRows().size()).forEach(data->{
+            if(!data.get(0).isEmpty()&&!data.get(0).isBlank()){
+                Indicator indicator = new Indicator();
+                String[] strings = splitFirstOccurrenceWithIndexOf(data.get(0));
+                indicator.setIndicatorName(strings[0]);
+                indicator.setSubName(strings[1]);
+                logger.info(indicator.toString());
+                indicatorList.add(indicator);
+            }
+            if(data.size()==5){
+                Element element = new Element();
+                element.setElement(null);
+                element.setCriteria(data.get(3));
+                element.setType(0);
+                elementList.add(element);
+
+                tmpContentName.add(data.get(1));
+            }else{
+                String fullName = String.join("@#$", tmpContentName);
+                tmpContentName.clear();
+                if(!fullName.isEmpty()) contentNameList.add(fullName);
+
+                Element element = new Element();
+                element.setElement(data.get(1));
+                element.setCriteria(data.get(3));
+                element.setType(0);
+                elementList.add(element);
+
+                contentNameList.add(data.get(2));
+            }
+        });
+        try{
+            DB.saveAll(indicatorList);
+        }catch (Exception e){
+            logger.info(String.valueOf(e));
+        }
+
     }
 
     /**
