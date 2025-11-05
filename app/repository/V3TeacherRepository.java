@@ -341,6 +341,8 @@ public class V3TeacherRepository {
         List<TeacherKPIScore> deleteTeacherKPIScoreList=TeacherKPIScore.find.query().where().in("user_id",teacherIds).findList();
         List<TeacherElementScore> deleteTeacherElementScoreList=TeacherElementScore.find.query().where().in("user_id",teacherIds).findList();
         List<TeacherContentScore> deleteTeacherContentScoreList=TeacherContentScore.find.query().where().in("user_id",teacherIds).findList();
+        List<TeacherTask> deleteTeacherTaskList=TeacherTask.find.query().where().in("user_id",teacherIds).findList();
+
         try {
             DB.deleteAll(deleteTeacherKPIScoreList);
         } catch (Exception e) {
@@ -359,6 +361,13 @@ public class V3TeacherRepository {
             errorMsg.add("撤销content出错:"+e);
             transaction.rollback();
         }
+        try {
+            DB.deleteAll(deleteTeacherTaskList);
+        } catch (Exception e) {
+            errorMsg.add("撤销task出错:"+e);
+            transaction.rollback();
+        }
+
         transaction.commit();
         return new Pair<>(errorMsg.stream().filter(value -> !value.contains("warning")).toList().isEmpty(),errorMsg);
     }

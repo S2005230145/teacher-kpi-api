@@ -40,7 +40,6 @@ public class TeacherElementScore extends Model {
     @JsonDeserialize(using = DoubleDeserializer.class)
     public Double score;
 
-    //父级Id
     @Column(name = "task_id")
     @JsonDeserialize(using = StringToLongDeserializer.class)
     public Long taskId;

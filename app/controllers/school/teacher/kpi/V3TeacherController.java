@@ -23,6 +23,8 @@ import repository.V3TeacherRepository;
 import service.FileParseService;
 import utils.AssessmentPDF;
 import utils.Pair;
+import utils.parse.WordParser;
+import utils.parse.WordTableTitleExtractor;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -44,7 +46,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
 
     ObjectMapper objectMapper = new ObjectMapper();
 
-    private static final Boolean is_DEV=true;
+    private static final Boolean is_DEV=false;
 
     /**
      * @api {POST} /v1/tk/kpi/add/  01 kpi添加
@@ -58,12 +60,15 @@ public class V3TeacherController extends BaseAdminSecurityController {
      * @apiParamExample {json} 请求示例:
      *     [
      *       {
-     *         "title": ""
+     *         "title": ""//kpi标题名称
      *       }
      *     ]
      *
-     * @apiSuccess (Success 200){int} code 200
-     * @apiSuccess (Success 200){String[]} reason 错误列表
+     * @apiSuccess (Success 200) {int} code 200
+     * @apiSuccess (Success 200) {String[]} reason []
+     *
+     * @apiSuccess (Error 500) {int} code 500
+     * @apiSuccess (Error 500) {String[]} reason 错误信息
      */
     public CompletionStage<Result> addKpi(Http.Request request){
         JsonNode jsonNode = request.body().asJson();
@@ -94,16 +99,16 @@ public class V3TeacherController extends BaseAdminSecurityController {
      * @apiParamExample {json} 请求示例:
      *     [
      *       {
-     *         "indicatorName":"",
-     *         "subName":"",
-     *         "kpiId":1,
+     *         "indicatorName":"",//指标名称
+     *         "subName":"",//指标附属名称
+     *         "kpiId":1,//kpi对应Id
      *         "elementList":[
      *             {
-     *                 "element":null,
-     *                 "criteria":"",
+     *                 "element":null,//要素名称
+     *                 "criteria":"",//标准
      *                 "contentList":[
      *                     {
-     *                         "content":"12、123、12314"
+     *                         "content":"12、123、12314"//内容，多个内容需要用中文的、分开，当出现@#$时会切割它，否则切割、
      *                     }
      *                 ]
      *             }
@@ -112,7 +117,10 @@ public class V3TeacherController extends BaseAdminSecurityController {
      *     ]
      *
      * @apiSuccess (Success 200){int} code 200
-     * @apiSuccess (Success 200){String[]} reason 错误列表
+     * @apiSuccess (Success 200){String[]} reason []
+     *
+     * @apiSuccess (Error 500){int} code 500
+     * @apiSuccess (Error 500){String[]} reason 错误信息
      */
     public CompletionStage<Result> add(Http.Request request){
         JsonNode jsonNode = request.body().asJson();
@@ -157,7 +165,10 @@ public class V3TeacherController extends BaseAdminSecurityController {
      * }
      *
      * @apiSuccess (Success 200){int} code 200
-     * @apiSuccess (Success 200){String[]} reason 信息列表
+     * @apiSuccess (Success 200){String[]} reason []
+     *
+     * @apiSuccess (Error 500){int} code 500
+     * @apiSuccess (Error 500){String[]} reason 错误信息
      */
     public CompletionStage<Result> addSingleKpi(Http.Request request){
         JsonNode jsonNode = request.body().asJson();
@@ -192,7 +203,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
      * @apiSuccessExample {json} data 数据详情
      * {
      *     "data": {
-     *         "list": [
+     *         "list": [//所有指标信息,无KPI
      *             {
      *                 "id": 1,
      *                 "kpiId": 1,
@@ -288,7 +299,11 @@ public class V3TeacherController extends BaseAdminSecurityController {
      *         "pageSize": 10
      *     }
      * }
-     * @apiSuccess (Success 200){String[]} reason 错误列表
+     * @apiSuccess (Success 200){String[]} reason []
+     *
+     * @apiSuccess (Error 500){int} code 500
+     * @apiSuccess (Error 500){Object[]} data null
+     * @apiSuccess (Error 500){String[]} reason 错误信息
      */
     public CompletionStage<Result> getList(Http.Request request){
         JsonNode jsonNode = request.body().asJson();
@@ -337,14 +352,14 @@ public class V3TeacherController extends BaseAdminSecurityController {
      *         "list": [
      *             {
      *                 "id": 1,
-     *                 "title": "福清市中小学、中职学校教师绩效考核要点",
+     *                 "title": "福清市中小学、中职学校教师绩效考核要点",//KPI名称(标题)
      *                 "indicatorList": [
      *                     {
      *                         "id": 1,
-     *                         "kpiId": 1,
-     *                         "indicatorName": "师德师风",
-     *                         "subName": "（优、合格、不合格）",
-     *                         "elementList": [
+     *                         "kpiId": 1,//kpiId
+     *                         "indicatorName": "师德师风",//指标名称
+     *                         "subName": "（优、合格、不合格）",//指标附属名称
+     *                         "elementList": [//要素内容
      *                             {
      *                                 "id": 1,
      *                                 "indicatorId": 1,
@@ -386,8 +401,11 @@ public class V3TeacherController extends BaseAdminSecurityController {
      *     },
      *     "reason": []
      * }
+     * @apiSuccess (Success 200){String[]} reason []
      *
-     * @apiSuccess (Success 200){String[]} reason 错误列表
+     * @apiSuccess (Error 500){int} code 500
+     * @apiSuccess (Error 500){Object[]} data null
+     * @apiSuccess (Error 500){String[]} reason 错误信息
      */
     public CompletionStage<Result> getKpiList(Http.Request request){
         JsonNode jsonNode = request.body().asJson();
@@ -433,19 +451,19 @@ public class V3TeacherController extends BaseAdminSecurityController {
      *         "list": [
      *             {
      *                 "id": 1,
-     *                 "title": "福清市中小学、中职学校教师绩效考核要点",
+     *                 "title": "福清市中小学、中职学校教师绩效考核要点",//Kpi名称
      *                 "indicatorList": [
      *                     {
      *                         "id": 1,
-     *                         "kpiId": 1,
-     *                         "indicatorName": "师德师风",
-     *                         "subName": "（优、合格、不合格）",
+     *                         "kpiId": 1,//KpiId
+     *                         "indicatorName": "师德师风",//指标名称
+     *                         "subName": "（优、合格、不合格）",//指标附属名称
      *                         "elementList": [
      *                             {
      *                                 "id": 1,
-     *                                 "indicatorId": 1,
-     *                                 "element": null,
-     *                                 "contentList": [
+     *                                 "indicatorId": 1,//指标ID
+     *                                 "element": null,//要素名称
+     *                                 "contentList": [//内容区
      *                                     {
      *                                         "id": 1,
      *                                         "elementId": 1,
@@ -478,9 +496,11 @@ public class V3TeacherController extends BaseAdminSecurityController {
      *         },
      *         "pageSize": 10
      *     }
+     * @apiSuccess (Success 200){String[]} reason []
      *
-     *
-     * @apiSuccess (Success 200){String[]} reason 错误列表
+     * @apiSuccess (Error 500){int} code 500
+     * @apiSuccess (Error 500){Object[]} data null
+     * @apiSuccess (Error 500){String[]} reason 错误信息
      */
     public CompletionStage<Result> getElementList(Http.Request request){
         JsonNode jsonNode = request.body().asJson();
@@ -517,8 +537,8 @@ public class V3TeacherController extends BaseAdminSecurityController {
      *       {
      *         "currentPage":1,
      *         "pageSize":10,
-     *         "userId":1,//会查询该用户的评价内容
-     *         "elementId":1//会查询该评价要素对应的内容
+     *         "userId":1,//用户ID，会查询该用户的评价内容
+     *         "elementId":1//要素ID，会查询该评价要素对应的内容
      *       }
      *
      * @apiSuccess (Success 200){int} code 200
@@ -529,14 +549,14 @@ public class V3TeacherController extends BaseAdminSecurityController {
      *     "data": {
      *         "list": [
      *             {
-     *                 "id": 1,
-     *                 "indicatorId": 1,
-     *                 "element": null,
+     *                 "id": 1,//要素ID
+     *                 "indicatorId": 1,//指标ID
+     *                 "element": null,//要素名称
      *                 "contentList": [
      *                     {
-     *                         "id": 1,
-     *                         "elementId": 1,
-     *                         "content": "1、按照教育部《新时代中小学教师职业行为十项准则》、《新时代幼儿园教师职业行为十项准则》执行"
+     *                         "id": 1,//内容ID
+     *                         "elementId": 1,//要素ID
+     *                         "content": "1、按照教育部《新时代中小学教师职业行为十项准则》、《新时代幼儿园教师职业行为十项准则》执行"//内容名称
      *                     },
      *                     {
      *                         "id": 2,
@@ -549,8 +569,8 @@ public class V3TeacherController extends BaseAdminSecurityController {
      *                         "content": "3.未存在《福州市中小学（幼儿园）教师职业行为负面清单》及《福州市教师职业行为负面清单处理办法》中的师德失范行为"
      *                     }
      *                 ],
-     *                 "criteria": "是否合格，不设分值",
-     *                 "type": 0
+     *                 "criteria": "是否合格，不设分值",//标准
+     *                 "type": 0//类型
      *             },
      *             {
      *                 "id": 2,
@@ -608,8 +628,11 @@ public class V3TeacherController extends BaseAdminSecurityController {
      *     },
      *     "reason": []
      * }
+     * @apiSuccess (Success 200){String[]} reason []
      *
-     * @apiSuccess (Success 200){String[]} reason 错误列表
+     * @apiSuccess (Error 500){int} code 500
+     * @apiSuccess (Error 500){Object[]} data null
+     * @apiSuccess (Error 500){String[]} reason 错误信息
      */
     public CompletionStage<Result> getContentList(Http.Request request){
         JsonNode jsonNode = request.body().asJson();
@@ -646,12 +669,18 @@ public class V3TeacherController extends BaseAdminSecurityController {
      *
      * @apiParamExample {json} 请求示例:
      * {
-     *     "ids":"",
-     *     "kpiId":
+     *       "ids":"2,3",//需要下发的教师ID
+     *       "kpiId":1//对应的kpiID
      * }
      *
+     * @apiSuccess (Error 404) {String} msg ids未给出
+     * @apiSuccess (Error 404) {String} msg kpiId未给出
+     *
      * @apiSuccess (Success 200){int} code 200
-     * @apiSuccess (Success 200){String[]} reason 错误列表
+     * @apiSuccess (Success 200){String[]} reason []
+     *
+     * @apiSuccess (Error 500){int} code 500
+     * @apiSuccess (Error 500){String[]} reason 错误列表
      */
     public CompletionStage<Result> dispatch(Http.Request request){
         JsonNode jsonNode = request.body().asJson();
@@ -682,11 +711,11 @@ public class V3TeacherController extends BaseAdminSecurityController {
      *
      * @apiParamExample {json} 请求示例:
      * {
-     *     "userId":1,
-     *     "tcs":[
+     *     "userId":1,//用户ID
+     *     "tcs":[//教师评分对应的内容
      *         {
-     *             "contentId":1,
-     *             "score":1.0
+     *             "contentId":1,//内容ID
+     *             "score":1.0//初始分数
      *         },
      *         {
      *             "contentId":2,
@@ -699,8 +728,14 @@ public class V3TeacherController extends BaseAdminSecurityController {
      *     ]
      * }
      *
+     * @apiSuccess (Error 404) {String} msg 没有userId
+     * @apiSuccess (Error 404) {String} msg tcs为空
+     *
      * @apiSuccess (Success 200){int} code 200
-     * @apiSuccess (Success 200){String[]} reason 错误列表
+     * @apiSuccess (Success 200){String[]} reason []
+     *
+     * @apiSuccess (Error 500){int} code 500
+     * @apiSuccess (Error 500){String[]} reason 错误列表
      */
     public CompletionStage<Result> grade(Http.Request request){
         JsonNode jsonNode = request.body().asJson();
@@ -708,6 +743,9 @@ public class V3TeacherController extends BaseAdminSecurityController {
 
             Long userId= jsonNode.findPath("userId") instanceof MissingNode ? null : jsonNode.findPath("userId").asLong();
             List<TeacherContentScore> teacherContentScores= objectMapper.convertValue(jsonNode.findPath("tcs"), new TypeReference<>() {});
+
+            if(userId==null) return ok("没有userId");
+            if(teacherContentScores==null) return ok("tcs为空");
 
             Pair<Boolean, List<String>> grade = v3TeacherRepository.grade(userId, teacherContentScores);
 
@@ -727,11 +765,12 @@ public class V3TeacherController extends BaseAdminSecurityController {
      *
      * @apiParamExample {json} 请求示例:
      * {
-     *     "userId":1,
-     *     "kpiId":1
+     *     "userId":1,//用户ID
+     *     "kpiId":1//KpiID
      * }
      *
      * @apiSuccess (Success 200){File} file PDF文件
+     *
      */
     public CompletionStage<Result> export(Http.Request request){
         JsonNode jsonNode = request.body().asJson();
@@ -785,12 +824,17 @@ public class V3TeacherController extends BaseAdminSecurityController {
      *
      * @apiParamExample {json} 请求示例:
      * {
-     *     "elementIds":"1,2,3",
-     *     "type":1
+     *     "elementIds":"1,2,3",//要素ID
+     *     "type":1//类型
      * }
      *
+     * @apiSuccess (Error 404) {String} msg elementIds为空
+     *
      * @apiSuccess (Success 200){int} code 200
-     * @apiSuccess (Success 200){int} msg 更新成功
+     * @apiSuccess (Success 200){String[]} msg 更新成功
+     *
+     * @apiSuccess (Error 500){int} code 500
+     * @apiSuccess (Error 500){String[]} msg 更新失败 异常信息
      */
     public CompletionStage<Result> isAutoCalculator(Http.Request request){
         JsonNode jsonNode = request.body().asJson();
@@ -833,12 +877,16 @@ public class V3TeacherController extends BaseAdminSecurityController {
      *
      * @apiParamExample {json} 请求示例:
      * {
-     *     "elementIds":"1,2,3",
-     *     "contentIds":"1",
+     *     "elementIds":"1,2,3",//要素ID
+     *     "contentIds":"1",//内容ID
      * }
-     * @apiSuccess (null) {String} msg 没有需要删除的id
+     * @apiSuccess (Error 404) {String} msg 没有需要删除的id
+     *
      * @apiSuccess (Success 200){int} code 200
-     * @apiSuccess (Success 200){String[]} reason 错误列表
+     * @apiSuccess (Success 200){String[]} reason []
+     *
+     * @apiSuccess (Error 500){int} code 500
+     * @apiSuccess (Error 500){String[]} reason 错误列表
      */
     public CompletionStage<Result> deleteElementOrContentOrIndicatorOrKpi(Http.Request request){
         JsonNode jsonNode = request.body().asJson();
@@ -925,10 +973,15 @@ public class V3TeacherController extends BaseAdminSecurityController {
      *
      * @apiParamExample {json} 请求示例:
      * {
-     *     "teacherIds":"1,2,3"
+     *     "teacherIds":"1,2,3"//撤销的用户ID
      * }
      * @apiSuccess (Success 200){int} code 200
-     * @apiSuccess (Success 200){msg} reason 错误列表
+     * @apiSuccess (Success 200){msg} reason []
+     *
+     * @apiSuccess (Error 500){int} code 500
+     * @apiSuccess (Error 500){msg} reason 错误信息
+     *
+     * @apiSuccess (Error 404){int} msg 没有教师ID
      */
     public CompletionStage<Result> withDraw(Http.Request request){
         JsonNode jsonNode = request.body().asJson();
@@ -955,11 +1008,18 @@ public class V3TeacherController extends BaseAdminSecurityController {
      *
      * @apiParamExample {json} 请求示例:
      * {
-     *     "userId":1,
-     *     "LeaderIds":"1,2,3"
+     *     "userId":1,//发起人ID
+     *     "LeaderIds":"1,2,3"//发给的领导ID
      * }
+     *
+     * @apiSuccess (Error 404) {int} msg LeaderIds为空
+     * @apiSuccess (Error 404) {int} msg userId为空
+     *
      * @apiSuccess (Success 200){int} code 200
-     * @apiSuccess (Success 200){msg} reason 错误列表
+     * @apiSuccess (Success 200) {String[]} reason []
+     *
+     * @apiSuccess (Error 500){int} code 500
+     * @apiSuccess (Error 500) {String[]} reason 错误列表
      */
     public CompletionStage<Result> postAudit(Http.Request request){
         JsonNode jsonNode = request.body().asJson();
@@ -1002,47 +1062,70 @@ public class V3TeacherController extends BaseAdminSecurityController {
      * @apiDescription 获取所有领导领导
      *
      * @apiSuccess (Success 200){int} code 200
-     * @apiSuccess (Success 200){int} data 所有领导的数据
+     * @apiSuccess (Success 200){Object} data 所有领导的数据
+     * @apiSuccessExample {json} 数据展示:
+     * {
+     *     "id":1,//用户ID
+     *     "userName":"zs",//用户名称
+     *     "typeName":"校长",//领导职位
+     *     "status":1,//账号状态
+     *     "roleId":3,//角色ID
+     *     "role":{
+     *         "id":3,//角色ID
+     *         "nickName":"领导"//角色名称
+     *     }
+     * }
      */
     public CompletionStage<Result> getLeader(){
         return CompletableFuture.supplyAsync(()->{
-            Long roleId = Objects.requireNonNull(Role.find.query().where().eq("nick_name", "领导").setMaxRows(1).findOne()).getId();
+            Role one = Role.find.query().where().eq("nick_name", "领导").setMaxRows(1).findOne();
+            Long roleId = Objects.requireNonNull(one).getId();
 
             List<User> leadersList = User.find.query().where().eq("role_id", roleId).findList();
+            leadersList.forEach(leaders->{
+                leaders.setRole(one);
+            });
 
             return okCustomNode(true,null,leadersList);
         });
     }
 
     /**
-     * @api {POST} /v1/tk/get/leader/task/  16 获取上级的代办任务
+     * @api {POST} /v1/tk/get/leader/task/  16 获取上级的任务
      * @apiName getToDoTask
      * @apiGroup Teacher
      *
      * @apiDescription 获取该用户的代办任务
      *
      * @apiParam {Long} userId 用户ID
+     * @apiParamExample {json} 示例:
+     * {
+     *     "userId":1,
+     * }
      *
      * @apiSuccess (Success 200){int} code 200
-     * @apiSuccess (Success 200){int} data 所有领导的数据
-     * @apiSuccessExample {json} 示例:
+     * @apiSuccess (Success 200){msg} reason null
+     * @apiSuccess (Success 200){msg} data 数据
+     * @apiSuccessExample {json} 数据:
      * {
      *     "id":1,
-     *     "userId":1,
-     *     "userName":"123",
-     *     "parentIds":"3,4,5",
-     *     "status":"待完成",
-     *     "tesId":1,
-     *     "teacherElementScore":{
-     *         "id":...,
-     *         "userId":...,
-     *         "elementId":...,
-     *         "kpiId":...,
-     *         "score":...,
-     *         "taskId":...,
-     *         "finalScore":...
+     *     "userId":1,//发送人ID
+     *     "userName":"zs",//发送人姓名
+     *     "parentIds":"1,2,3",//上级用户ID
+     *     "status":"待完成",//状态 已完成、待完成
+     *     "tesId":1,//教师下发评分要素ID
+     *     "teacherElementScore":{//教师下发评分要素
+     *          "id":1,
+     *          "userId":1,//发送教师的ID
+     *          "elementId":1,//对应的要素ID
+     *          "KpiId":1,//对应的kpiId
+     *          "score":9.0,//该要素的初始总分
+     *          "task_id":1,//对应数据的任务ID
+     *          "finalScore":10.0//该要素的最终得分
      *     }
      * }
+     *
+     * @apiSuccess (Error 404){int} msg userId为空
      */
     public CompletionStage<Result> getToDoTask(Http.Request request){
         JsonNode jsonNode = request.body().asJson();
@@ -1075,24 +1158,29 @@ public class V3TeacherController extends BaseAdminSecurityController {
      * @apiName addLeaderScore
      * @apiGroup Teacher
      *
-     * @apiDescription 该上级用户的评分
+     * @apiDescription 该上级用户的评分，用于最终评分
      *
      * @apiParam {Long} userId 用户ID
      * @apiParam {Long} tesId 要素ID
      * @apiParam {Double} score 分数
      * @apiParamExample {json} 请求示例:
      * {
-     *      "userId":1,
+     *      "userId":1,//上级用户ID
      *      "data":[
      *          {
-     *              "tesId":1,
-     *              "score":12.0
+     *              "tesId":1,//该教师的评测要素ID
+     *              "score":12.0//最终得分
      *          }
      *      ]
      * }
-
      * @apiSuccess (Success 200){int} code 200
-     * @apiSuccess (Success 200){int} reason 错误信息
+     * @apiSuccess (Success 200){msg} reason []
+     *
+     * @apiSuccess (Error 500){int} code 500
+     * @apiSuccess (Error 500){msg} reason 错误信息
+     *
+     * @apiSuccess (Error 404){int} msg userId为空
+     * @apiSuccess (Error 404){int} msg data为空
      */
     public CompletionStage<Result> addLeaderScore(Http.Request request){
         JsonNode jsonNode = request.body().asJson();
@@ -1159,12 +1247,248 @@ public class V3TeacherController extends BaseAdminSecurityController {
      * @apiName importFile
      * @apiGroup Teacher
      *
-     * @apiDescription 导入规则文件
+     * @apiDescription 导入规则文件自动入库
      *
      * @apiParam {File} file 文件
      *
-     * @apiSuccess (Success 200){int} code 200
-     * @apiSuccess (Success 200){int} reason 错误信息
+     * @apiSuccess (Success 200){Object[]} data 数据
+     * @apiSuccessExample {json} 请求示例:
+     *{
+     *     "success": true,//状态
+     *     "message": "成功解析 2 个表格",//信息
+     *     "fileName": "test.docx",//文件名
+     *     "fileType": "WORD_DOCX",//文件类型
+     *     "totalTables": 2,//总共的表格数
+     *     "tables": [//解析的表格信息
+     *         {
+     *             "fileName": "test.docx",
+     *             "sheetName": null,
+     *             "tableIndex": 0,
+     *             "headers": [
+     *                 "评价指标",
+     *                 "评价要素",
+     *                 "评 价 内 容",
+     *                 "评 价 标 准",
+     *                 "初 始 得 分（100分）",
+     *                 "最 终 得 分（100分）"
+     *             ],
+     *             "rows": [
+     *                 [
+     *                     "一   二   三级   级   级",
+     *                     "",
+     *                     "",
+     *                     "",
+     *                     "",
+     *                     ""
+     *                 ],
+     *                 [
+     *                     "师德师风（优、合格、不合格）",
+     *                     "1、按照教育部《新时代中小学教师职业行为十项准则》、《新时代幼儿园教师职业行为十项准则》执行",
+     *                     "是否合格，不设分值",
+     *                     "",
+     *                     ""
+     *                 ],
+     *                 [
+     *                     "",
+     *                     "2.未存在教育部《中小学教师违反职业道德行为处理办法（2018年修订）》、《幼儿园教师违反职业道德行为处理办法》中应予处理的教师违反职业道德的行为",
+     *                     "",
+     *                     "",
+     *                     ""
+     *                 ],
+     *                 [
+     *                     "",
+     *                     "3.未存在《福州市中小学（幼儿园）教师职业行为负面清单》及《福州市教师职业行为负面清单处理办法》中的师德失范行为",
+     *                     "",
+     *                     "",
+     *                     ""
+     *                 ],
+     *                 [
+     *                     "教育教学常规30-40 分",
+     *                     "1.出勤情况",
+     *                     "病假、事假、迟到、旷课、政治学习、教研活动、学校会议及其他集体活动出勤情况",
+     *                     "",
+     *                     "",
+     *                     ""
+     *                 ],
+     *                 [
+     *                     "",
+     *                     "2.课时工作量",
+     *                     "完成标准课时工作量、代课、特殊课时等",
+     *                     "",
+     *                     "",
+     *                     ""
+     *                 ],
+     *                 [
+     *                     "",
+     *                     "3.班主任等工作",
+     *                     "担任班主任、年段长、教研组长、少先队总辅导员、团委书记及中层以上干部工作",
+     *                     "",
+     *                     "",
+     *                     ""
+     *                 ],
+     *                 [
+     *                     "",
+     *                     "4.课堂教学",
+     *                     "制定教学计划、组织教学、课堂管理、教学理念、课堂实效、德育渗透、现代教育技术手段与学科融合等",
+     *                     "",
+     *                     "",
+     *                     ""
+     *                 ],
+     *                 [
+     *                     "",
+     *                     "5.学生发展指导",
+     *                     "作业批改、个性化辅导、心理辅导、学生综合素质评定、成长档案记录、帮扶学困生（特殊生）生涯规划指导,五育并举指导,学习行为习惯培养等",
+     *                     "",
+     *                     "",
+     *                     ""
+     *                 ],
+     *                 [
+     *                     "",
+     *                     "6.家校联系",
+     *                     "家长会、家访、家教指导、家长学校培训等",
+     *                     "",
+     *                     "",
+     *                     ""
+     *                 ]
+     *             ],
+     *             "rowCount": 10,
+     *             "columnCount": 6
+     *         },
+     *         {
+     *             "fileName": "test.docx",
+     *             "sheetName": null,
+     *             "tableIndex": 1,
+     *             "headers": [
+     *                 "评价指标",
+     *                 "评价要素",
+     *                 "评 价 内 容",
+     *                 "评 价 标 准",
+     *                 "初 始 得 分（100分）",
+     *                 "最 终 得 分（100分）"
+     *             ],
+     *             "rows": [
+     *                 [
+     *                     "一   二   三级   级   级",
+     *                     "",
+     *                     "",
+     *                     "",
+     *                     "",
+     *                     ""
+     *                 ],
+     *                 [
+     *                     "教育教学业绩30-45 分",
+     *                     "1.教育教学业绩",
+     *                     "任教班级学生学业发展情况、任教学科中高考、合格性考试（会考）、市质检、期末考试、质量监测等的平均分、及格率、优秀率率",
+     *                     "",
+     *                     "",
+     *                     ""
+     *                 ],
+     *                 [
+     *                     "",
+     *                     "2.示范引领",
+     *                     "履行师徒协议及指导成效，承担各级学科研训组、名师工作室工作、担任学科培训班导师，参加“送教送培下乡”活动等",
+     *                     "",
+     *                     "",
+     *                     ""
+     *                 ],
+     *                 [
+     *                     "",
+     *                     "3.任教班级获奖",
+     *                     "班（团,队）会活动、单项竞赛获奖、综合性荣誉表彰",
+     *                     "",
+     *                     "",
+     *                     ""
+     *                 ],
+     *                 [
+     *                     "",
+     *                     "4.指导学生获奖情况",
+     *                     "指导学生参加学科竞赛、创新大赛、体育联赛、艺术展演等获奖",
+     *                     "",
+     *                     "",
+     *                     ""
+     *                 ],
+     *                 [
+     *                     "",
+     *                     "5.校本课程、综合实践活动",
+     *                     "参与校本课程研发，指导研究性学习，组织综合实践、社会实践、社团活动，担任课外活动辅导员等",
+     *                     "",
+     *                     "",
+     *                     ""
+     *                 ],
+     *                 [
+     *                     "",
+     *                     "6.教学团队合作",
+     *                     "参与教研、集备活动,教案、课件资源共享，参加岗位练兵、培训学习，完成听评课任务等",
+     *                     "",
+     *                     "",
+     *                     ""
+     *                 ],
+     *                 [
+     *                     "",
+     *                     "7.学生（家长）评价",
+     *                     "学生、家长满意率",
+     *                     "",
+     *                     "",
+     *                     ""
+     *                 ],
+     *                 [
+     *                     "个人专业发展5-15 分",
+     *                     "1.承担公开教学活动",
+     *                     "开设各级学科示范课、观摩课及专题讲座,主持班（团/队）观摩活动、区域交流活动等",
+     *                     "",
+     *                     "",
+     *                     ""
+     *                 ],
+     *                 [
+     *                     "",
+     *                     "2.撰写教育教学论文",
+     *                     "撰写学科、德育、党建、管理论文获奖或收入校级以上汇编",
+     *                     "",
+     *                     "",
+     *                     ""
+     *                 ],
+     *                 [
+     *                     "",
+     *                     "3.参与教育教学研究",
+     *                     "参与各级学科、德育、管理的课题研究、专题教研活动、项目式研究活动,负责学科命题,完成继续教育",
+     *                     "",
+     *                     "",
+     *                     ""
+     *                 ],
+     *                 [
+     *                     "",
+     *                     "4.个人获奖",
+     *                     "获得各级教育教学专项表彰、综合性荣誉表彰、公开教学竞赛获奖、名优骨干认定",
+     *                     "",
+     *                     "",
+     *                     ""
+     *                 ],
+     *                 [
+     *                     "承担急难险重工作5-10 分",
+     *                     "1.承担学校行政工作",
+     *                     "承担学校党建/教研/工会/后勤/安全/宣传/财务等工作，如集备组长/支部书记/党务秘书/安全专干/财务人员/实验组组长/处室干事等",
+     *                     "",
+     *                     "",
+     *                     ""
+     *                 ],
+     *                 [
+     *                     "",
+     *                     "2.承担学校临时性重要任务",
+     *                     "承担创建、评估、迎检、校庆、志愿服务等工作",
+     *                     "",
+     *                     "",
+     *                     ""
+     *                 ],
+     *                 [
+     *                     "总 分   100 分",
+     *                     ""
+     *                 ]
+     *             ],
+     *             "rowCount": 15,
+     *             "columnCount": 6
+     *         }
+     *     ]
+     * }
      */
     public CompletionStage<Result> importFile(Http.Request request){
         return CompletableFuture.supplyAsync(()->{
@@ -1195,6 +1519,10 @@ public class V3TeacherController extends BaseAdminSecurityController {
                 }
 
                 // 解析文件
+                List<WordTableTitleExtractor.TableTitleInfo> tableTitleInfos = WordTableTitleExtractor.extractTableTitles(tempFile.path().toFile(), fileName);
+                if(!tableTitleInfos.isEmpty()){
+                    WordParser.setRuleTitle(tableTitleInfos.get(0).getTitleText());
+                }
                 ParseResult result = fileParseService.parseTemporaryFile(tempFile, fileName);
 
                 if (result.isSuccess()) {
@@ -1206,6 +1534,173 @@ public class V3TeacherController extends BaseAdminSecurityController {
             } catch (Exception e) {
                 return internalServerError(createErrorResponse("服务器内部错误: " + e.getMessage()));
             }
+        });
+    }
+
+    /**
+     * @api {POST} /v1/tk/update/  19 多功能更新
+     * @apiName updateElementOrContentOrIndicatorOrKpi
+     * @apiGroup Teacher
+     *
+     * @apiDescription 可以更新element,content,indicator,kpi所对应的信息
+     *
+     * @apiParam {Object} element (可选)要素
+     * @apiParamExample {json} 要素类结构示例:
+     * {
+     *      "id":1,//要素ID
+     *      "element":"123",//要素名称
+     *      "criteria":"2345",//标准
+     *      "type":0//类型
+     * }
+     *
+     * @apiParam {Object} content (可选)内容
+     * @apiParamExample {json} 内容类结构示例:
+     * {
+     *      "id":1,//内容ID
+     *      "content":"123"//内容名称
+     * }
+     *
+     * @apiParam {Object} indicator (可选)指标
+     * @apiParamExample {json} 指标类结构示例:
+     * {
+     *      "id":1,//指标ID
+     *      "indicatorName":"123",//指标名称
+     *      "subName":"22344"//指标附属名称(在名字下方的)
+     * }
+     *
+     * @apiParam {Object} kpi (可选)kpi
+     * @apiParamExample {json} kpi类结构示例:
+     * {
+     *      "id":1,//kpiID
+     *      "title":"123"//kpi标题
+     * }
+     *
+     * @apiParam {Int} type 类型(1:要素,2:内容,3:指标,4:kpi)
+     *
+     * @apiParamExample {json} 请求示例:
+     * {
+     *     "type":2,//类型选择
+     *     "data":[//这里填入对应的类结构，我这里是内容
+     *          {
+     *              "id":62,
+     *              "content":"学生"
+     *          },
+     *          {
+     *              "id":63,
+     *              "content":"家长满意率"
+     *          }
+     *     ]
+     * }
+     * @apiSuccess (Error 404) {int} msg 没有type
+     *
+     * @apiSuccess (Success 200){int} code 200
+     * @apiSuccess (Success 200) {String[]} reason 更新成功
+     *
+     * @apiSuccess (Error 500){int} code 500
+     * @apiSuccess (Error 500) {String[]} reason 错误列表
+     */
+    public CompletionStage<Result> updateElementOrContentOrIndicatorOrKpi(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+            Integer type=(jsonNode.findPath("type") instanceof MissingNode ?null:jsonNode.findPath("type").asInt());
+
+            if(type==null) return ok("没有type");
+
+            if(type==1){
+                List<Element> elementList=objectMapper.convertValue(jsonNode.findPath("data"), new TypeReference<>() {});
+                try(Transaction transaction=Element.find.db().beginTransaction()){
+                    DB.updateAll(elementList);
+                    transaction.commit();
+                }catch (Exception e){
+                    return okCustomNode(false,List.of("更新要素出错: "+e));
+                }
+            } else if (type==2) {
+                List<Content> contentList=objectMapper.convertValue(jsonNode.findPath("data"), new TypeReference<>() {});
+                try(Transaction transaction=Content.find.db().beginTransaction()){
+                    DB.updateAll(contentList);
+                    transaction.commit();
+                }catch (Exception e){
+                    return okCustomNode(false,List.of("更新内容出错: "+e));
+                }
+            } else if (type==3) {
+                List<Indicator> indicatorList=objectMapper.convertValue(jsonNode.findPath("data"), new TypeReference<>() {});
+                try(Transaction transaction=Indicator.find.db().beginTransaction()){
+                    DB.updateAll(indicatorList);
+                    transaction.commit();
+                }catch (Exception e){
+                    return okCustomNode(false,List.of("更新指标出错: "+e));
+                }
+            } else if (type==4) {
+                List<KPI> kpiList=objectMapper.convertValue(jsonNode.findPath("data"), new TypeReference<>() {});
+                try(Transaction transaction=KPI.find.db().beginTransaction()){
+                    DB.updateAll(kpiList);
+                    transaction.commit();
+                }catch (Exception e){
+                    return okCustomNode(false,List.of("更新kpi出错: "+e));
+                }
+            }else{
+                return ok("type不正确");
+            }
+            return okCustomNode(true,List.of("更新成功"));
+        });
+    }
+
+    /**
+     * @api {POST} /v1/tk/update/chain/  20 内容链式更新
+     * @apiName chainUpdate
+     * @apiGroup Teacher
+     *
+     * @apiDescription 通过elementId来更新内容(内容之间用、号隔开)
+     *
+     * @apiParam {String} elementId 要素ID
+     * @apiParam {String} contents 内容链(内容之间用、号隔开)
+     *
+     * @apiParamExample {json} 请求示例:
+     * {
+     *     "elementId":14,//要素ID
+     *     "contents":"学生、家长满意度"//内容链子，用、隔开，注意这个会把数据库里原来对应的要素的内容删除再添加
+     * }
+     * @apiSuccess (Error 404) {int} msg 没有elementId
+     * @apiSuccess (Error 404) {int} msg 没有contents
+     *
+     * @apiSuccess (Success 200){int} code 200
+     * @apiSuccess (Success 200) {String[]} reason 更新成功
+     *
+     * @apiSuccess (Error 500){int} code 500
+     * @apiSuccess (Error 500) {String[]} reason 错误列表
+     */
+    public CompletionStage<Result> chainUpdate(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+            Long elementId=(jsonNode.findPath("elementId") instanceof MissingNode ?null: jsonNode.findPath("elementId").asLong());
+            List<String> contents=(jsonNode.findPath("contents") instanceof MissingNode ?null: Arrays.stream(jsonNode.findPath("contents").asText().split("、")).toList());
+
+            if(elementId==null) return ok("没有elementId");
+            if(contents==null) return ok("没有contents");
+
+            List<Content> contentList = Content.find.query().where().eq("element_id",elementId).findList();
+            try(Transaction transaction=Content.find.db().beginTransaction()){
+                DB.deleteAll(contentList);
+                transaction.commit();
+            }catch (Exception e){
+                return okCustomNode(false,List.of("删除旧内容出错: "+e));
+            }
+
+            List<Content> addContentList=new ArrayList<>();
+            contents.forEach(name->{
+                Content content = new Content();
+                content.setElementId(elementId);
+                content.setContent(name);
+                addContentList.add(content);
+            });
+            try(Transaction transaction=Content.find.db().beginTransaction()){
+                DB.saveAll(addContentList);
+                transaction.commit();
+            }catch (Exception e){
+                return okCustomNode(false,List.of("添加新内容出错: "+e));
+            }
+            return okCustomNode(true,List.of("更新成功"));
+
         });
     }
 

@@ -75,8 +75,11 @@ POST         /v1/tk/withDraw/                                                   
 POST         /v1/tk/auto/                                                        controllers.school.teacher.kpi.V3TeacherController.isAutoCalculator(request:Request)
 POST         /v1/tk/singleKpi/add/                                               controllers.school.teacher.kpi.V3TeacherController.addSingleKpi(request:Request)
 POST         /v1/tk/post/                                                        controllers.school.teacher.kpi.V3TeacherController.postAudit(request:Request)
+POST         /v1/tk/get/leader/                                                  controllers.school.teacher.kpi.V3TeacherController.getLeader()
 POST         /v1/tk/get/leader/task/                                             controllers.school.teacher.kpi.V3TeacherController.getToDoTask(request:Request)
 POST         /v1/tk/add/leader/score/                                            controllers.school.teacher.kpi.V3TeacherController.addLeaderScore(request:Request)
 POST         /v1/tk/add/rule/import/                                             controllers.school.teacher.kpi.V3TeacherController.importFile(request:Request)
+POST         /v1/tk/update/                                                      controllers.school.teacher.kpi.V3TeacherController.updateElementOrContentOrIndicatorOrKpi(request:Request)
+POST         /v1/tk/update/chain/                                                controllers.school.teacher.kpi.V3TeacherController.chainUpdate(request:Request)
 
 GET          /*file                                                              controllers.Assets.versioned(path="/public", file: Asset)
