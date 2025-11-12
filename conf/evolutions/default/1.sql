@@ -214,6 +214,7 @@ create table tk_v3_content (
   id                            bigint auto_increment not null,
   element_id                    bigint,
   content                       varchar(255),
+  score                         double,
   constraint pk_tk_v3_content primary key (id)
 );
 
@@ -300,6 +301,7 @@ create table tk_v3_element (
   element                       varchar(255),
   criteria                      varchar(255),
   type                          integer,
+  score                         double,
   constraint pk_tk_v3_element primary key (id)
 );
 
@@ -1051,6 +1053,7 @@ create table tk_v3_teacher_content_score (
   user_id                       bigint,
   content_id                    bigint,
   element_id                    bigint,
+  time                          integer,
   score                         double,
   constraint pk_tk_v3_teacher_content_score primary key (id)
 );
@@ -1062,8 +1065,18 @@ create table tk_v3_teacher_element_score (
   kpi_id                        bigint,
   score                         double,
   task_id                       bigint,
+  indicator_id                  bigint,
   final_score                   double,
   constraint pk_tk_v3_teacher_element_score primary key (id)
+);
+
+create table tk_v3_teacher_indicator_score (
+  id                            bigint auto_increment not null,
+  user_id                       bigint,
+  indicator_id                  bigint,
+  kpi_id                        bigint,
+  score                         double,
+  constraint pk_tk_v3_teacher_indicator_score primary key (id)
 );
 
 create table tk_v3_teacher_kpi_score (
@@ -1376,6 +1389,8 @@ drop table if exists v1_system_link;
 drop table if exists tk_v3_teacher_content_score;
 
 drop table if exists tk_v3_teacher_element_score;
+
+drop table if exists tk_v3_teacher_indicator_score;
 
 drop table if exists tk_v3_teacher_kpi_score;
 

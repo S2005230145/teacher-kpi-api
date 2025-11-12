@@ -6,10 +6,7 @@ import io.ebean.Model;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import myannotation.BooleanDeserializer;
-import myannotation.EscapeHtmlAuthoritySerializer;
-import myannotation.IntegerDeserializer;
-import myannotation.StringToLongDeserializer;
+import myannotation.*;
 
 import java.util.List;
 
@@ -47,6 +44,10 @@ public class Element extends Model {
     @Column(name = "type")
     @JsonDeserialize(using = IntegerDeserializer.class)
     public Integer type;
+
+    @Column(name = "score")
+    @JsonDeserialize(using = DoubleDeserializer.class)
+    public Double score;
 
     // JPA查询器（可选，与原代码保持一致）
     public static Finder<Long, Element> find =

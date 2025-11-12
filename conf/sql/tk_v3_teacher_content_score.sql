@@ -9,6 +9,7 @@ create table tk_v3_teacher_content_score (
   user_id bigint,
   content_id bigint,
   element_id bigint,
+  time integer,
   score double,
   constraint pk_tk_v3_teacher_content_score primary key (id)
 );

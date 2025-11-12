@@ -8,6 +8,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import myannotation.DoubleDeserializer;
 import myannotation.EscapeHtmlAuthoritySerializer;
+import myannotation.IntegerDeserializer;
 import myannotation.StringToLongDeserializer;
 
 /**
@@ -35,6 +36,11 @@ public class TeacherContentScore extends Model {
     @Column(name = "element_id")
     @JsonDeserialize(using = StringToLongDeserializer.class)
     public Long elementId;
+
+    //次数
+    @Column(name = "time")
+    @JsonDeserialize(using = IntegerDeserializer.class)
+    public Integer time;
 
     //对应要素内容的分数
     @Column(name = "score")

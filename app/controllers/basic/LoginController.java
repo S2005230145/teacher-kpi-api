@@ -68,10 +68,12 @@ public class LoginController extends BaseController {
                     .eq("user_name", userName)
                     .orderBy().asc("id")
                     .setMaxRows(1).findOne();
+            System.out.println(member);
             if(member!=null){
                 member.setRole(Role.find.query().where().eq("id",member.getRoleId()).orderBy().asc("id").setMaxRows(1).findOne());
             }
             if (null == member) return okCustomJson(CODE40003, "用户名或密码错误");
+            System.out.println(encodeUtils.getMd5WithSalt(password));
             if (!member.password.equalsIgnoreCase(encodeUtils.getMd5WithSalt(password))) {
                 if (businessUtils.uptoErrorLimit(request, KEY_LOGIN_MAX_ERROR_BY_ID + member.id, 10)) {
                     member.setStatus(ShopAdmin.STATUS_LOCK);

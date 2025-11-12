@@ -8,6 +8,7 @@ create table tk_v3_content (
   id bigint not null auto_increment,
   element_id bigint,
   content varchar(255),
+  score double,
   constraint pk_tk_v3_content primary key (id)
 );
 

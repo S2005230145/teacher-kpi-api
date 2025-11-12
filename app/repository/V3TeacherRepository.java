@@ -177,9 +177,9 @@ public class V3TeacherRepository {
         List<TeacherKPIScore> addTeacherKPIScoreList=new ArrayList<>();
         List<TeacherElementScore> addTeacherElementScoreList=new ArrayList<>();
         List<TeacherContentScore> addTeacherContentScoreList=new ArrayList<>();
+        List<TeacherIndicatorScore> addTeacherIndicatorScoreList=new ArrayList<>();
 
         KPI kpi = KPI.find.query().where().eq("id",kpiId).setMaxRows(1).findOne();
-        System.out.println(kpi);
         //=================
         List<Indicator> list = this.getList(Indicator.find.query().where().eq("kpiId", kpiId), 1, 1000).first().getList();
         kpi.setIndicatorList(list);
@@ -190,19 +190,30 @@ public class V3TeacherRepository {
         List<Long> elementIds = Objects.requireNonNull(elementList).stream().map(Element::getId).toList();
 
         List<Content> contentList=Content.find.query().where().in("element_id",elementIds).findList();
+
         //教师id下发
         ids.forEach(id->{
+
             //kpi下发
             TeacherKPIScore teacherKPIScore = new TeacherKPIScore();
             teacherKPIScore.setUserId(id);
             teacherKPIScore.setKpiId(kpiId);
             addTeacherKPIScoreList.add(teacherKPIScore);
+            //indicator下发
+            indicatorIds.forEach(indicatorId -> {
+                TeacherIndicatorScore tis = new TeacherIndicatorScore();
+                tis.setUserId(id);
+                tis.setIndicatorId(indicatorId);
+                tis.setKpiId(kpiId);
+                addTeacherIndicatorScoreList.add(tis);
+            });
             //element下发
-            elementIds.forEach(elementId->{
+            elementList.forEach(element->{
                 TeacherElementScore teacherElementScore=new TeacherElementScore();
                 teacherElementScore.setUserId(id);
                 teacherElementScore.setKpiId(kpiId);
-                teacherElementScore.setElementId(elementId);
+                teacherElementScore.setElementId(element.getId());
+                teacherElementScore.setIndicatorId(element.getIndicatorId());
                 addTeacherElementScoreList.add(teacherElementScore);
             });
             //content下发
@@ -218,6 +229,12 @@ public class V3TeacherRepository {
             DB.saveAll(addTeacherKPIScoreList);
         }catch (Exception e){
             errorMsg.add("下发KPI出错: "+e);
+            transaction.rollback();
+        }
+        try{
+            DB.saveAll(addTeacherIndicatorScoreList);
+        }catch (Exception e){
+            errorMsg.add("下发Indicator出错: "+e);
             transaction.rollback();
         }
         try{
@@ -244,12 +261,34 @@ public class V3TeacherRepository {
         Transaction transaction = DB.beginTransaction();
 
         List<TeacherContentScore> teacherContentScoreList = TeacherContentScore.find.query().where().eq("user_id", userId).in("content_id",teacherContentScores.stream().map(TeacherContentScore::getContentId).toList()).findList();
+        List<Long> contentIds = teacherContentScores.stream().map(TeacherContentScore::getContentId).toList();
+        List<Content> contentList = Content.find.query().where().in("id", contentIds).findList();
+        List<Element> elementList=Element.find.query().where().in("id",contentList.stream().map(Content::getElementId).toList()).findList();
+
         if(teacherContentScoreList.isEmpty()){
             errorMsg.add("没有该教师的评测内容");
         }
         else{
             teacherContentScoreList.forEach(tcs->{
-                tcs.setScore(Objects.requireNonNull(teacherContentScores.stream().filter(v1 -> Objects.equals(v1.getContentId(), tcs.getContentId())).findFirst().orElse(null)).getScore());
+                //计算逻辑
+                TeacherContentScore teacherContentScore = teacherContentScores.stream().filter(v1 -> Objects.equals(v1.getContentId(), tcs.getContentId())).findFirst().orElse(null);
+                Content content = contentList.stream().filter(v1 -> Objects.equals(v1.getId(), tcs.getContentId())).findFirst().orElse(null);
+
+                if(teacherContentScore!=null&&content!=null){
+                    Element element = elementList.stream().filter(v1 -> Objects.equals(v1.getId(), content.getElementId())).findFirst().orElse(null);
+                    double score = teacherContentScore.getTime()*content.getScore();
+                    if(element!=null){
+                        if(score>element.getScore()){
+                            score=element.getScore();
+                        }else if(score<=0.0){
+                            score=0.0;
+                        }
+                    }
+                    tcs.setScore(score);
+                    tcs.setTime(teacherContentScore.getTime());
+                }else{
+                    errorMsg.add("warning---该内容分数不存在");
+                }
                 if(tcs.getScore()==null){
                     errorMsg.add("warning---该分数未评测，默认0分");
                     tcs.setScore(0.0);
@@ -262,24 +301,36 @@ public class V3TeacherRepository {
             }
 
             //更新element分数
-            List<Long> contentIds = teacherContentScores.stream().map(TeacherContentScore::getContentId).toList();
-            Set<Long> elementIds = Content.find.query().where().in("id", contentIds).findList().stream().map(Content::getElementId).collect(Collectors.toSet());
-            List<TeacherElementScore> teacherElementScoreList = TeacherElementScore.find.query().where().eq("user_id", userId).in("element_id",elementIds).findList();
-
-            teacherElementScoreList.forEach(tes->{
+            Set<Long> elementIds = contentList.stream().map(models.school.kpi.v3.Content::getElementId).collect(Collectors.toSet());
+            List<TeacherElementScore> teacherElementScoreList = TeacherElementScore.find.query().where().eq("user_id", userId).findList();
+            List<TeacherElementScore> filterTeacherElementScoreList = teacherElementScoreList.stream().filter(v1 -> elementIds.contains(v1.getElementId())).toList();
+            filterTeacherElementScoreList.forEach(tes->{
                 tes.setScore(teacherContentScoreList.stream().filter(v1-> Objects.equals(v1.getElementId(), tes.getElementId())).map(TeacherContentScore::getScore).mapToDouble(Double::doubleValue).sum());
             });
             try{
-                DB.updateAll(teacherElementScoreList);
+                DB.updateAll(filterTeacherElementScoreList);
             } catch (Exception e) {
                 errorMsg.add("要素分数更新失败");
             }
+            //更新Indicator分数
+            Set<Long> indicatorIds = elementList.stream().map(Element::getIndicatorId).collect(Collectors.toSet());
+            List<TeacherIndicatorScore> teacherIndicatorScoreList=TeacherIndicatorScore.find.query().where().eq("user_id", userId).findList();
+            List<TeacherIndicatorScore> filterTeacherIndicatorScoreList = teacherIndicatorScoreList.stream().filter(v1 -> indicatorIds.contains(v1.getIndicatorId())).toList();
+            List<TeacherElementScore> list1 = teacherElementScoreList.stream().filter(v1 ->indicatorIds.contains(v1.getIndicatorId())).toList();
+            filterTeacherIndicatorScoreList.forEach(tis->{
+                tis.setScore(list1.stream().filter(v1-> v1.getScore()!=null&&Objects.equals(v1.getIndicatorId(), tis.getIndicatorId())).map(TeacherElementScore::getScore).mapToDouble(Double::doubleValue).sum());
+            });
+            try{
+                DB.updateAll(filterTeacherIndicatorScoreList);
+            } catch (Exception e) {
+                errorMsg.add("指标更新失败");
+            }
 
             //更新kpi分数(总分)
-            List<Long> list = teacherElementScoreList.stream().map(TeacherElementScore::getKpiId).toList();
-            TeacherKPIScore tks = TeacherKPIScore.find.query().where().eq("user_id", userId).in("kpiId", list).setMaxRows(1).findOne();
+            List<Long> list = teacherIndicatorScoreList.stream().map(TeacherIndicatorScore::getKpiId).toList();
+            TeacherKPIScore tks = TeacherKPIScore.find.query().where().eq("user_id", userId).in("kpi_id", list).setMaxRows(1).findOne();
             if(tks!=null){
-                tks.setScore(teacherElementScoreList.stream().map(TeacherElementScore::getScore).mapToDouble(Double::doubleValue).sum());
+                tks.setScore(teacherIndicatorScoreList.stream().map(TeacherIndicatorScore::getScore).filter(Objects::nonNull).mapToDouble(Double::doubleValue).sum());
                 try{
                     tks.update();
                     transaction.commit();
@@ -339,6 +390,7 @@ public class V3TeacherRepository {
         Transaction transaction = DB.beginTransaction();
 
         List<TeacherKPIScore> deleteTeacherKPIScoreList=TeacherKPIScore.find.query().where().in("user_id",teacherIds).findList();
+        List<TeacherIndicatorScore> deleteTeacherIndicatorScoreList=TeacherIndicatorScore.find.query().where().in("user_id",teacherIds).findList();
         List<TeacherElementScore> deleteTeacherElementScoreList=TeacherElementScore.find.query().where().in("user_id",teacherIds).findList();
         List<TeacherContentScore> deleteTeacherContentScoreList=TeacherContentScore.find.query().where().in("user_id",teacherIds).findList();
         List<TeacherTask> deleteTeacherTaskList=TeacherTask.find.query().where().in("user_id",teacherIds).findList();
@@ -347,6 +399,12 @@ public class V3TeacherRepository {
             DB.deleteAll(deleteTeacherKPIScoreList);
         } catch (Exception e) {
             errorMsg.add("撤销KPI出错:"+e);
+            transaction.rollback();
+        }
+        try {
+            DB.deleteAll(deleteTeacherIndicatorScoreList);
+        } catch (Exception e) {
+            errorMsg.add("撤销Indicator出错:"+e);
             transaction.rollback();
         }
         try {
@@ -371,7 +429,6 @@ public class V3TeacherRepository {
         transaction.commit();
         return new Pair<>(errorMsg.stream().filter(value -> !value.contains("warning")).toList().isEmpty(),errorMsg);
     }
-
 
     //==========================工具==========================
     //获取所有要素

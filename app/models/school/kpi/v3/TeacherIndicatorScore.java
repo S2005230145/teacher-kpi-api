@@ -11,33 +11,35 @@ import myannotation.EscapeHtmlAuthoritySerializer;
 import myannotation.StringToLongDeserializer;
 
 /**
- * 评价内容
+ * 教师内容里当前要素合计分数
  */
 @Data
 @NoArgsConstructor
 @Entity
-@Table(name = "tk_v3_content")
-public class Content extends Model {
+@Table(name = "tk_v3_teacher_indicator_score")
+public class TeacherIndicatorScore extends Model {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @JsonDeserialize(using = StringToLongDeserializer.class)
+    @JsonDeserialize(using = EscapeHtmlAuthoritySerializer.class)
     public Long id;
 
-    @Column(name = "element_id")
+    @Column(name = "user_id")
     @JsonDeserialize(using = StringToLongDeserializer.class)
-    public Long elementId;
+    public Long userId;
 
-    //评价内容 共享一个标准时使用 @#$ 分割  否则用 | 分割
-    @Column(name = "content")
-    @JsonDeserialize(using = EscapeHtmlAuthoritySerializer.class)
-    public String content;
+    @Column(name = "indicator_id")
+    @JsonDeserialize(using = StringToLongDeserializer.class)
+    public Long indicatorId;
 
-    //每次分数
+    @Column(name = "kpi_id")
+    @JsonDeserialize(using = StringToLongDeserializer.class)
+    public Long kpiId;
+
     @Column(name = "score")
     @JsonDeserialize(using = DoubleDeserializer.class)
     public Double score;
 
     // JPA查询器（可选，与原代码保持一致）
-    public static Finder<Long, Content> find =
-            new Finder<>(Content.class);
+    public static Finder<Long, TeacherIndicatorScore> find =
+            new Finder<>(TeacherIndicatorScore.class);
 }

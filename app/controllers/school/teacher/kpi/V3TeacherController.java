@@ -46,7 +46,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
 
     ObjectMapper objectMapper = new ObjectMapper();
 
-    private static final Boolean is_DEV=false;
+    private static final Boolean is_DEV=true;
 
     /**
      * @api {POST} /v1/tk/kpi/add/  01 kpi添加
@@ -218,17 +218,20 @@ public class V3TeacherController extends BaseAdminSecurityController {
      *                             {
      *                                 "id": 1,
      *                                 "elementId": 1,
-     *                                 "content": "1、按照教育部《新时代中小学教师职业行为十项准则》、《新时代幼儿园教师职业行为十项准则》执行"
+     *                                 "content": "1、按照教育部《新时代中小学教师职业行为十项准则》、《新时代幼儿园教师职业行为十项准则》执行",
+     *                                 "score":6.0,
      *                             },
      *                             {
      *                                 "id": 2,
      *                                 "elementId": 1,
-     *                                 "content": "2.未存在教育部《中小学教师违反职业道德行为处理办法（2018年修订）》、《幼儿园教师违反职业道德行为处理办法》中应予处理的教师违反职业道德的行为"
+     *                                 "content": "2.未存在教育部《中小学教师违反职业道德行为处理办法（2018年修订）》、《幼儿园教师违反职业道德行为处理办法》中应予处理的教师违反职业道德的行为",
+     *                                 "score":6.0,
      *                             },
      *                             {
      *                                 "id": 3,
      *                                 "elementId": 1,
-     *                                 "content": "3.未存在《福州市中小学（幼儿园）教师职业行为负面清单》及《福州市教师职业行为负面清单处理办法》中的师德失范行为"
+     *                                 "content": "3.未存在《福州市中小学（幼儿园）教师职业行为负面清单》及《福州市教师职业行为负面清单处理办法》中的师德失范行为",
+     *                                 "score":6.0,
      *                             }
      *                         ],
      *                         "criteria": "是否合格，不设分值",
@@ -368,17 +371,20 @@ public class V3TeacherController extends BaseAdminSecurityController {
      *                                     {
      *                                         "id": 1,
      *                                         "elementId": 1,
-     *                                         "content": "1、按照教育部《新时代中小学教师职业行为十项准则》、《新时代幼儿园教师职业行为十项准则》执行"
+     *                                         "content": "1、按照教育部《新时代中小学教师职业行为十项准则》、《新时代幼儿园教师职业行为十项准则》执行",
+     *                                         "score":6.0,
      *                                     },
      *                                     {
      *                                         "id": 2,
      *                                         "elementId": 1,
-     *                                         "content": "2.未存在教育部《中小学教师违反职业道德行为处理办法（2018年修订）》、《幼儿园教师违反职业道德行为处理办法》中应予处理的教师违反职业道德的行为"
+     *                                         "content": "2.未存在教育部《中小学教师违反职业道德行为处理办法（2018年修订）》、《幼儿园教师违反职业道德行为处理办法》中应予处理的教师违反职业道德的行为",
+     *                                         "score":6.0,
      *                                     },
      *                                     {
      *                                         "id": 3,
      *                                         "elementId": 1,
-     *                                         "content": "3.未存在《福州市中小学（幼儿园）教师职业行为负面清单》及《福州市教师职业行为负面清单处理办法》中的师德失范行为"
+     *                                         "content": "3.未存在《福州市中小学（幼儿园）教师职业行为负面清单》及《福州市教师职业行为负面清单处理办法》中的师德失范行为",
+     *                                         "score":6.0,
      *                                     }
      *                                 ],
      *                                 "criteria": "是否合格，不设分值",
@@ -467,17 +473,20 @@ public class V3TeacherController extends BaseAdminSecurityController {
      *                                     {
      *                                         "id": 1,
      *                                         "elementId": 1,
-     *                                         "content": "1、按照教育部《新时代中小学教师职业行为十项准则》、《新时代幼儿园教师职业行为十项准则》执行"
+     *                                         "content": "1、按照教育部《新时代中小学教师职业行为十项准则》、《新时代幼儿园教师职业行为十项准则》执行",
+     *                                         "score":6.0,
      *                                     },
      *                                     {
      *                                         "id": 2,
      *                                         "elementId": 1,
-     *                                         "content": "2.未存在教育部《中小学教师违反职业道德行为处理办法（2018年修订）》、《幼儿园教师违反职业道德行为处理办法》中应予处理的教师违反职业道德的行为"
+     *                                         "content": "2.未存在教育部《中小学教师违反职业道德行为处理办法（2018年修订）》、《幼儿园教师违反职业道德行为处理办法》中应予处理的教师违反职业道德的行为",
+     *                                         "score":-1.0,
      *                                     },
      *                                     {
      *                                         "id": 3,
      *                                         "elementId": 1,
-     *                                         "content": "3.未存在《福州市中小学（幼儿园）教师职业行为负面清单》及《福州市教师职业行为负面清单处理办法》中的师德失范行为"
+     *                                         "content": "3.未存在《福州市中小学（幼儿园）教师职业行为负面清单》及《福州市教师职业行为负面清单处理办法》中的师德失范行为",
+     *                                         "score":3.0,
      *                                     }
      *                                 ],
      *                                 "criteria": "是否合格，不设分值",
@@ -556,17 +565,20 @@ public class V3TeacherController extends BaseAdminSecurityController {
      *                     {
      *                         "id": 1,//内容ID
      *                         "elementId": 1,//要素ID
-     *                         "content": "1、按照教育部《新时代中小学教师职业行为十项准则》、《新时代幼儿园教师职业行为十项准则》执行"//内容名称
+     *                         "content": "1、按照教育部《新时代中小学教师职业行为十项准则》、《新时代幼儿园教师职业行为十项准则》执行",//内容名称
+     *                         "score":6.0,//该内容加权得分
      *                     },
      *                     {
      *                         "id": 2,
      *                         "elementId": 1,
-     *                         "content": "2.未存在教育部《中小学教师违反职业道德行为处理办法（2018年修订）》、《幼儿园教师违反职业道德行为处理办法》中应予处理的教师违反职业道德的行为"
+     *                         "content": "2.未存在教育部《中小学教师违反职业道德行为处理办法（2018年修订）》、《幼儿园教师违反职业道德行为处理办法》中应予处理的教师违反职业道德的行为",
+     *                         "score":-1.0
      *                     },
      *                     {
      *                         "id": 3,
      *                         "elementId": 1,
-     *                         "content": "3.未存在《福州市中小学（幼儿园）教师职业行为负面清单》及《福州市教师职业行为负面清单处理办法》中的师德失范行为"
+     *                         "content": "3.未存在《福州市中小学（幼儿园）教师职业行为负面清单》及《福州市教师职业行为负面清单处理办法》中的师德失范行为",
+     *                         "score":3.0
      *                     }
      *                 ],
      *                 "criteria": "是否合格，不设分值",//标准
@@ -698,6 +710,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
         });
     }
 
+    //new
     /**
      * @api {POST} /v1/tk/grade/  09 评分
      * @apiName grade
@@ -707,7 +720,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
      *
      * @apiParam {Long} userId 教师ID
      * @apiParam {Long} contentId 内容ID
-     * @apiParam {Double} score 分数
+     * @apiParam {Integer} time 次数
      *
      * @apiParamExample {json} 请求示例:
      * {
@@ -715,15 +728,15 @@ public class V3TeacherController extends BaseAdminSecurityController {
      *     "tcs":[//教师评分对应的内容
      *         {
      *             "contentId":1,//内容ID
-     *             "score":1.0//初始分数
+     *             "time":1//次数
      *         },
      *         {
      *             "contentId":2,
-     *             "score":2.0
+     *             "time":1
      *         },
      *         {
      *             "contentId":3,
-     *             "score":4.0
+     *             "time":2
      *         }
      *     ]
      * }
@@ -1701,6 +1714,54 @@ public class V3TeacherController extends BaseAdminSecurityController {
             }
             return okCustomNode(true,List.of("更新成功"));
 
+        });
+    }
+
+    //TODO 内容加权分数和要素定分
+    /**
+     * @api {POST} /v1/tk/content/score/add/  21 内容加权分数添加
+     * @apiName addScoreWeight
+     * @apiGroup Teacher
+     *
+     * @apiDescription 通过elementId来更新内容(内容之间用、号隔开)
+     *
+     * @apiParam {String} id 内容ID
+     * @apiParam {String} score 加权分数
+     *
+     * @apiParamExample {json} 请求示例:
+     * [
+     *      {
+     *          "id":1,//内容ID
+     *          "score":30//加权分数 -为扣分
+     *      },
+     *      {
+     *          "id":2,
+     *          "score":30
+     *      },
+     *      {
+     *          "id":3,
+     *          "score":30
+     *      },
+     *      {
+     *          "id":4,
+     *          "score":-5
+     *      }
+     * ]
+
+     * @apiSuccess (Error 404) {int} msg 没有elementId
+     * @apiSuccess (Error 404) {int} msg 没有contents
+     *
+     * @apiSuccess (Success 200){int} code 200
+     * @apiSuccess (Success 200) {String[]} reason 更新成功
+     *
+     * @apiSuccess (Error 500){int} code 500
+     * @apiSuccess (Error 500) {String[]} reason 错误列表
+     */
+    public CompletionStage<Result> addScoreWeight(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+            List<Content> contentList=objectMapper.convertValue(jsonNode, new TypeReference<>() {});
+            return ok();
         });
     }
 
