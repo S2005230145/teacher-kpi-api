@@ -15,6 +15,7 @@ import models.table.ParseResult;
 import models.user.Role;
 import models.user.User;
 import play.libs.Json;
+import play.mvc.BodyParser;
 import play.mvc.Http;
 import play.mvc.Result;
 import repository.V3TeacherRepository;
@@ -35,7 +36,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
 
-@Slf4j
+
 public class V3TeacherController extends BaseAdminSecurityController {
     @Inject
     V3TeacherRepository v3TeacherRepository;
@@ -424,33 +425,81 @@ public class V3TeacherController extends BaseAdminSecurityController {
      * @apiSuccess (Error 500){Object[]} data null
      * @apiSuccess (Error 500){String[]} reason 错误信息
      */
+    @BodyParser.Of(BodyParser.Json.class)
     public CompletionStage<Result> getKpiList(Http.Request request){
-        JsonNode jsonNode = request.body().asJson();
-        return CompletableFuture.supplyAsync(()->{
-            int currentPage=(jsonNode.findPath("currentPage") instanceof MissingNode ?1:jsonNode.findPath("currentPage").asInt());
-            int pageSize=(jsonNode.findPath("pageSize") instanceof MissingNode ?10:jsonNode.findPath("pageSize").asInt());
-            Long userId=(jsonNode.findPath("userId") instanceof MissingNode ?null:jsonNode.findPath("userId").asLong());
-            //条件
-            Long id=(jsonNode.findPath("id") instanceof MissingNode || jsonNode.findPath("id").isEmpty() ?null:jsonNode.findPath("id").asLong());
-            String title=(jsonNode.findPath("title") instanceof MissingNode ?null:jsonNode.findPath("title").asText());
+//        JsonNode jsonNode = request.body().asJson();
+//        return CompletableFuture.supplyAsync(()->{
+////            int currentPage=(jsonNode.findPath("currentPage") instanceof MissingNode ?1:jsonNode.findPath("currentPage").asInt());
+////            int pageSize=(jsonNode.findPath("pageSize") instanceof MissingNode ?10:jsonNode.findPath("pageSize").asInt());
+////            Long userId=(jsonNode.findPath("userId") instanceof MissingNode ?null:jsonNode.findPath("userId").asLong());
+////            //条件
+////            Long id=(jsonNode.findPath("id") instanceof MissingNode || jsonNode.findPath("id").isEmpty() ?null:jsonNode.findPath("id").asLong());
+////            String title=(jsonNode.findPath("title") instanceof MissingNode ?null:jsonNode.findPath("title").asText());
+//
+//            ExpressionList<KPI> expressionList = KPI.find.query().where();
+////            if(userId!=null){
+////                Set<Long> kpiIds = TeacherKPIScore.find.query().where().eq("user_id",userId).findList().stream().map(TeacherKPIScore::getKpiId).collect(Collectors.toSet());
+////                expressionList.in("id",kpiIds);
+////            }
+////            if(id!=null) expressionList.eq("id",id);
+////            if(title!=null&&!title.isEmpty()) expressionList.icontains("title",title);
+//
+//            PagedList<KPI> pagedList = expressionList.setFirstRow(0).setMaxRows(5).findPagedList();
+//
+//            List<KPI> kpiList=pagedList.getList();
+//            int totalPageCount = pagedList.getTotalPageCount();
+//            ObjectNode node = Json.newObject();
+//            node.put(CODE, CODE200);
+//            node.set("list",Json.toJson(kpiList));
+//            node.put("pages", totalPageCount);
+//            return ok(node);
+//        });
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                // 构建查询
+                ExpressionList<KPI> expressionList = KPI.find.query().where();
 
-            ExpressionList<KPI> expressionList = KPI.find.query().where();
-            if(userId!=null){
-                Set<Long> kpiIds = TeacherKPIScore.find.query().where().eq("user_id",userId).findList().stream().map(TeacherKPIScore::getKpiId).collect(Collectors.toSet());
-                expressionList.in("id",kpiIds);
+                // 执行分页查询
+                PagedList<KPI> pagedList = expressionList
+                        .setFirstRow(0)  // 注意：setFirstRow从0开始，不是1
+                        .setMaxRows(10)
+                        .findPagedList();
+
+                // 构建响应数据
+                ObjectNode response = Json.newObject();
+                response.put("code", CODE200);
+                response.put("message", "success");
+                response.set("list", buildKPIData(pagedList));
+                response.put("total", pagedList.getTotalCount());
+                response.put("pages", pagedList.getTotalPageCount());
+                response.put("pageSize", 10);
+                response.put("currentPage", 1);
+
+                return response;
+
+            } catch (Exception e) {
+                // 错误处理
+                ObjectNode errorResponse = Json.newObject();
+                errorResponse.put("code", CODE500);
+                errorResponse.put("message", "查询失败: " + e.getMessage());
+                errorResponse.put("data", Json.newArray());
+                errorResponse.put("total", 0);
+                errorResponse.put("pages", 0);
+                return errorResponse;
             }
-            if(id!=null) expressionList.eq("id",id);
-            if(title!=null&&!title.isEmpty()) expressionList.icontains("title",title);
+        }).thenApply(response -> ok(Json.toJson(response)));
+    }
 
-            PagedList<KPI> pagedList = expressionList.setFirstRow(currentPage-1).setMaxRows(pageSize).findPagedList();
-            List<String> msg=new ArrayList<>();
+    //测试
+    public CompletionStage<Result> getKpiListGet(Http.Request request){
+        return CompletableFuture.supplyAsync(()->{
+            ExpressionList<KPI> expressionList = KPI.find.query().where();
 
-            Pair<PagedList<KPI>, List<String>> list =new Pair<>(pagedList,msg);
+            List<KPI> list = expressionList.findList();
 
             ObjectNode node = Json.newObject();
             node.put("code", CODE200);
-            node.set("list",Json.toJson(list.first().getList()));
-            node.put("pages", list.first().getTotalPageCount());
+            node.set("list",Json.toJson(list));
             return ok(node);
         });
     }
@@ -2210,5 +2259,21 @@ public class V3TeacherController extends BaseAdminSecurityController {
         } catch (NumberFormatException e) {
             return Optional.empty();
         }
+    }
+
+    private JsonNode buildKPIData(PagedList<KPI> pagedList) {
+        List<Object> dataList = new ArrayList<>();
+
+        for (KPI kpi : pagedList.getList()) {
+            ObjectNode kpiNode = Json.newObject();
+            // 显式设置每个字段，避免序列化问题
+            kpiNode.put("id", kpi.getId());
+            kpiNode.put("title", kpi.getTitle());
+            // 添加其他需要的字段...
+
+            dataList.add(kpiNode);
+        }
+
+        return Json.toJson(dataList);
     }
 }

@@ -91,6 +91,7 @@ POST         /v1/tk/teacher/list/dispatch/                                      
 POST         /v1/tk/user/list/                                                   controllers.school.teacher.kpi.V3TeacherController.getUserList(request:Request)
 POST         /v1/tk/role/list/                                                   controllers.school.teacher.kpi.V3TeacherController.getRoleList(request:Request)
 POST         /v1/tk/user/delete/                                                 controllers.school.teacher.kpi.V3TeacherController.deleteUser(request:Request)
+GET          /v1/tk/getKpiList/                                                  controllers.school.teacher.kpi.V3TeacherController.getKpiListGet(request:Request)
 
 POST         /v1/tk/test/                                                        controllers.TestController.test()
 #==========显示==========

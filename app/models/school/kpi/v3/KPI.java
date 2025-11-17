@@ -7,8 +7,10 @@ import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import myannotation.EscapeHtmlAuthoritySerializer;
+import myannotation.EscapeHtmlSerializer;
 import myannotation.StringToLongDeserializer;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Data
@@ -17,16 +19,16 @@ import java.util.List;
 @Table(name = "tk_v3_kpi")
 public class KPI extends Model {
     @Id
+    @Column(name = "id")
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @JsonDeserialize(using = StringToLongDeserializer.class)
     public Long id;
 
     @Column(name = "title")
-    @JsonDeserialize(using = EscapeHtmlAuthoritySerializer.class)
+    @JsonDeserialize(using = EscapeHtmlSerializer.class)
     public String title;
 
     @Transient
-    List<Indicator> indicatorList;
+    List<Indicator> indicatorList= new ArrayList<>();
 
     // JPA查询器（可选，与原代码保持一致）
     public static Finder<Long, KPI> find =
