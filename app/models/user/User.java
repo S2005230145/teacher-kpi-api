@@ -8,6 +8,7 @@ import jakarta.persistence.*;
 import lombok.Data;
 import myannotation.EscapeHtmlAuthoritySerializer;
 import myannotation.EscapeHtmlSerializer;
+import myannotation.IntegerDeserializer;
 
 @Data
 @Entity
@@ -28,6 +29,10 @@ public class User extends Model {
     @JsonIgnore
     public String password;
 
+    @Column(name = "phone")
+    @JsonDeserialize(using = EscapeHtmlSerializer.class)
+    public String phone;
+
     @Column(name = "type_name")
     @JsonDeserialize(using = EscapeHtmlSerializer.class)
     public String typeName;
@@ -38,6 +43,10 @@ public class User extends Model {
     @Column(name = "role_id")
     @JsonDeserialize(using = EscapeHtmlSerializer.class)
     public Long roleId;
+
+    @Column(name = "dispatch_ids")
+    @JsonDeserialize(using = EscapeHtmlSerializer.class)
+    public String dispatchIds;
 
     @Transient
     public Role role;

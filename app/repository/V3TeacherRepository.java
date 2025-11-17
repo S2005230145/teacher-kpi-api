@@ -69,6 +69,7 @@ public class V3TeacherRepository {
             newIndicator.setSubName(indicator.getSubName());
             addIndicatorList.add(newIndicator);
         });
+
         try{
             DB.saveAll(addIndicatorList);
         } catch (Exception e) {
@@ -76,42 +77,43 @@ public class V3TeacherRepository {
             transaction.rollback();
         }
 
-        List<Pair<String, List<Element>>> elementListParam=this.getElementList(indicatorParamList);
-        addIndicatorList.forEach(indicatorParam-> {
-            List<Element> list = Objects.requireNonNull(elementListParam.stream().filter(element -> Objects.equals(element.first(), indicatorParam.getIndicatorName())).findFirst().orElse(null)).second();
-            list.forEach(elementParam -> {
-                Element element=new Element();
-                element.setIndicatorId(indicatorParam.getId());
-                element.setElement(elementParam.getElement());
-                element.setCriteria(elementParam.getCriteria());
-                element.setType(0);
-                addElementList.add(element);
-            });
-        });
-        try{
-            DB.saveAll(addElementList);
-        } catch (Exception e) {
-            errorMsg.add("插入评价要素出错: "+e);
-            transaction.rollback();
-        }
-
-        List<Pair<String,List<Content>>> contentList=this.getContentList(indicatorParamList);
-        addElementList.forEach(elementParam->{
-            Pair<String, List<Content>> stringListPair = Objects.requireNonNull(contentList.stream().filter(v1 -> Objects.equals(v1.first(), elementParam.getElement())).findFirst().orElse(null));
-            stringListPair.second().forEach(contentParam -> {
-                Content content=new Content();
-                content.setElementId(elementParam.getId());
-                content.setContent(contentParam.getContent());
-                addContentList.add(content);
-            });
-        });
-        try{
-            DB.saveAll(addContentList);
-            transaction.commit();
-        } catch (Exception e) {
-            errorMsg.add("插入评价内容出错: "+e);
-            transaction.rollback();
-        }
+//        List<Pair<String, List<Element>>> elementListParam=this.getElementList(indicatorParamList);
+//        addIndicatorList.forEach(indicatorParam-> {
+//            List<Element> list = Objects.requireNonNull(elementListParam.stream().filter(element -> Objects.equals(element.first(), indicatorParam.getIndicatorName())).findFirst().orElse(null)).second();
+//            list.forEach(elementParam -> {
+//                Element element=new Element();
+//                element.setIndicatorId(indicatorParam.getId());
+//                element.setElement(elementParam.getElement());
+//                element.setCriteria(elementParam.getCriteria());
+//                element.setType(0);
+//                addElementList.add(element);
+//            });
+//        });
+//
+//        try{
+//            DB.saveAll(addElementList);
+//        } catch (Exception e) {
+//            errorMsg.add("插入评价要素出错: "+e);
+//            transaction.rollback();
+//        }
+//
+//        List<Pair<String,List<Content>>> contentList=this.getContentList(indicatorParamList);
+//        addElementList.forEach(elementParam->{
+//            Pair<String, List<Content>> stringListPair = Objects.requireNonNull(contentList.stream().filter(v1 -> Objects.equals(v1.first(), elementParam.getElement())).findFirst().orElse(null));
+//            stringListPair.second().forEach(contentParam -> {
+//                Content content=new Content();
+//                content.setElementId(elementParam.getId());
+//                content.setContent(contentParam.getContent());
+//                addContentList.add(content);
+//            });
+//        });
+//        try{
+//            DB.saveAll(addContentList);
+//            transaction.commit();
+//        } catch (Exception e) {
+//            errorMsg.add("插入评价内容出错: "+e);
+//            transaction.rollback();
+//        }
 
         return new Pair<>(errorMsg.stream().filter(value -> !value.contains("warning")).toList().isEmpty(),errorMsg);
     }
@@ -153,11 +155,11 @@ public class V3TeacherRepository {
         PagedList<Element> pagedList = expressionList.setFirstRow(current-1).setMaxRows(size).findPagedList();
         List<String> msg=new ArrayList<>();
 
-        List<Long> list = pagedList.getList().stream().map(Element::getId).toList();
-        List<Content> contentList = Content.find.query().where().in("element_id",list).findList();
-        pagedList.getList().forEach(ele -> {
-            ele.setContentList(contentList.stream().filter(v1-> Objects.equals(v1.getElementId(), ele.getId())).toList());
-        });
+//        List<Long> list = pagedList.getList().stream().map(Element::getId).toList();
+//        List<Content> contentList = Content.find.query().where().in("element_id",list).findList();
+//        pagedList.getList().forEach(ele -> {
+//            ele.setContentList(contentList.stream().filter(v1-> Objects.equals(v1.getElementId(), ele.getId())).toList());
+//        });
 
         return new Pair<>(pagedList,msg);
     }

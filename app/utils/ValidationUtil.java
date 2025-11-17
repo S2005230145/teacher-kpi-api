@@ -34,6 +34,15 @@ public class ValidationUtil {
         return true;
     }
 
+    public static boolean isValidStatus(int status) {
+        return status > 0;
+    }
+
+    public static boolean isValidRoleId(Long roleId) {
+        return roleId!=null && roleId > 0;
+    }
+
+
     /**
      * 验证邮箱
      *

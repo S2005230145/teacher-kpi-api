@@ -32,6 +32,9 @@ public class TeacherTask extends Model {
     @Transient
     public String userName;
 
+    @Transient
+    public String parentName;
+
     @Column(name = "parent_ids")
     @JsonDeserialize(using = EscapeHtmlAuthoritySerializer.class)
     public String parentIds;
@@ -46,6 +49,9 @@ public class TeacherTask extends Model {
 
     @Transient
     TeacherElementScore teacherElementScore;
+
+    @Transient
+    Element element;
 
     // JPA查询器（可选，与原代码保持一致）
     public static Finder<Long, TeacherTask> find =

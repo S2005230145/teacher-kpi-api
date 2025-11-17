@@ -1234,9 +1234,11 @@ create table tk_v1_user (
   id                            bigint auto_increment not null,
   user_name                     varchar(255),
   password                      varchar(255),
+  phone                         varchar(255),
   type_name                     varchar(255),
   status                        integer not null,
   role_id                       bigint,
+  dispatch_ids                  varchar(255),
   constraint pk_tk_v1_user primary key (id)
 );
 

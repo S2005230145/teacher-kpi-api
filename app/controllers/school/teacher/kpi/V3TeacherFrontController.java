@@ -8,6 +8,7 @@ import controllers.BaseSecurityController;
 import io.ebean.ExpressionList;
 import io.ebean.PagedList;
 import jakarta.inject.Inject;
+import lombok.extern.slf4j.Slf4j;
 import models.school.kpi.v3.*;
 import models.user.User;
 import play.libs.Json;
@@ -22,11 +23,11 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+@Slf4j
 public class V3TeacherFrontController extends BaseAdminSecurityController {
 
     @Inject
@@ -164,13 +165,13 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
             List<TeacherKPIScore> kpiScoreList = TeacherKPIScore.find.query().where().eq("kpi_id", kpiId).findList();
             TeacherKPIScore tks = kpiScoreList.stream().filter(v1-> Objects.equals(v1.getUserId(), userId)).findFirst().orElse(null);
 
-
+            List<TeacherKPIScore> filterKpiScoreList= new ArrayList<>(kpiScoreList.stream().filter(v1 -> v1.getScore() != null).toList());
             ObjectNode result = Json.newObject();
             result.put("currentScore",tks!=null?tks.getScore():null);
-            kpiScoreList.sort((v1,v2)-> Double.compare(v2.getScore(),v1.getScore()));
+            filterKpiScoreList.sort((v1,v2)-> Double.compare(v2.getScore(),v1.getScore()));
 
-            OptionalInt firstIndex  = IntStream.range(0, kpiScoreList.size()).filter(i -> {
-                TeacherKPIScore teacherKPIScore = kpiScoreList.get(i);
+            OptionalInt firstIndex  = IntStream.range(0, filterKpiScoreList.size()).filter(i -> {
+                TeacherKPIScore teacherKPIScore = filterKpiScoreList.get(i);
                 return userId.equals(teacherKPIScore.getUserId());
             }).findFirst();
             result.put("rank",firstIndex.isPresent()?firstIndex.getAsInt()+1:null);
@@ -191,26 +192,31 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
             if(userId==null) return ok("userId为空");
 
             List<TeacherKPIScore> kpiScoreList = TeacherKPIScore.find.query().where().findList();
-            double sum = kpiScoreList.stream().filter(v1->v1.getScore()!=null&& Objects.equals(v1.getUserId(), userId)).toList().stream().map(TeacherKPIScore::getScore).mapToDouble(Double::valueOf).sum();
+            kpiScoreList = kpiScoreList.stream()
+                    .filter(v1 -> v1.getScore() != null && Objects.equals(v1.getUserId(), userId))
+                    .toList();
+            double sum =kpiScoreList
+                    .stream()
+                    .map(TeacherKPIScore::getScore)
+                    .mapToDouble(Double::valueOf).sum();
 
             ObjectNode result = Json.newObject();
             result.put("score",sum);
+
             Map<Long, Double> data = kpiScoreList.stream()
                     .collect(Collectors.groupingBy(
                             TeacherKPIScore::getUserId,
                             Collectors.summingDouble(TeacherKPIScore::getScore)
                     ));
+
             List<Map.Entry<Long, Double>> sortedEntries  = data.entrySet().stream()
                     .sorted(Map.Entry.<Long, Double>comparingByValue().reversed())
                     .toList();
             OptionalInt index = IntStream.range(0, sortedEntries.size())
                     .filter(i -> sortedEntries.get(i).getKey().equals(1L))
                     .findFirst();
-            if (index.isPresent()) {
-                result.put("rank",index.getAsInt()+ 1);
-            } else {
-                result.set("rank",null);
-            }
+            if (index.isPresent()) result.put("rank",index.getAsInt()+ 1);
+            else result.set("rank",null);
 
             return ok(result);
         });

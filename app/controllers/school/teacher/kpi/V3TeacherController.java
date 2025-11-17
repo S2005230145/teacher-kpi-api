@@ -7,11 +7,9 @@ import com.fasterxml.jackson.databind.node.MissingNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import controllers.BaseAdminSecurityController;
 
-import io.ebean.DB;
-import io.ebean.ExpressionList;
-import io.ebean.PagedList;
-import io.ebean.Transaction;
+import io.ebean.*;
 import jakarta.inject.Inject;
+import lombok.extern.slf4j.Slf4j;
 import models.school.kpi.v3.*;
 import models.table.ParseResult;
 import models.user.Role;
@@ -37,6 +35,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
 
+@Slf4j
 public class V3TeacherController extends BaseAdminSecurityController {
     @Inject
     V3TeacherRepository v3TeacherRepository;
@@ -46,7 +45,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
 
     ObjectMapper objectMapper = new ObjectMapper();
 
-    private static final Boolean is_DEV=true;
+    private static final Boolean is_DEV=false;
 
     /**
      * @api {POST} /v1/tk/kpi/add/  01 kpi添加
@@ -315,16 +314,28 @@ public class V3TeacherController extends BaseAdminSecurityController {
             int currentPage=(jsonNode.findPath("currentPage") instanceof MissingNode ?1:jsonNode.findPath("currentPage").asInt());
             int pageSize=(jsonNode.findPath("pageSize") instanceof MissingNode ?10:jsonNode.findPath("pageSize").asInt());
             Long userId=(jsonNode.findPath("userId") instanceof MissingNode ?null:jsonNode.findPath("userId").asLong());
+            //条件
+            long kpiId=(jsonNode.findPath("kpiId") instanceof MissingNode ?0:jsonNode.findPath("kpiId").asLong());
+            long id=(jsonNode.findPath("id") instanceof MissingNode ?0:jsonNode.findPath("id").asLong());
+            String indicatorName=(jsonNode.findPath("indicatorName") instanceof MissingNode ?null:jsonNode.findPath("indicatorName").asText());
+            String subName=(jsonNode.findPath("subName") instanceof MissingNode ?null:jsonNode.findPath("subName").asText());
 
             ExpressionList<Indicator> expressionList = Indicator.find.query().where();
             if(userId!=null){
                 Set<Long> kpiIds = TeacherKPIScore.find.query().where().eq("user_id",userId).findList().stream().map(TeacherKPIScore::getKpiId).collect(Collectors.toSet());
                 expressionList.in("kpi_id",kpiIds);
             }
+            if(kpiId>0) expressionList.eq("kpi_id",kpiId);
+            if(id>0) expressionList.eq("id",id);
+            if(indicatorName!=null&&!indicatorName.isEmpty()) expressionList.icontains("indicator_name",indicatorName);
+            if(subName!=null&&!subName.isEmpty()) expressionList.icontains("sub_name",subName);
 
             Pair<PagedList<Indicator>, List<String>> list = v3TeacherRepository.getList(expressionList,currentPage,pageSize);
-
-            return okCustomNode(!list.first().getList().isEmpty(),list.second(),list.first());
+            ObjectNode node = Json.newObject();
+            node.put("code", CODE200);
+            node.set("list",Json.toJson(list.first().getList()));
+            node.put("pages", list.first().getTotalPageCount());
+            return ok(node);
         });
     }
 
@@ -416,101 +427,113 @@ public class V3TeacherController extends BaseAdminSecurityController {
     public CompletionStage<Result> getKpiList(Http.Request request){
         JsonNode jsonNode = request.body().asJson();
         return CompletableFuture.supplyAsync(()->{
-
             int currentPage=(jsonNode.findPath("currentPage") instanceof MissingNode ?1:jsonNode.findPath("currentPage").asInt());
             int pageSize=(jsonNode.findPath("pageSize") instanceof MissingNode ?10:jsonNode.findPath("pageSize").asInt());
             Long userId=(jsonNode.findPath("userId") instanceof MissingNode ?null:jsonNode.findPath("userId").asLong());
+            //条件
+            Long id=(jsonNode.findPath("id") instanceof MissingNode || jsonNode.findPath("id").isEmpty() ?null:jsonNode.findPath("id").asLong());
+            String title=(jsonNode.findPath("title") instanceof MissingNode ?null:jsonNode.findPath("title").asText());
 
             ExpressionList<KPI> expressionList = KPI.find.query().where();
             if(userId!=null){
                 Set<Long> kpiIds = TeacherKPIScore.find.query().where().eq("user_id",userId).findList().stream().map(TeacherKPIScore::getKpiId).collect(Collectors.toSet());
                 expressionList.in("id",kpiIds);
             }
-            Pair<PagedList<KPI>, List<String>> list = v3TeacherRepository.getKpiList(expressionList,currentPage,pageSize);
+            if(id!=null) expressionList.eq("id",id);
+            if(title!=null&&!title.isEmpty()) expressionList.icontains("title",title);
 
-            return okCustomNode(!list.first().getList().isEmpty(),list.second(),list.first());
+            PagedList<KPI> pagedList = expressionList.setFirstRow(currentPage-1).setMaxRows(pageSize).findPagedList();
+            List<String> msg=new ArrayList<>();
+
+            Pair<PagedList<KPI>, List<String>> list =new Pair<>(pagedList,msg);
+
+            ObjectNode node = Json.newObject();
+            node.put("code", CODE200);
+            node.set("list",Json.toJson(list.first().getList()));
+            node.put("pages", list.first().getTotalPageCount());
+            return ok(node);
         });
     }
 
     /**
-     * @api {POST} /v1/tk/getElementList/  06 获取所有Element
-     * @apiName getElementList
-     * @apiGroup Teacher
-     *
-     * @apiDescription 获取所有Element以及下方的所有信息，也可获得对应用户的要素
-     *
-     * @apiParam {int} currentPage 当前页面
-     * @apiParam {int} pageSize 显示条数
-     * @apiParam {Long} userId (可选)用户ID
-     *
-     * @apiParamExample {json} 请求示例:
-     *       {
-     *         "currentPage":1,
-     *         "pageSize":10,
-     *         "userId":1//会查询该用户的评价要素
-     *       }
-     *
-     * @apiSuccess (Success 200){int} code 200
-     * @apiSuccess (Success 200){Object[]} data 数据
-     * @apiSuccessExample {json} 请求示例:
-     * "data": {
-     *         "list": [
-     *             {
-     *                 "id": 1,
-     *                 "title": "福清市中小学、中职学校教师绩效考核要点",//Kpi名称
-     *                 "indicatorList": [
-     *                     {
-     *                         "id": 1,
-     *                         "kpiId": 1,//KpiId
-     *                         "indicatorName": "师德师风",//指标名称
-     *                         "subName": "（优、合格、不合格）",//指标附属名称
-     *                         "elementList": [
-     *                             {
-     *                                 "id": 1,
-     *                                 "indicatorId": 1,//指标ID
-     *                                 "element": null,//要素名称
-     *                                 "contentList": [//内容区
-     *                                     {
-     *                                         "id": 1,
-     *                                         "elementId": 1,
-     *                                         "content": "1、按照教育部《新时代中小学教师职业行为十项准则》、《新时代幼儿园教师职业行为十项准则》执行",
-     *                                         "score":6.0,
-     *                                     },
-     *                                     {
-     *                                         "id": 2,
-     *                                         "elementId": 1,
-     *                                         "content": "2.未存在教育部《中小学教师违反职业道德行为处理办法（2018年修订）》、《幼儿园教师违反职业道德行为处理办法》中应予处理的教师违反职业道德的行为",
-     *                                         "score":-1.0,
-     *                                     },
-     *                                     {
-     *                                         "id": 3,
-     *                                         "elementId": 1,
-     *                                         "content": "3.未存在《福州市中小学（幼儿园）教师职业行为负面清单》及《福州市教师职业行为负面清单处理办法》中的师德失范行为",
-     *                                         "score":3.0,
-     *                                     }
-     *                                 ],
-     *                                 "criteria": "是否合格，不设分值",
-     *                                 "type": 0
-     *                             }
-     *                         ]
-     *                     }
-     *                 ]
-     *         ],
-     *         "totalCount": 1,
-     *         "totalPageCount": 1,
-     *         "pageIndex": 0,
-     *         "futureCount": {
-     *             "cancelled": false,
-     *             "done": true
-     *         },
-     *         "pageSize": 10
-     *     }
-     * @apiSuccess (Success 200){String[]} reason []
-     *
-     * @apiSuccess (Error 500){int} code 500
-     * @apiSuccess (Error 500){Object[]} data null
-     * @apiSuccess (Error 500){String[]} reason 错误信息
-     */
+             * @api {POST} /v1/tk/getElementList/  06 获取所有Element
+             * @apiName getElementList
+             * @apiGroup Teacher
+             *
+             * @apiDescription 获取所有Element以及下方的所有信息，也可获得对应用户的要素
+             *
+             * @apiParam {int} currentPage 当前页面
+             * @apiParam {int} pageSize 显示条数
+             * @apiParam {Long} userId (可选)用户ID
+             *
+             * @apiParamExample {json} 请求示例:
+             *       {
+             *         "currentPage":1,
+             *         "pageSize":10,
+             *         "userId":1//会查询该用户的评价要素
+             *       }
+             *
+             * @apiSuccess (Success 200){int} code 200
+             * @apiSuccess (Success 200){Object[]} data 数据
+             * @apiSuccessExample {json} 请求示例:
+             * "data": {
+             *         "list": [
+             *             {
+             *                 "id": 1,
+             *                 "title": "福清市中小学、中职学校教师绩效考核要点",//Kpi名称
+             *                 "indicatorList": [
+             *                     {
+             *                         "id": 1,
+             *                         "kpiId": 1,//KpiId
+             *                         "indicatorName": "师德师风",//指标名称
+             *                         "subName": "（优、合格、不合格）",//指标附属名称
+             *                         "elementList": [
+             *                             {
+             *                                 "id": 1,
+             *                                 "indicatorId": 1,//指标ID
+             *                                 "element": null,//要素名称
+             *                                 "contentList": [//内容区
+             *                                     {
+             *                                         "id": 1,
+             *                                         "elementId": 1,
+             *                                         "content": "1、按照教育部《新时代中小学教师职业行为十项准则》、《新时代幼儿园教师职业行为十项准则》执行",
+             *                                         "score":6.0,
+             *                                     },
+             *                                     {
+             *                                         "id": 2,
+             *                                         "elementId": 1,
+             *                                         "content": "2.未存在教育部《中小学教师违反职业道德行为处理办法（2018年修订）》、《幼儿园教师违反职业道德行为处理办法》中应予处理的教师违反职业道德的行为",
+             *                                         "score":-1.0,
+             *                                     },
+             *                                     {
+             *                                         "id": 3,
+             *                                         "elementId": 1,
+             *                                         "content": "3.未存在《福州市中小学（幼儿园）教师职业行为负面清单》及《福州市教师职业行为负面清单处理办法》中的师德失范行为",
+             *                                         "score":3.0,
+             *                                     }
+             *                                 ],
+             *                                 "criteria": "是否合格，不设分值",
+             *                                 "type": 0
+             *                             }
+             *                         ]
+             *                     }
+             *                 ]
+             *         ],
+             *         "totalCount": 1,
+             *         "totalPageCount": 1,
+             *         "pageIndex": 0,
+             *         "futureCount": {
+             *             "cancelled": false,
+             *             "done": true
+             *         },
+             *         "pageSize": 10
+             *     }
+             * @apiSuccess (Success 200){String[]} reason []
+             *
+             * @apiSuccess (Error 500){int} code 500
+             * @apiSuccess (Error 500){Object[]} data null
+             * @apiSuccess (Error 500){String[]} reason 错误信息
+             */
     public CompletionStage<Result> getElementList(Http.Request request){
         JsonNode jsonNode = request.body().asJson();
         return CompletableFuture.supplyAsync(()->{
@@ -518,15 +541,33 @@ public class V3TeacherController extends BaseAdminSecurityController {
             int currentPage=(jsonNode.findPath("currentPage") instanceof MissingNode ?1:jsonNode.findPath("currentPage").asInt());
             int pageSize=(jsonNode.findPath("pageSize") instanceof MissingNode ?10:jsonNode.findPath("pageSize").asInt());
             Long userId=(jsonNode.findPath("userId") instanceof MissingNode ?null:jsonNode.findPath("userId").asLong());
+            //条件
+            Long id=(jsonNode.findPath("id") instanceof MissingNode ?null:jsonNode.findPath("id").asLong());
+            String element=(jsonNode.findPath("element") instanceof MissingNode ?null:jsonNode.findPath("element").asText());
+            String criteria=(jsonNode.findPath("criteria") instanceof MissingNode ?null:jsonNode.findPath("criteria").asText());
+            Integer type=(jsonNode.findPath("type") instanceof MissingNode ?null:jsonNode.findPath("type").asInt());
+            Double score=(jsonNode.findPath("score") instanceof MissingNode ?null:jsonNode.findPath("score").asDouble());
+            Long indicatorId=(jsonNode.findPath("indicatorId") instanceof MissingNode ?null:jsonNode.findPath("indicatorId").asLong());
 
             ExpressionList<Element> expressionList = Element.find.query().where();
             if(userId!=null){
                 Set<Long> elementIds = TeacherElementScore.find.query().where().eq("user_id",userId).findList().stream().map(TeacherElementScore::getElementId).collect(Collectors.toSet());
                 expressionList.in("id",elementIds);
             }
+            if(id!=null&&id>0) expressionList.eq("id",id);
+            if(element!=null&&!element.isEmpty()) expressionList.icontains("element",element);
+            if(criteria!=null&&!criteria.isEmpty()) expressionList.icontains("criteria",criteria);
+            if(type!=null&&type>0) expressionList.eq("type",type);
+            if(score!=null&&score>0) expressionList.eq("score",score);
+            if(indicatorId!=null&&indicatorId>0) expressionList.eq("indicator_id",indicatorId);
+
             Pair<PagedList<Element>, List<String>> list = v3TeacherRepository.getElementList(expressionList,currentPage,pageSize);
 
-            return okCustomNode(!list.first().getList().isEmpty(),list.second(),list.first());
+            ObjectNode node = Json.newObject();
+            node.put("code", CODE200);
+            node.set("list",Json.toJson(list.first().getList()));
+            node.put("pages", list.first().getTotalPageCount());
+            return ok(node);
         });
     }
 
@@ -654,18 +695,42 @@ public class V3TeacherController extends BaseAdminSecurityController {
             int pageSize=(jsonNode.findPath("pageSize") instanceof MissingNode ?10:jsonNode.findPath("pageSize").asInt());
             Long userId=(jsonNode.findPath("userId") instanceof MissingNode ?null:jsonNode.findPath("userId").asLong());
             Long elementId=(jsonNode.findPath("elementId") instanceof MissingNode ?null:jsonNode.findPath("elementId").asLong());
+            //条件
+            Long id=(jsonNode.findPath("id") instanceof MissingNode ?null:jsonNode.findPath("id").asLong());
+            String content=(jsonNode.findPath("content") instanceof MissingNode ?null:jsonNode.findPath("content").asText());
+            Double score=(jsonNode.findPath("score") instanceof MissingNode ?null:jsonNode.findPath("score").asDouble());
 
             ExpressionList<Content> expressionList = Content.find.query().where();
-            if(userId!=null){
+            if(userId!=null&&userId>0){
                 Set<Long> contentIds = TeacherContentScore.find.query().where().eq("user_id",userId).findList().stream().map(TeacherContentScore::getElementId).collect(Collectors.toSet());
                 expressionList.in("id",contentIds);
             }
-            if(elementId!=null){
+            if(elementId!=null&&elementId>0){
                 expressionList.eq("element_id",elementId);
+            }
+            if(id!=null&&id>0){
+                expressionList.eq("id",id);
+            }
+            if(content!=null&&!content.isEmpty()){
+                expressionList.icontains("content",content);
+            }
+            if(score!=null&&score!=0.0){
+                expressionList.eq("score",score);
             }
             Pair<PagedList<Content>, List<String>> list = v3TeacherRepository.getContentList(expressionList,currentPage,pageSize);
 
-            return okCustomNode(!list.first().getList().isEmpty(),list.second(),list.first());
+            //分页内数据
+            List<Content> dataList = list.first().getList();
+            //错误信息
+            List<String> errorMsg = list.second();
+            //分页查询分页信息
+            PagedList<Content> pageList = list.first();
+
+            ObjectNode node = Json.newObject();
+            node.put("code", CODE200);
+            node.set("list",Json.toJson(list.first().getList()));
+            node.put("pages", list.first().getTotalPageCount());
+            return ok(node);
         });
     }
 
@@ -703,6 +768,17 @@ public class V3TeacherController extends BaseAdminSecurityController {
 
             if(ids==null) return ok("ids未给出");
             if(kpiId==null) return ok("kpiId未给出");
+
+            List<User> userList = User.find.query().where().in("id",ids).findList();
+            userList.forEach(user->{
+                user.setDispatchIds(user.getDispatchIds()+"+"+kpiId+"+");
+            });
+            try(Transaction transaction=User.find.db().beginTransaction()){
+                DB.updateAll(userList);
+                transaction.commit();
+            }catch (Exception e){
+                return okCustomJson(5000,"更新状态失败,出错:"+e);
+            }
 
             Pair<Boolean, List<String>> booleanListPair = v3TeacherRepository.dispatchAll(ids, kpiId);
 
@@ -885,7 +961,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
      *
      * @apiParam {String} elementIds (可选)要素删除
      * @apiParam {String} contentIds (可选)内容删除
-     * @apiParam {String} indicatorIds (可选)要素删除
+     * @apiParam {String} indicatorIds (可选)指标删除
      * @apiParam {String} kpiIds (可选)kpi删除
      *
      * @apiParamExample {json} 请求示例:
@@ -986,7 +1062,8 @@ public class V3TeacherController extends BaseAdminSecurityController {
      *
      * @apiParamExample {json} 请求示例:
      * {
-     *     "teacherIds":"1,2,3"//撤销的用户ID
+     *     "teacherIds":"1,2,3",//撤销的用户ID
+     *     "kpiId":1
      * }
      * @apiSuccess (Success 200){int} code 200
      * @apiSuccess (Success 200){msg} reason []
@@ -1000,8 +1077,24 @@ public class V3TeacherController extends BaseAdminSecurityController {
         JsonNode jsonNode = request.body().asJson();
         return CompletableFuture.supplyAsync(()->{
             List<Long> teacherIds=(jsonNode.findPath("teacherIds") instanceof MissingNode ?null: Arrays.stream(jsonNode.findPath("teacherIds").asText().split(",")).map(String::trim).map(Long::valueOf).toList());
+            Long kpiId=(jsonNode.findPath("kpiId") instanceof MissingNode ?null: jsonNode.findPath("kpiId").asLong());
 
             if(teacherIds==null) return ok("没有教师ID");
+
+            List<User> userList=User.find.query().where().in("id",teacherIds).findList();
+            userList.forEach(user->{
+                if(kpiId!=null){
+                    user.setDispatchIds(user.getDispatchIds().replace("+"+kpiId+"+", ""));
+                }else{
+                    user.setDispatchIds(null);
+                }
+            });
+            try(Transaction transaction = User.find.db().beginTransaction()){
+                DB.updateAll(userList);
+                transaction.commit();
+            }catch (Exception e){
+                return okCustomJson(5000,"撤销出错："+e);
+            }
 
             Pair<Boolean, List<String>> booleanListPair = v3TeacherRepository.withDraw(teacherIds);
 
@@ -1072,7 +1165,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
      * @apiName withDraw
      * @apiGroup Teacher
      *
-     * @apiDescription 获取所有领导领导
+     * @apiDescription 获取所有领导
      *
      * @apiSuccess (Success 200){int} code 200
      * @apiSuccess (Success 200){Object} data 所有领导的数据
@@ -1091,12 +1184,18 @@ public class V3TeacherController extends BaseAdminSecurityController {
      */
     public CompletionStage<Result> getLeader(){
         return CompletableFuture.supplyAsync(()->{
-            Role one = Role.find.query().where().eq("nick_name", "领导").setMaxRows(1).findOne();
-            Long roleId = Objects.requireNonNull(one).getId();
+            List<Role> roles = Role.find.query().where()
+                    .or()
+                        .eq("nick_name", "领导")
+                        .eq("nick_name","管理员")
+                    .endOr()
+                    .findList();
+            List<Long> roleIds = Objects.requireNonNull(roles).stream().map(Role::getId).toList();
 
-            List<User> leadersList = User.find.query().where().eq("role_id", roleId).findList();
+            List<User> leadersList = User.find.query().where().in("role_id", roleIds).findList();
             leadersList.forEach(leaders->{
-                leaders.setRole(one);
+                Role role = roles.stream().filter(v1 -> Objects.equals(leaders.getRoleId(), v1.getId())).findFirst().orElse(null);
+                leaders.setRole(role);
             });
 
             return okCustomNode(true,null,leadersList);
@@ -1146,20 +1245,57 @@ public class V3TeacherController extends BaseAdminSecurityController {
             Long userId=(jsonNode.findPath("userId") instanceof MissingNode ?null:jsonNode.findPath("userId").asLong());
 
             if(userId==null) return ok("userId为空");
-
-            List<TeacherTask> leaderTeacherTaskList = TeacherTask.find.query().where().eq("status", "待完成")
+            List<TeacherTask> leaderTeacherTaskList = TeacherTask.find.query().where()
+                    .eq("status", "待完成")
                     .or()
                     .eq("parent_ids", userId)
                     .like("parent_ids", userId + ",%")
                     .like("parent_ids", "%," + userId)
                     .like("parent_ids", "%," + userId + ",%")
                     .endOr().findList();
-            List<TeacherElementScore> teslist = TeacherElementScore.find.query().where().in("id", leaderTeacherTaskList.stream().map(TeacherTask::getTesId)).findList();
-            List<User> userList = User.find.query().where().in("id", leaderTeacherTaskList.stream().map(TeacherTask::getUserId)).findList();
+            List<User> AllUserList = User.find.query().where()
+                    .findList();
+
+            //评分任务对应的教师评分要素Id
+            List<Long> tesIds = leaderTeacherTaskList.stream().map(TeacherTask::getTesId).toList();
+            //评分任务Id
+            List<Long> ttIds = leaderTeacherTaskList.stream().map(TeacherTask::getUserId).toList();
+            List<TeacherElementScore> teslist = TeacherElementScore.find.query().where()
+                    .in("id", tesIds)
+                    .findList();
+            List<User> userList = AllUserList.stream()
+                    .filter(v1->ttIds.contains(v1.getId())).toList();
+
+            //对应的要素Id
+            List<Long> elementIds = teslist.stream().map(TeacherElementScore::getElementId).toList();
+            List<Element> elementList=Element.find.query().where()
+                    .in("id",elementIds)
+                    .findList();
+
 
             leaderTeacherTaskList.forEach(tt->{
-                tt.setTeacherElementScore(teslist.stream().filter(tes-> Objects.equals(tt.getTesId(), tes.getId())).findFirst().orElse(null));
-                tt.setUserName(Objects.requireNonNull(userList.stream().filter(user -> Objects.equals(tt.getUserId(), user.getId())).findFirst().orElse(null)).getUserName());
+                TeacherElementScore teacherElementScore = teslist.stream()
+                        .filter(tes -> Objects.equals(tt.getTesId(), tes.getId()))
+                        .findFirst()
+                        .orElse(null);
+                tt.setTeacherElementScore(teacherElementScore);
+
+                String userName = Objects.requireNonNull(userList.stream().
+                        filter(user -> Objects.equals(tt.getUserId(), user.getId()))
+                        .findFirst()
+                        .orElse(null))
+                        .getUserName();
+                tt.setUserName(userName);
+
+                if(teacherElementScore!=null){
+                    Element element = elementList.stream()
+                            .filter(v1 -> Objects.equals(v1.getId(), teacherElementScore.getElementId()))
+                            .findFirst()
+                            .orElse(null);
+                    tt.setElement(element);
+                }
+                List<String> leaderUserNameList = AllUserList.stream().filter(v1 -> tt.getParentIds().contains(String.valueOf(v1.getId()))).map(User::getUserName).toList();
+                tt.setParentName(String.join(",", leaderUserNameList));
             });
 
             return okCustomNode(true,null,leaderTeacherTaskList);
@@ -1171,20 +1307,18 @@ public class V3TeacherController extends BaseAdminSecurityController {
      * @apiName addLeaderScore
      * @apiGroup Teacher
      *
-     * @apiDescription 该上级用户的评分，用于最终评分
+     * @apiDescription 用于最终评分
      *
-     * @apiParam {Long} userId 用户ID
+     * @apiParam {Long} id 任务ID
      * @apiParam {Long} tesId 要素ID
      * @apiParam {Double} score 分数
      * @apiParamExample {json} 请求示例:
      * {
-     *      "userId":1,//上级用户ID
-     *      "data":[
-     *          {
-     *              "tesId":1,//该教师的评测要素ID
-     *              "score":12.0//最终得分
-     *          }
-     *      ]
+     *      "id":1,//任务ID
+     *      "data":{
+     *          "tesId":1,//该教师的评测要素ID
+     *          "score":12.0//最终得分
+     *      }
      * }
      * @apiSuccess (Success 200){int} code 200
      * @apiSuccess (Success 200){msg} reason []
@@ -1192,63 +1326,72 @@ public class V3TeacherController extends BaseAdminSecurityController {
      * @apiSuccess (Error 500){int} code 500
      * @apiSuccess (Error 500){msg} reason 错误信息
      *
-     * @apiSuccess (Error 404){int} msg userId为空
+     * @apiSuccess (Error 404){int} msg id为空
      * @apiSuccess (Error 404){int} msg data为空
      */
     public CompletionStage<Result> addLeaderScore(Http.Request request){
         JsonNode jsonNode = request.body().asJson();
         return CompletableFuture.supplyAsync(()->{
-            Long userId=(jsonNode.findPath("userId") instanceof MissingNode ?null:jsonNode.findPath("userId").asLong());
-            Map<String,Object> dataMap=objectMapper.convertValue(jsonNode, new TypeReference<>() {});
+            Long id=(jsonNode.findPath("id") instanceof MissingNode ?null:jsonNode.findPath("id").asLong());
+            Map<String,Object> dataMap=objectMapper.convertValue(jsonNode.findPath("data"), new TypeReference<>() {});
 
-            if(userId==null) return ok("userId为空");
+            if(id==null) return ok("id为空");
             if(dataMap==null) return ok("data为空");
-
-            List<TeacherTask> leaderTeacherTaskList = TeacherTask.find.query().where()
-                    .or()
-                    .eq("parent_ids", userId)
-                    .like("parent_ids", userId + ",%")
-                    .like("parent_ids", "%," + userId)
-                    .like("parent_ids", "%," + userId + ",%")
-                    .endOr().findList().stream().filter(tt->tt.getTesId()==Long.parseLong(dataMap.get("tesId").toString())).toList();
 
             List<String> errorMsg=new ArrayList<>();
             Transaction transaction=DB.beginTransaction();
-            List<TeacherElementScore> updateTesList=new ArrayList<>();
-            Set<Long> kpiIds=new HashSet<>();
-            Set<Long> userIds=new HashSet<>();
-            leaderTeacherTaskList.forEach(ltt->{
-                ltt.getTeacherElementScore().setFinalScore(Double.parseDouble(dataMap.get("score").toString()));
-                ltt.setStatus("已完成");
-                updateTesList.add(ltt.getTeacherElementScore());
-                kpiIds.add(ltt.getTeacherElementScore().getKpiId());
-                userIds.add(ltt.getUserId());
-            });
 
-            List<TeacherElementScore> tesList = TeacherElementScore.find.query().where().in("user_id", userIds).in("kpi_id", kpiIds).findList();
-            TeacherKPIScore tks = TeacherKPIScore.find.query().where().in("user_id", userIds).in("kpi_id", kpiIds).setMaxRows(1).findOne();
-            List<Double> totalScore=new ArrayList<>();
-            tesList.forEach(tes->{
-                if(tes.getFinalScore()!=null) totalScore.add(tes.getFinalScore());
-                else totalScore.add(tes.getScore());
-            });
-
+            TeacherTask teacherTask = TeacherTask.find.query().where()
+                    .eq("id",id)
+                    .setMaxRows(1)
+                    .findOne();
+            if(teacherTask==null) return okCustomJson(40001,"没有该任务");
+            teacherTask.setStatus("已完成");
             try{
-                DB.updateAll(updateTesList);
-                transaction.commit();
+                teacherTask.update();
+            }catch (Exception e){
+                errorMsg.add("更新任务出错: "+e);
+                transaction.rollback();
+            }
+
+            TeacherElementScore tes = TeacherElementScore.find.query().where()
+                    .eq("id", teacherTask.getTesId())
+                    .setMaxRows(1)
+                    .findOne();
+            if(tes==null) return okCustomJson(40001,"该教师没有该要素");
+            tes.setFinalScore(Double.valueOf(dataMap.get("score").toString()));
+            try{
+                tes.update();
             }catch (Exception e){
                 errorMsg.add("更新最终得分出错: "+e);
                 transaction.rollback();
             }
-            if(tks!=null){
-                tks.setScore(totalScore.stream().mapToDouble(Double::valueOf).sum());
-                try{
-                    tks.update();
-                    transaction.commit();
-                }catch (Exception e){
-                    errorMsg.add("更新总分出错: "+e);
-                    transaction.rollback();
-                }
+
+            TeacherIndicatorScore tis = TeacherIndicatorScore.find.query().where()
+                    .eq("indicator_id", tes.getIndicatorId())
+                    .setMaxRows(1)
+                    .findOne();
+            if(tis==null) return okCustomJson(40001,"该教师没有该指标");
+            tis.setScore(tis.getScore()-tes.getScore()+tes.getFinalScore());
+            try{
+                tis.update();
+            }catch (Exception e){
+                errorMsg.add("更新指标得分出错: "+e);
+                transaction.rollback();
+            }
+
+            TeacherKPIScore tks = TeacherKPIScore.find.query().where()
+                    .eq("kpi_id",tis.getKpiId())
+                    .setMaxRows(1)
+                    .findOne();
+            if(tks==null) return okCustomJson(40001,"该教师没有该KPI");
+            tks.setScore(tks.getScore()-tes.getScore()+tes.getFinalScore());
+            try{
+                tks.update();
+                transaction.commit();
+            }catch (Exception e){
+                errorMsg.add("更新KPI得分出错: "+e);
+                transaction.rollback();
             }
 
             return okCustomNode(true,errorMsg);
@@ -1619,6 +1762,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
 
             if(type==null) return ok("没有type");
 
+            System.out.println(type);
             if(type==1){
                 List<Element> elementList=objectMapper.convertValue(jsonNode.findPath("data"), new TypeReference<>() {});
                 try(Transaction transaction=Element.find.db().beginTransaction()){
@@ -1717,6 +1861,243 @@ public class V3TeacherController extends BaseAdminSecurityController {
         });
     }
 
+    //获取单个KPI post /v1/tk/kpi/get/
+    public CompletionStage<Result> getKPI(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+            Long id=(jsonNode.findPath("id") instanceof MissingNode ?null:jsonNode.findPath("id").asLong());
+
+            if(id==null) return ok("ID为空");
+
+            KPI kpi = KPI.find.query().where().eq("id",id).setMaxRows(1).findOne();
+
+            return ok(Json.toJson(kpi));
+        });
+    }
+
+    //添加指标 post /v1/tk/indicator/add/
+    public CompletionStage<Result> addIndicator(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+            List<Indicator> indicatorList = objectMapper.convertValue(jsonNode, new TypeReference<>() {});
+
+            if(indicatorList.isEmpty()) return ok("indicatorList为空");
+
+            try(Transaction transaction=Indicator.find.db().beginTransaction()){
+                DB.saveAll(indicatorList);
+                transaction.commit();
+            }catch (Exception e){
+                return okCustomJson(500,e.toString());
+            }
+            return okCustomJson(200,"添加成功");
+        });
+    }
+
+    //添加要素 post /v1/tk/element/add/
+    public CompletionStage<Result> addElement(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+            List<Element> elementList = objectMapper.convertValue(jsonNode, new TypeReference<>() {});
+
+            if(elementList.isEmpty()) return ok("elementList为空");
+
+            try(Transaction transaction=Element.find.db().beginTransaction()){
+                DB.saveAll(elementList);
+                transaction.commit();
+            }catch (Exception e){
+                return okCustomJson(500,e.toString());
+            }
+            return okCustomJson(200,"添加成功");
+        });
+    }
+
+    //添加内容 post /v1/tk/content/add/
+    public CompletionStage<Result> addContent(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+            List<Content> contentList = objectMapper.convertValue(jsonNode, new TypeReference<>() {});
+
+            if(contentList.isEmpty()) return ok("contentList为空");
+
+            try(Transaction transaction=Content.find.db().beginTransaction()){
+                DB.saveAll(contentList);
+                transaction.commit();
+            }catch (Exception e){
+                return okCustomJson(500,e.toString());
+            }
+            return okCustomJson(200,"添加成功");
+        });
+    }
+
+    //获取所有该kpiId里未下发的教师
+    public CompletionStage<Result> getTeacherListNotDispatch(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+            Long kpiId=(jsonNode.findPath("kpiId") instanceof MissingNode ?null:jsonNode.findPath("kpiId").asLong());
+
+            if(kpiId==null||kpiId<=0) return okCustomJson(40001,"没有kpiId");
+
+            Role role = Role.find.query().where()
+                    .or()
+                    .eq("nick_name","老师")
+                    .eq("nick_name","教师")
+                    .endOr().setMaxRows(1).findOne();
+            if(role==null) return okCustomJson(40001,"没有发现教师角色");
+            List<User> teacherList = User.find.query().where()
+                    .eq("role_id",role.getId())
+                    .or()
+                        .isNull("dispatch_ids")
+                        .not(Expr.like("dispatchIds", "%+"+kpiId+"+%"))
+                    .endOr()
+                    .findList();
+
+            ObjectNode node = Json.newObject();
+            node.put("code", 200);
+            node.set("data",Json.toJson(teacherList));
+            return ok(node);
+        });
+    }
+
+    //获取所有已下发的教师(可兼容kpiId内未下发)
+    public CompletionStage<Result> getTeacherListDispatch(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+            Long kpiId=(jsonNode.findPath("kpiId") instanceof MissingNode ?null:jsonNode.findPath("kpiId").asLong());
+
+            Role role = Role.find.query().where()
+                    .or()
+                    .eq("nick_name","老师")
+                    .eq("nick_name","教师")
+                    .endOr().setMaxRows(1).findOne();
+            if(role==null) return okCustomJson(40001,"没有发现教师角色");
+
+            ExpressionList<User> teacherExpressionList=User.find.query().where()
+                    .eq("role_id",role.getId())
+                    .isNotNull("dispatch_ids");
+            if(kpiId!=null) teacherExpressionList.icontains("dispatch_ids","+"+kpiId+"+");
+            List<User> teacherList =teacherExpressionList
+                    .findList();
+
+            ObjectNode node = Json.newObject();
+            node.put("code", 200);
+            node.set("data",Json.toJson(teacherList));
+            return ok(node);
+        });
+    }
+
+    //获取所有教师
+    public CompletionStage<Result> getTeacherList(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+            Role role = Role.find.query().where()
+                    .or()
+                    .eq("nick_name","老师")
+                    .eq("nick_name","教师")
+                    .endOr().setMaxRows(1).findOne();
+            if(role==null) return okCustomJson(40001,"没有发现教师角色");
+
+            List<User> userList=User.find.query().where()
+                    .eq("role_id",role.getId())
+                    .findList();
+
+            ObjectNode node = Json.newObject();
+            node.put("code", 200);
+            node.set("data",Json.toJson(userList));
+            return ok(node);
+        });
+    }
+
+    //添加教师
+    public CompletionStage<Result> addTeacher(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+
+            User user=objectMapper.convertValue(jsonNode, new TypeReference<>() {});
+
+            Role role = Role.find.query().where()
+                    .or()
+                    .eq("nick_name","老师")
+                    .eq("nick_name","教师")
+                    .endOr().setMaxRows(1).findOne();
+            if(role==null) return okCustomJson(40001,"没有发现教师角色");
+            user.setRoleId(role.getId());
+
+            try(Transaction transaction = User.find.db().beginTransaction()){
+                user.save();
+                transaction.commit();
+            }catch (Exception e){
+                return okCustomJson(5000,"添加失败: "+e);
+            }
+
+            return okCustomJson(200,"添加成功");
+        });
+    }
+
+    //获取用户信息
+    public CompletionStage<Result> getUserList(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+
+            Long id=(jsonNode.findPath("id") instanceof MissingNode ?null:jsonNode.findPath("id").asLong());
+            String phone=(jsonNode.findPath("phone") instanceof MissingNode ?null:jsonNode.findPath("phone").asText());
+            String userName=(jsonNode.findPath("userName") instanceof MissingNode ?null:jsonNode.findPath("userName").asText());
+            String typeName=(jsonNode.findPath("typeName") instanceof MissingNode ?null:jsonNode.findPath("typeName").asText());
+            Long roleId=(jsonNode.findPath("roleId") instanceof MissingNode ?null:jsonNode.findPath("roleId").asLong());
+
+            ExpressionList<User> userExpressionList = User.find.query().where();
+            if(id!=null&&id>0) userExpressionList.eq("id",id);
+            if(phone!=null&&!phone.isEmpty()) userExpressionList.icontains("phone",phone);
+            if(userName!=null&&!userName.isEmpty()) userExpressionList.icontains("user_name",userName);
+            if(typeName!=null&&!typeName.isEmpty()) userExpressionList.icontains("type_name",typeName);
+            if(roleId!=null&&roleId>0) userExpressionList.eq("role_id",roleId);
+
+            List<User> userList = userExpressionList.findList();
+            List<Role> roleList = Role.find.query().where().findList();
+            userList.forEach(user->{
+                user.setRole(roleList.stream().filter(v1-> Objects.equals(v1.getId(), user.getRoleId())).findFirst().orElse(null));
+            });
+
+            ObjectNode node = Json.newObject();
+            node.put("code", 200);
+            node.set("list",Json.toJson(userList));
+            return ok(node);
+        });
+    }
+
+    //获取角色信息
+    public CompletionStage<Result> getRoleList(Http.Request request){
+        return CompletableFuture.supplyAsync(()->{
+
+            List<Role> roleList = Role.find.query().where().findList();
+
+            ObjectNode node = Json.newObject();
+            node.put("code", 200);
+            node.set("list",Json.toJson(roleList));
+            return ok(node);
+        });
+    }
+
+    //删除用户
+    public CompletionStage<Result> deleteUser(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+
+            Long id=(jsonNode.findPath("id") instanceof MissingNode ?null:jsonNode.findPath("id").asLong());
+
+            if(id==null) return okCustomJson(40001,"没有用户ID");
+
+            User user = User.find.query().where().eq("id", id).setMaxRows(1).findOne();
+            try(Transaction transaction = User.find.db().beginTransaction()){
+                if(user!=null) DB.delete(user);
+                else return okCustomJson(40001,"没有该用户");
+                transaction.commit();
+            } catch (Exception e) {
+                return okCustomJson(500,"删除用户出错: "+e);
+            }
+            return okCustomJson(200,"删除成功");
+        });
+    }
+
     //TODO 内容加权分数和要素定分
     /**
      * @api {POST} /v1/tk/content/score/add/  21 内容加权分数添加
@@ -1765,6 +2146,8 @@ public class V3TeacherController extends BaseAdminSecurityController {
         });
     }
 
+
+
     //==========================================
     //工具
     private void testPDF() throws IOException {
@@ -1798,5 +2181,34 @@ public class V3TeacherController extends BaseAdminSecurityController {
         return objectMapper.createObjectNode()
                 .put("success", false)
                 .put("message", message);
+    }
+
+    private static List<Object> filterEqualTo(List<Object> list, double target) {
+        final double epsilon = 1e-10; // 精度容差
+
+        return list.stream()
+                .filter(obj -> {
+                    Optional<Double> value = convertToDouble(obj);
+                    return value.isPresent() && Math.abs(value.get() - target) < epsilon;
+                })
+                .collect(Collectors.toList());
+    }
+
+    private static Optional<Double> convertToDouble(Object obj) {
+        if (obj == null) {
+            return Optional.empty();
+        }
+
+        try {
+            if (obj instanceof Number) {
+                return Optional.of(((Number) obj).doubleValue());
+            } else if (obj instanceof String) {
+                return Optional.of(Double.parseDouble((String) obj));
+            } else {
+                return Optional.empty();
+            }
+        } catch (NumberFormatException e) {
+            return Optional.empty();
+        }
     }
 }

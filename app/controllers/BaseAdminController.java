@@ -104,7 +104,7 @@ public class BaseAdminController extends Controller {
      */
     public Result okCustomNode(boolean status,List<String> reason,Object obj) {
         ObjectNode node = Json.newObject();
-        node.put("code", status?200:500);
+        node.put("code", status?CODE200:CODE40001);
         node.set("data",Json.toJson(obj));
         node.set("reason", Json.toJson(reason));
         return ok(node);
@@ -119,7 +119,7 @@ public class BaseAdminController extends Controller {
      */
     public Result okCustomNode(boolean status,List<String> reason) {
         ObjectNode node = Json.newObject();
-        node.put("code", status?200:500);
+        node.put("code", status?CODE200:CODE40001);
         node.set("reason", Json.toJson(reason));
         return ok(node);
     }

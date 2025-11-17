@@ -39,7 +39,6 @@ public class LoginController extends BaseController {
     @Inject
     EncodeUtils encodeUtils;
 
-
     /**
      * @api {POST}  /v2/tk/login/noauth/ 01登录
      * @apiName login
@@ -152,9 +151,8 @@ public class LoginController extends BaseController {
         });
     }
 
-
     /**
-     * @api {GET} /v2/tk/is_login/ 02是否已登录
+     * @api {GET} /v1/tk/is_login/ 02是否已登录
      * @apiName isLogin
      * @apiGroup Admin-Authority
      * @apiSuccess (Success 200){int} code 200
@@ -195,21 +193,34 @@ public class LoginController extends BaseController {
             if (null == json) return okCustomJson(40003, "参数错误");
             String userName = json.findPath("userName").asText();
             String password = json.findPath("password").asText();
+            String phone = json.findPath("phone").asText();
             Long roleId=json.findPath("roleId").asLong();
             String typeName=(json.findPath("typeName") instanceof MissingNode ?null:json.findPath("typeName").asText());
+            int status=json.findPath("status").asInt();
+
             if (ValidationUtil.isEmpty(userName))
                 return okCustomJson(40006, "无效的用户名");
             if (!ValidationUtil.isValidPassword(password))
                 return okCustomJson(CODE40001, "密码6-20位");
+            if (!ValidationUtil.isPhoneNumber(phone))
+                return okCustomJson(CODE40001, "手机号不正确");
+            if (!ValidationUtil.isValidStatus(status))
+                return okCustomJson(CODE40001, "状态异常");
+            if (!ValidationUtil.isValidRoleId(roleId))
+                return okCustomJson(CODE40001, "角色异常");
 
             User member = new User();
             member.setUserName(userName);
             member.setRoleId(roleId);
+            member.setStatus(status);
             if(typeName!=null){
                 member.setTypeName(typeName);
             }
             User existMember = User.find.query().where()
-                    .eq("user_name", userName)
+                    .or()
+                        .eq("user_name", userName)
+                        .eq("phone",phone)
+                    .endOr()
                     .setMaxRows(1)
                     .findOne();
             if (null != existMember) return okCustomJson(CODE40002, "您已注册过了");
@@ -228,7 +239,7 @@ public class LoginController extends BaseController {
     }
 
     /**
-     * @api {GET} /v2/tk/admin_member/info/ 04 查看自己详情信息
+     * @api {GET} /v1/tk/admin_member/info/ 04 查看自己详情信息
      * @apiName getAdminMemberInfo
      * @apiGroup Admin-Authority
      * @apiSuccess (Success 200) {int} code 200 请求成功
@@ -261,7 +272,7 @@ public class LoginController extends BaseController {
     }
 
     /**
-     * @api {POST} /v2/tk/reset_login_password/ 05 重置登录密码
+     * @api {POST} /v1/tk/reset_login_password/ 05 重置登录密码
      * @apiName resetLoginPassword
      * @apiGroup Admin-Authority
      * @apiParam {string} userName 帐号
@@ -301,7 +312,7 @@ public class LoginController extends BaseController {
     }
 
     /**
-     * @api {POST} /v2/tk/set_login_password/ 06 设置/修改登录密码
+     * @api {POST} /v1/tk/set_login_password/ 06 设置/修改登录密码
      * @apiName setLoginPassword
      * @apiGroup User
      * @apiParam {string} [oldPassword] 旧密码
@@ -339,6 +350,60 @@ public class LoginController extends BaseController {
         });
     }
 
+    /**
+     * @api {POST}  /v1/tk/login/ 07登录(后台)
+     * @apiName loginBackEnd
+     * @apiGroup Admin-Authority
+     * @apiParam {jsonObject} data json串格式
+     * @apiParam {string} phone 手机号
+     * @apiParam {string} password 密码, 6位至20位
+     * @apiSuccess (Success 200){String}  user_name 用户名
+     * @apiSuccess (Success 200){long} id 用户id
+     * @apiSuccess (Success 200){String} token token
+     * @apiSuccess (Error 40001) {int} code 40001  参数错误
+     * @apiSuccess (Error 40003) {int} code 40003 用户名或密码错误
+     */
+    @BodyParser.Of(BodyParser.Json.class)
+    public CompletionStage<Result> loginBackEnd(Http.Request request) {
+        JsonNode jsonNode = request.body().asJson();
+        String loginIP = businessUtils.getRequestIP(request);
+        return CompletableFuture.supplyAsync(() -> {
+            if (null == jsonNode) return okCustomJson(CODE40001, "参数错误");
+            String phone = jsonNode.findPath("phone").asText();
+            String password = jsonNode.findPath("password").asText();
+            if (ValidationUtil.isEmpty(phone) || ValidationUtil.isEmpty(password))
+                return okCustomJson(CODE40001, "参数错误");
 
+            User member = User.find.query().where()
+                    .eq("phone", phone)
+                    .orderBy().asc("id")
+                    .setMaxRows(1).findOne();
+            if(member!=null){
+                member.setRole(Role.find.query().where().eq("id",member.getRoleId()).orderBy().asc("id").setMaxRows(1).findOne());
+            }
+            if (null == member) return okCustomJson(CODE40003, "用户名或密码错误");
+            if (!member.password.equalsIgnoreCase(encodeUtils.getMd5WithSalt(password))) {
+                if (businessUtils.uptoErrorLimit(request, KEY_LOGIN_MAX_ERROR_BY_ID + member.id, 10)) {
+                    member.setStatus(ShopAdmin.STATUS_LOCK);
+                    member.save();
+                }
+                return okCustomJson(CODE40003, "用户名或密码错误");
+            }
+            if (member.status == ShopAdmin.STATUS_LOCK)
+                return okCustomJson(CODE40008, "帐号被锁定，请联系管理员");
+
+            redis.remove(KEY_LOGIN_MAX_ERROR_TIMES + loginIP);
+            ObjectNode result = (ObjectNode) Json.toJson(member);
+            result.put("code", 200);
+            //保存到缓存中
+            String authToken = UUID.randomUUID().toString();
+            result.put("token", authToken);
+            handleCacheToken(member, authToken);
+            businessUtils.deleteVcodeCache(phone);
+            redis.remove(KEY_LOGIN_MAX_ERROR_TIMES + member.id);
+            return ok(result);
+        });
+
+    }
 
 }

@@ -40,7 +40,6 @@ public class Element extends Model {
     @JsonDeserialize(using = EscapeHtmlAuthoritySerializer.class)
     public String criteria;
 
-    //是否系统自动评价
     @Column(name = "type")
     @JsonDeserialize(using = IntegerDeserializer.class)
     public Integer type;
