@@ -87,11 +87,14 @@ POST         /v1/tk/element/add/                                                
 POST         /v1/tk/content/add/                                                 controllers.school.teacher.kpi.V3TeacherController.addContent(request:Request)
 POST         /v1/tk/teacher/list/not/dispatch/                                   controllers.school.teacher.kpi.V3TeacherController.getTeacherListNotDispatch(request:Request)
 POST         /v1/tk/teacher/list/dispatch/                                       controllers.school.teacher.kpi.V3TeacherController.getTeacherListDispatch(request:Request)
-#POST         /v1/tk/teacher/list/                                                controllers.school.teacher.kpi.V3TeacherController.getTeacherList(request:Request)
+
 POST         /v1/tk/user/list/                                                   controllers.school.teacher.kpi.V3TeacherController.getUserList(request:Request)
 POST         /v1/tk/role/list/                                                   controllers.school.teacher.kpi.V3TeacherController.getRoleList(request:Request)
 POST         /v1/tk/user/delete/                                                 controllers.school.teacher.kpi.V3TeacherController.deleteUser(request:Request)
 GET          /v1/tk/getKpiList/                                                  controllers.school.teacher.kpi.V3TeacherController.getKpiListGet(request:Request)
+POST         /v1/tk/teacher/list/                                                controllers.school.teacher.kpi.V3TeacherController.getTeacherList(request:Request)
+POST         /v1/tk/teacher/add/                                                  controllers.school.teacher.kpi.V3TeacherController.addTeacher(request:Request)
+POST         /v1/tk/teacher/delete/                                               controllers.school.teacher.kpi.V3TeacherController.deleteTeacher(request:Request)
 
 POST         /v1/tk/test/                                                        controllers.TestController.test()
 #==========显示==========
@@ -102,6 +105,6 @@ POST         /v1/front/tk/getRankAndScore/                                      
 POST         /v1/front/tk/getUserStats/                                          controllers.school.teacher.kpi.V3TeacherFrontController.getUserStats(request:Request)
 POST         /v1/front/tk/getStatistics/                                         controllers.school.teacher.kpi.V3TeacherFrontController.getStatistics(request:Request)
 POST         /v1/front/tk/getKPI/                                                controllers.school.teacher.kpi.V3TeacherFrontController.getKPI(request:Request)
-
+POST         /v1/front/tk/is/audit/                                              controllers.school.teacher.kpi.V3TeacherFrontController.isAudit(request:Request)
 
 GET          /*file                                                              controllers.Assets.versioned(path="/public", file: Asset)

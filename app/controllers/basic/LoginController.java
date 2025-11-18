@@ -213,6 +213,7 @@ public class LoginController extends BaseController {
             member.setUserName(userName);
             member.setRoleId(roleId);
             member.setStatus(status);
+            member.setPhone(phone);
             if(typeName!=null){
                 member.setTypeName(typeName);
             }
@@ -291,9 +292,6 @@ public class LoginController extends BaseController {
         return CompletableFuture.supplyAsync(() -> {
             String userName = node.findPath("userName").asText();
             userName = businessUtils.escapeHtml(userName);
-            String vcode = node.findPath("vcode").asText();
-            if (!businessUtils.checkVcode(userName, vcode))
-                return okCustomJson(CODE40002, "无效手机号码/短信验证码");
 
             String newPassword = node.findPath("newPassword").asText();
             if (!checkPassword(newPassword)) return okCustomJson(CODE40003, "无效的密码");
@@ -331,14 +329,11 @@ public class LoginController extends BaseController {
             JsonNode node = request.body().asJson();
             String newPassword = node.findPath("password").asText();
             String oldPassword = node.findPath("oldPassword").asText();
-            String vcode = node.findPath("vcode").asText();
-            long memberId = node.findPath("uid").asLong();
+            long memberId = node.findPath("id").asLong();
             if (memberInCache.id != memberId) return okCustomJson(CODE403, "没有权限使用该功能");
             if (!checkPassword(newPassword)) return okCustomJson(CODE40003, "无效的密码");
             User member = User.find.byId(memberInCache.id);
             if (null == member) return okCustomJson(CODE40004, "该帐号不存在");
-            if (!businessUtils.checkVcode(member.userName, vcode))
-                return okCustomJson(CODE40002, "短信验证码有误");
             if (!ValidationUtil.isEmpty(member.password)) {
                 if (!member.password.equals(encodeUtils.getMd5WithSalt(oldPassword))) {
                     return okCustomJson(CODE40001, "原密码有误");

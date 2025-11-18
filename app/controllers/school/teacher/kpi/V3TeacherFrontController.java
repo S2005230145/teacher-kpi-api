@@ -17,6 +17,7 @@ import play.mvc.Result;
 import repository.V3TeacherRepository;
 import utils.BaseUtil;
 import utils.Pair;
+import utils.ValidationUtil;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -383,6 +384,38 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
             });
             ObjectNode result = Json.newObject();
             result.set("mockData",Json.toJson(mockDataMpList));
+            return ok(result);
+        });
+    }
+
+    //是否有审核任务(kpi判断)
+    public CompletionStage<Result> isAudit(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+            if(jsonNode==null) return okCustomJson(CODE40001, "参数错误");
+            long userId = jsonNode.findPath("userId").asLong();
+            String kpiIdString = jsonNode.findPath("kpiId").asText();
+
+            if(userId<=0) return okCustomJson(CODE40001, "用户ID不正确");
+            List<String> kpiIds=new ArrayList<>();
+            if(!ValidationUtil.isEmpty(kpiIdString)) kpiIds=Arrays.stream(kpiIdString.split(",")).toList();
+
+            ExpressionList<TeacherTask> expressionList = TeacherTask.find.query().where()
+                    .eq("user_id", userId);
+            if(!kpiIds.isEmpty()){
+                List<TeacherElementScore> tesList = TeacherElementScore.find.query().where()
+                        .in("kpi_id", kpiIds)
+                        .findList();
+                Set<Long> tesIds = tesList.stream()
+                        .map(TeacherElementScore::getId)
+                        .collect(Collectors.toSet());
+                expressionList.in("tes_id",tesIds);
+            }
+            int taskNum = expressionList.findCount();
+
+            ObjectNode result = Json.newObject();
+            result.put("code", 200);
+            result.put("status", taskNum > 0);
             return ok(result);
         });
     }

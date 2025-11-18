@@ -22,6 +22,7 @@ import repository.V3TeacherRepository;
 import service.FileParseService;
 import utils.AssessmentPDF;
 import utils.Pair;
+import utils.ValidationUtil;
 import utils.parse.WordParser;
 import utils.parse.WordTableTitleExtractor;
 
@@ -427,67 +428,33 @@ public class V3TeacherController extends BaseAdminSecurityController {
      */
     @BodyParser.Of(BodyParser.Json.class)
     public CompletionStage<Result> getKpiList(Http.Request request){
-//        JsonNode jsonNode = request.body().asJson();
-//        return CompletableFuture.supplyAsync(()->{
-////            int currentPage=(jsonNode.findPath("currentPage") instanceof MissingNode ?1:jsonNode.findPath("currentPage").asInt());
-////            int pageSize=(jsonNode.findPath("pageSize") instanceof MissingNode ?10:jsonNode.findPath("pageSize").asInt());
-////            Long userId=(jsonNode.findPath("userId") instanceof MissingNode ?null:jsonNode.findPath("userId").asLong());
-////            //条件
-////            Long id=(jsonNode.findPath("id") instanceof MissingNode || jsonNode.findPath("id").isEmpty() ?null:jsonNode.findPath("id").asLong());
-////            String title=(jsonNode.findPath("title") instanceof MissingNode ?null:jsonNode.findPath("title").asText());
-//
-//            ExpressionList<KPI> expressionList = KPI.find.query().where();
-////            if(userId!=null){
-////                Set<Long> kpiIds = TeacherKPIScore.find.query().where().eq("user_id",userId).findList().stream().map(TeacherKPIScore::getKpiId).collect(Collectors.toSet());
-////                expressionList.in("id",kpiIds);
-////            }
-////            if(id!=null) expressionList.eq("id",id);
-////            if(title!=null&&!title.isEmpty()) expressionList.icontains("title",title);
-//
-//            PagedList<KPI> pagedList = expressionList.setFirstRow(0).setMaxRows(5).findPagedList();
-//
-//            List<KPI> kpiList=pagedList.getList();
-//            int totalPageCount = pagedList.getTotalPageCount();
-//            ObjectNode node = Json.newObject();
-//            node.put(CODE, CODE200);
-//            node.set("list",Json.toJson(kpiList));
-//            node.put("pages", totalPageCount);
-//            return ok(node);
-//        });
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                // 构建查询
-                ExpressionList<KPI> expressionList = KPI.find.query().where();
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+            int currentPage=(jsonNode.findPath("currentPage") instanceof MissingNode ?1:jsonNode.findPath("currentPage").asInt());
+            int pageSize=(jsonNode.findPath("pageSize") instanceof MissingNode ?10:jsonNode.findPath("pageSize").asInt());
+            Long userId=(jsonNode.findPath("userId") instanceof MissingNode ?null:jsonNode.findPath("userId").asLong());
+            //条件
+            Long id=(jsonNode.findPath("id") instanceof MissingNode || jsonNode.findPath("id").isEmpty() ?null:jsonNode.findPath("id").asLong());
+            String title=(jsonNode.findPath("title") instanceof MissingNode ?null:jsonNode.findPath("title").asText());
 
-                // 执行分页查询
-                PagedList<KPI> pagedList = expressionList
-                        .setFirstRow(0)  // 注意：setFirstRow从0开始，不是1
-                        .setMaxRows(10)
-                        .findPagedList();
-
-                // 构建响应数据
-                ObjectNode response = Json.newObject();
-                response.put("code", CODE200);
-                response.put("message", "success");
-                response.set("list", buildKPIData(pagedList));
-                response.put("total", pagedList.getTotalCount());
-                response.put("pages", pagedList.getTotalPageCount());
-                response.put("pageSize", 10);
-                response.put("currentPage", 1);
-
-                return response;
-
-            } catch (Exception e) {
-                // 错误处理
-                ObjectNode errorResponse = Json.newObject();
-                errorResponse.put("code", CODE500);
-                errorResponse.put("message", "查询失败: " + e.getMessage());
-                errorResponse.put("data", Json.newArray());
-                errorResponse.put("total", 0);
-                errorResponse.put("pages", 0);
-                return errorResponse;
+            ExpressionList<KPI> expressionList = KPI.find.query().where();
+            if(userId!=null){
+                Set<Long> kpiIds = TeacherKPIScore.find.query().where().eq("user_id",userId).findList().stream().map(TeacherKPIScore::getKpiId).collect(Collectors.toSet());
+                expressionList.in("id",kpiIds);
             }
-        }).thenApply(response -> ok(Json.toJson(response)));
+            if(id!=null) expressionList.eq("id",id);
+            if(title!=null&&!title.isEmpty()) expressionList.icontains("title",title);
+
+            PagedList<KPI> pagedList = expressionList.setFirstRow(0).setMaxRows(5).findPagedList();
+
+            List<KPI> kpiList=pagedList.getList();
+            int totalPageCount = pagedList.getTotalPageCount();
+            ObjectNode node = Json.newObject();
+            node.put(CODE, CODE200);
+            node.set("list",Json.toJson(kpiList));
+            node.put("pages", totalPageCount);
+            return ok(node);
+        });
     }
 
     //测试
@@ -920,6 +887,16 @@ public class V3TeacherController extends BaseAdminSecurityController {
             if(userId==null) return ok("userId为空");
             if(kpiId==null) return ok("kpiId为空");
 
+            User user = User.find.query().where()
+                    .eq("id",userId)
+                    .setMaxRows(1).findOne();
+            if(user==null) return okCustomJson(CODE40001,"没有该用户");
+            TeacherKPIScore tsk = TeacherKPIScore.find.query().where()
+                    .eq("user_id", userId)
+                    .eq("kpi_id", kpiId)
+                    .setMaxRows(1).findOne();
+            if(tsk==null) return okCustomJson(CODE40001,"该用户没有下发的评分");
+
             if(is_DEV){
                 try {
                     this.testPDF();
@@ -941,7 +918,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
                 }
 
                 return ok(file)
-                        .withHeader("Content-Disposition", "attachment; filename=\"" + filename + "\"")
+                        .withHeader("content-disposition", "attachment; filename=\"" + filename + "\"")
                         .as( "application/pdf");
             } catch (IOException e) {
                 return ok("导出失败"+e);
@@ -1164,7 +1141,8 @@ public class V3TeacherController extends BaseAdminSecurityController {
      * @apiParamExample {json} 请求示例:
      * {
      *     "userId":1,//发起人ID
-     *     "LeaderIds":"1,2,3"//发给的领导ID
+     *     "LeaderIds":"1,2,3",//发给的领导ID
+     *     "elementId":1
      * }
      *
      * @apiSuccess (Error 404) {int} msg LeaderIds为空
@@ -1181,31 +1159,51 @@ public class V3TeacherController extends BaseAdminSecurityController {
         return CompletableFuture.supplyAsync(()->{
             String LeaderIds=(jsonNode.findPath("LeaderIds") instanceof MissingNode ?null: jsonNode.findPath("LeaderIds").asText());
             Long userId=(jsonNode.findPath("userId") instanceof MissingNode ?null:jsonNode.findPath("userId").asLong());
+            Long elementId=(jsonNode.findPath("elementId") instanceof MissingNode ?null:jsonNode.findPath("elementId").asLong());
 
             if(LeaderIds==null) return ok("LeaderIds为空");
             if(userId==null) return ok("userId为空");
 
-            List<TeacherElementScore> teacherElementScoreList = TeacherElementScore.find.query().where().eq("user_id",userId).findList();
-            List<TeacherTask> addTeacherTaskList=new ArrayList<>();
-            List<String> errMsg=new ArrayList<>();
-            boolean status=true;
-            teacherElementScoreList.forEach(tes->{
-                TeacherTask teacherTask=new TeacherTask();
+            if(elementId!=null&&elementId>0){
+                TeacherElementScore tes = TeacherElementScore.find.query().where().eq("user_id", userId).eq("element_id", elementId).setMaxRows(1).findOne();
+                TeacherTask teacherTask = new TeacherTask();
+                List<String> errMsg=new ArrayList<>();
+                boolean status=true;
                 teacherTask.setUserId(userId);
                 teacherTask.setParentIds(LeaderIds);
                 teacherTask.setStatus("待完成");
-                teacherTask.setTesId(tes.getId());
-                addTeacherTaskList.add(teacherTask);
-            });
-            try(Transaction transaction = DB.beginTransaction()){
-                DB.saveAll(addTeacherTaskList);
-                transaction.commit();
-            } catch (Exception e) {
-                status=false;
-                errMsg.add("添加审核任务出错: "+e);
+                teacherTask.setTesId(tes!=null?tes.getId():null);
+                try(Transaction transaction = DB.beginTransaction()){
+                    teacherTask.save();
+                    transaction.commit();
+                } catch (Exception e) {
+                    status=false;
+                    errMsg.add("添加审核任务出错: "+e);
+                }
+                return okCustomNode(status,errMsg);
             }
-
-            return okCustomNode(status,errMsg);
+            else{
+                List<TeacherElementScore> teacherElementScoreList = TeacherElementScore.find.query().where().eq("user_id",userId).findList();
+                List<TeacherTask> addTeacherTaskList=new ArrayList<>();
+                List<String> errMsg=new ArrayList<>();
+                boolean status=true;
+                teacherElementScoreList.forEach(tes->{
+                    TeacherTask teacherTask=new TeacherTask();
+                    teacherTask.setUserId(userId);
+                    teacherTask.setParentIds(LeaderIds);
+                    teacherTask.setStatus("待完成");
+                    teacherTask.setTesId(tes.getId());
+                    addTeacherTaskList.add(teacherTask);
+                });
+                try(Transaction transaction = DB.beginTransaction()){
+                    DB.saveAll(addTeacherTaskList);
+                    transaction.commit();
+                } catch (Exception e) {
+                    status=false;
+                    errMsg.add("添加审核任务出错: "+e);
+                }
+                return okCustomNode(status,errMsg);
+            }
         });
     }
 
@@ -1294,8 +1292,17 @@ public class V3TeacherController extends BaseAdminSecurityController {
             Long userId=(jsonNode.findPath("userId") instanceof MissingNode ?null:jsonNode.findPath("userId").asLong());
 
             if(userId==null) return ok("userId为空");
-            List<TeacherTask> leaderTeacherTaskList = TeacherTask.find.query().where()
-                    .eq("status", "待完成")
+            //条件
+            Long id=(jsonNode.findPath("id") instanceof MissingNode ?null:jsonNode.findPath("id").asLong());
+            String status=(jsonNode.findPath("status") instanceof MissingNode ?null:jsonNode.findPath("status").asText());
+            Long childId=(jsonNode.findPath("childId") instanceof MissingNode ?null:jsonNode.findPath("childId").asLong());
+
+            ExpressionList<TeacherTask> expressionList = TeacherTask.find.query().where();
+            if(id!=null&&id>0) expressionList.eq("id",id);
+            if(status!=null&&!ValidationUtil.isEmpty(status)) expressionList.icontains("status", status);
+            if(childId!=null&&childId>0) expressionList.eq("user_id",childId);
+
+            List<TeacherTask> leaderTeacherTaskList=expressionList
                     .or()
                     .eq("parent_ids", userId)
                     .like("parent_ids", userId + ",%")
@@ -1408,6 +1415,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
                     .setMaxRows(1)
                     .findOne();
             if(tes==null) return okCustomJson(40001,"该教师没有该要素");
+            if(tes.getScore()==null) tes.setScore(0.0);
             tes.setFinalScore(Double.valueOf(dataMap.get("score").toString()));
             try{
                 tes.update();
@@ -1421,6 +1429,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
                     .setMaxRows(1)
                     .findOne();
             if(tis==null) return okCustomJson(40001,"该教师没有该指标");
+            if(tis.getScore()==null) tis.setScore(0.0);
             tis.setScore(tis.getScore()-tes.getScore()+tes.getFinalScore());
             try{
                 tis.update();
@@ -1434,6 +1443,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
                     .setMaxRows(1)
                     .findOne();
             if(tks==null) return okCustomJson(40001,"该教师没有该KPI");
+            if(tks.getScore()==null) tks.setScore(0.0);
             tks.setScore(tks.getScore()-tes.getScore()+tes.getFinalScore());
             try{
                 tks.update();
@@ -2018,7 +2028,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
                     .eq("nick_name","老师")
                     .eq("nick_name","教师")
                     .endOr().setMaxRows(1).findOne();
-            if(role==null) return okCustomJson(40001,"没有发现教师角色");
+            if(role==null) return okCustomJson(CODE40001,"没有发现教师角色");
 
             ExpressionList<User> teacherExpressionList=User.find.query().where()
                     .eq("role_id",role.getId())
@@ -2027,9 +2037,28 @@ public class V3TeacherController extends BaseAdminSecurityController {
             List<User> teacherList =teacherExpressionList
                     .findList();
 
+            List<String> kpiIds = teacherList.stream()
+                    .map(User::getDispatchIds)
+                    .toList();
+            List<KPI> kpiList = KPI.find.query().where()
+                    .in("id", kpiIds)
+                    .findList();
+            List<String> kpiNames=new ArrayList<>();
+            teacherList.forEach(teacher->{
+                String dispatchIdsString = teacher.getDispatchIds()
+                        .replace("++", ",").replace("+", "");
+                List<String> dispatchIds = Arrays.stream(dispatchIdsString.split(",")).toList();
+                String kpiName = kpiList.stream()
+                        .filter(v1 -> dispatchIds.contains(String.valueOf(v1.getId())))
+                        .map(KPI::getTitle)
+                        .collect(Collectors.joining(","));
+                kpiNames.add(kpiName);
+            });
+
             ObjectNode node = Json.newObject();
             node.put("code", 200);
             node.set("data",Json.toJson(teacherList));
+            node.set("kpiNames",Json.toJson(kpiNames));
             return ok(node);
         });
     }
@@ -2051,7 +2080,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
 
             ObjectNode node = Json.newObject();
             node.put("code", 200);
-            node.set("data",Json.toJson(userList));
+            node.set("list",Json.toJson(userList));
             return ok(node);
         });
     }
@@ -2079,6 +2108,30 @@ public class V3TeacherController extends BaseAdminSecurityController {
             }
 
             return okCustomJson(200,"添加成功");
+        });
+    }
+
+    //删除教师
+    public CompletionStage<Result> deleteTeacher(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+            if(jsonNode==null) return okCustomJson(CODE40001,"参数错误");
+            long id=jsonNode.findPath("id").asLong();
+
+            if(id<=0) return okCustomJson(CODE40001,"没有教师id");
+            User user = User.find.query().where()
+                    .eq("id", id)
+                    .setMaxRows(1).findOne();
+            if(user==null) return okCustomJson(CODE40001,"没有该用户");
+
+            try(Transaction transaction = User.find.db().beginTransaction()){
+                user.delete();
+                transaction.commit();
+            }catch (Exception e){
+                return okCustomJson(CODE40002,"删除失败: "+e);
+            }
+
+            return okCustomJson(CODE200,"删除成功");
         });
     }
 
@@ -2194,8 +2247,6 @@ public class V3TeacherController extends BaseAdminSecurityController {
             return ok();
         });
     }
-
-
 
     //==========================================
     //工具
