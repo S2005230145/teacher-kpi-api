@@ -820,15 +820,18 @@ public class V3TeacherController extends BaseAdminSecurityController {
      *     "tcs":[//教师评分对应的内容
      *         {
      *             "contentId":1,//内容ID
-     *             "time":1//次数
+     *             "time":1,//次数
+     *             "fileId":1
      *         },
      *         {
      *             "contentId":2,
-     *             "time":1
+     *             "time":1,
+     *             "fileId":2
      *         },
      *         {
      *             "contentId":3,
-     *             "time":2
+     *             "time":2,
+     *             "fileId":3
      *         }
      *     ]
      * }
@@ -853,6 +856,8 @@ public class V3TeacherController extends BaseAdminSecurityController {
             if(teacherContentScores==null) return ok("tcs为空");
 
             Pair<Boolean, List<String>> grade = v3TeacherRepository.grade(userId, teacherContentScores);
+
+
 
             return okCustomNode(grade.first(),grade.second());
         });
@@ -2245,6 +2250,66 @@ public class V3TeacherController extends BaseAdminSecurityController {
         return CompletableFuture.supplyAsync(()->{
             List<Content> contentList=objectMapper.convertValue(jsonNode, new TypeReference<>() {});
             return ok();
+        });
+    }
+
+    //获取附件信息 taskId
+    public CompletionStage<Result> getTeacherFile(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+            long taskId=(jsonNode.findPath("taskId") instanceof MissingNode ?0:jsonNode.findPath("taskId").asLong());
+
+            if(taskId<=0) return okCustomJson(CODE40001,"没有任务ID");
+
+            TeacherTask tt = TeacherTask.find.query().where()
+                    .eq("id", taskId)
+                    .setMaxRows(1).findOne();
+            if(tt==null) return okCustomJson(CODE40001,"没有该任务");
+
+            long tesId = tt.getTesId();
+            TeacherElementScore tes = TeacherElementScore.find.query().where()
+                    .eq("id", tesId)
+                    .setMaxRows(1).findOne();
+            if(tes==null) return okCustomJson(CODE40001,"没有该要素");
+
+            List<TeacherContentScore> tcsList = TeacherContentScore.find.query().where()
+                    .eq("element_id", tes.getElementId())
+                    .findList();
+            List<TeacherContentScore> tcsHasFileList = tcsList.stream()
+                    .filter(v1 -> v1.getFileId() > 0)
+                    .toList();
+
+            List<Long> fileIds =tcsHasFileList.stream()
+                    .map(TeacherContentScore::getFileId)
+                    .toList();
+            List<TeacherFile> tfList = TeacherFile.find.query().where()
+                    .in("id", fileIds)
+                    .findList();
+
+            List<Long> contentIds = tfList.stream()
+                    .map(TeacherFile::getContentId)
+                    .toList();
+            List<Content> contentList = Content.find.query().where()
+                    .in("id", contentIds)
+                    .findList();
+
+            List<Map<String,Object>> mpList=new ArrayList<>();
+            tfList.forEach(tf->{
+                Map<String, Object> map = new HashMap<>();
+                Content content = contentList.stream()
+                        .filter(v1 -> Objects.equals(v1.getId(), tf.getContentId()))
+                        .findFirst()
+                        .orElse(null);
+                map.put("content",content!=null?content.getContent():null);
+                map.put("description",tf.getDescription());
+                map.put("path",tf.getFilePath());
+                mpList.add(map);
+            });
+
+            ObjectNode node = Json.newObject();
+            node.put(CODE, CODE200);
+            node.set("list",Json.toJson(mpList));
+            return ok(node);
         });
     }
 

@@ -8,6 +8,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import myannotation.DoubleDeserializer;
 import myannotation.EscapeHtmlAuthoritySerializer;
+import myannotation.IntegerDeserializer;
 import myannotation.StringToLongDeserializer;
 
 /**

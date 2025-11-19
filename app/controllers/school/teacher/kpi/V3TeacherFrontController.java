@@ -3,14 +3,17 @@ package controllers.school.teacher.kpi;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.MissingNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.typesafe.config.Config;
 import controllers.BaseAdminSecurityController;
-import controllers.BaseSecurityController;
+import io.ebean.DB;
 import io.ebean.ExpressionList;
 import io.ebean.PagedList;
+import io.ebean.Transaction;
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import models.school.kpi.v3.*;
 import models.user.User;
+import play.libs.Files;
 import play.libs.Json;
 import play.mvc.Http;
 import play.mvc.Result;
@@ -19,11 +22,13 @@ import utils.BaseUtil;
 import utils.Pair;
 import utils.ValidationUtil;
 
+import java.io.File;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -33,6 +38,11 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
 
     @Inject
     V3TeacherRepository v3TeacherRepository;
+
+    @Inject
+    Config config;
+
+    private static String osName = System.getProperty("os.name").toLowerCase();
 
     //获取该用户对应的绩效参数 userId
     public CompletionStage<Result> getList(Http.Request request){
@@ -419,4 +429,110 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
             return ok(result);
         });
     }
+
+    //获取人数完成请况信息
+    public CompletionStage<Result> getPersonStatus(Http.Request request){
+        return CompletableFuture.supplyAsync(()->{
+            List<TeacherKPIScore> totalList = TeacherKPIScore.find.query().where()
+                    .findList();
+            //总数
+            int total=totalList.size();
+            //未开始
+            int pending=Math.toIntExact(totalList.stream()
+                    .filter(v1 -> v1.getScore() == null)
+                    .count());
+            List<TeacherKPIScore> totalListNotNull = totalList.stream()
+                    .filter(v1 -> v1.getScore() != null)
+                    .toList();
+
+            List<Long> userIds = totalListNotNull.stream().map(TeacherKPIScore::getUserId).toList();
+            List<TeacherContentScore> tcsList = TeacherContentScore.find.query().where()
+                    .in("user_id", userIds)
+                    .findList();
+            Map<Long,List<TeacherContentScore>> groupedByUserId=tcsList.stream()
+                    .collect(Collectors.groupingBy(TeacherContentScore::getUserId));
+            Map<Long, Long> nullScoreCounts = groupedByUserId.entrySet().stream()
+                    .collect(Collectors.toMap(
+                            Map.Entry::getKey,
+                            entry -> entry.getValue().stream()
+                                    .filter(userScore -> userScore.getScore() == null)
+                                    .count()
+                    ));
+            //进行中
+            AtomicInteger progress= new AtomicInteger();
+            //已完成
+            AtomicInteger completed= new AtomicInteger();
+            nullScoreCounts.forEach((userId, count) -> {
+                if (count > 0) progress.getAndIncrement();
+                else completed.getAndIncrement();
+            });
+
+            ObjectNode result = Json.newObject();
+            result.put(CODE,CODE200);
+            result.put("total",total);
+            result.put("pending",pending);
+            result.put("completed",completed.get());
+            result.put("progress",progress.get());
+            return ok(result);
+        });
+    }
+
+    //上传附件
+    public CompletionStage<Result> uploadFile(Http.Request request){
+        return CompletableFuture.supplyAsync(()->{
+            Http.MultipartFormData<play.libs.Files.TemporaryFile> multipartFormData = request.body().asMultipartFormData();
+            List<Http.MultipartFormData.FilePart<play.libs.Files.TemporaryFile>> files = multipartFormData.getFiles();
+
+            String description = multipartFormData.asFormUrlEncoded().containsKey("description")?multipartFormData.asFormUrlEncoded().get("description")[0]:null;
+            long contentId = multipartFormData.asFormUrlEncoded().containsKey("contentId")?Long.parseLong(multipartFormData.asFormUrlEncoded().get("contentId")[0]):0;
+            long userId = multipartFormData.asFormUrlEncoded().containsKey("userId")?Long.parseLong(multipartFormData.asFormUrlEncoded().get("userId")[0]):0;
+
+            if(contentId<=0) return okCustomJson(CODE40001,"没有contentId");
+            if(userId<=0) return okCustomJson(CODE40001,"没有userId");
+
+            Http.MultipartFormData.FilePart<Files.TemporaryFile> filePart = files.get(0);
+            //存文件
+            String filename = filePart.getFilename();
+            String suffix = filename.substring(filename.lastIndexOf("."));
+            filename=UUID.randomUUID().toString().replace("-", "").toUpperCase()+suffix;
+            String path = null;
+            if (osName.contains("win")) {
+                path=config.getString("fileUpload.windows");
+            } else {
+                path=config.getString("fileUpload.linux");
+            }
+            File dir = new File(path, "/teacher_file");
+            if (!dir.exists()) dir.mkdirs();
+            File destination = new File(dir, filename);
+            filePart.getRef().copyTo(destination.toPath(), false);
+
+            TeacherFile teacherFile = new TeacherFile();
+            teacherFile.setFilePath("teacher_file/"+filename);
+            teacherFile.setDescription(description);
+            teacherFile.setContentId(contentId);
+            Transaction transaction = DB.beginTransaction();
+            try{
+                teacherFile.save();
+            }catch (Exception e){
+                transaction.rollback();
+                return okCustomJson(CODE40002,"教师文件出错: "+e);
+            }
+
+            TeacherContentScore tcs = TeacherContentScore.find.query().where()
+                    .eq("user_id", userId)
+                    .eq("content_id", contentId)
+                    .setMaxRows(1).findOne();
+            if(tcs==null) return okCustomJson(CODE40001,"该教师没有被下发的内容");
+            tcs.setFileId(teacherFile.getId());
+            try{
+                tcs.update();
+            }catch (Exception e){
+                transaction.rollback();
+                return okCustomJson(CODE40002,"教师内容更新出错: "+e);
+            }
+            transaction.commit();
+            return okCustomJson(CODE200,"上传成功");
+        });
+    }
+
 }

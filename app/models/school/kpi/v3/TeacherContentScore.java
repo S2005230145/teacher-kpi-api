@@ -47,6 +47,10 @@ public class TeacherContentScore extends Model {
     @JsonDeserialize(using = DoubleDeserializer.class)
     public Double score;
 
+    @Column(name = "file_id")
+    @JsonDeserialize(using = StringToLongDeserializer.class)
+    public Long fileId;
+
     // JPA查询器（可选，与原代码保持一致）
     public static Finder<Long, TeacherContentScore> find =
             new Finder<>(TeacherContentScore.class);

@@ -1055,6 +1055,7 @@ create table tk_v3_teacher_content_score (
   element_id                    bigint,
   time                          integer,
   score                         double,
+  file_id                       bigint,
   constraint pk_tk_v3_teacher_content_score primary key (id)
 );
 
@@ -1068,6 +1069,14 @@ create table tk_v3_teacher_element_score (
   indicator_id                  bigint,
   final_score                   double,
   constraint pk_tk_v3_teacher_element_score primary key (id)
+);
+
+create table tk_v3_teacher_file (
+  id                            bigint auto_increment not null,
+  content_id                    bigint,
+  description                   varchar(255),
+  file_path                     varchar(255),
+  constraint pk_tk_v3_teacher_file primary key (id)
 );
 
 create table tk_v3_teacher_indicator_score (
@@ -1391,6 +1400,8 @@ drop table if exists v1_system_link;
 drop table if exists tk_v3_teacher_content_score;
 
 drop table if exists tk_v3_teacher_element_score;
+
+drop table if exists tk_v3_teacher_file;
 
 drop table if exists tk_v3_teacher_indicator_score;
 
