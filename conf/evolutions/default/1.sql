@@ -164,6 +164,20 @@ create table v1_balance_log (
   constraint pk_v1_balance_log primary key (id)
 );
 
+create table tk_v3_campus (
+  id                            bigint auto_increment not null,
+  campus_name                   varchar(255),
+  address                       varchar(255),
+  phone                         varchar(255),
+  principal                     varchar(255),
+  capacity                      integer,
+  establish_date                datetime(6),
+  status                        integer,
+  create_time                   datetime(6),
+  update_time                   datetime(6),
+  constraint pk_tk_v3_campus primary key (id)
+);
+
 create table v1_card_coupon_config (
   id                            bigint auto_increment not null,
   org_id                        bigint not null,
@@ -278,6 +292,17 @@ create table critical_work_assessment (
   temporary_tasks_score         double,
   total_critical_work_score     double,
   constraint pk_critical_work_assessment primary key (id)
+);
+
+create table tk_v3_department (
+  id                            bigint auto_increment not null,
+  department_name               varchar(255),
+  department_code               varchar(255),
+  campus_id                     bigint,
+  description                   varchar(255),
+  create_time                   datetime(6),
+  update_time                   datetime(6),
+  constraint pk_tk_v3_department primary key (id)
 );
 
 create table v1_dict (
@@ -1256,6 +1281,7 @@ create table tk_v1_user (
   status                        integer not null,
   role_id                       bigint,
   dispatch_ids                  varchar(255),
+  department_id                 bigint,
   constraint pk_tk_v1_user primary key (id)
 );
 
@@ -1311,6 +1337,8 @@ drop table if exists tk_assessment_element_config;
 
 drop table if exists v1_balance_log;
 
+drop table if exists tk_v3_campus;
+
 drop table if exists v1_card_coupon_config;
 
 drop table if exists v1_contact_detail;
@@ -1320,6 +1348,8 @@ drop table if exists tk_v3_content;
 drop table if exists v1_coupon_config;
 
 drop table if exists critical_work_assessment;
+
+drop table if exists tk_v3_department;
 
 drop table if exists v1_dict;
 

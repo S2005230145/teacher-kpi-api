@@ -6,6 +6,7 @@ import io.ebean.Finder;
 import io.ebean.Model;
 import jakarta.persistence.*;
 import lombok.Data;
+import models.department.Department;
 import myannotation.EscapeHtmlAuthoritySerializer;
 import myannotation.EscapeHtmlSerializer;
 import myannotation.IntegerDeserializer;
@@ -47,6 +48,13 @@ public class User extends Model {
     @Column(name = "dispatch_ids")
     @JsonDeserialize(using = EscapeHtmlSerializer.class)
     public String dispatchIds;
+
+    @Column(name = "department_id")
+    @JsonDeserialize(using = EscapeHtmlSerializer.class)
+    public Long departmentId;
+
+    @Transient
+    public Department department;
 
     @Transient
     public Role role;
