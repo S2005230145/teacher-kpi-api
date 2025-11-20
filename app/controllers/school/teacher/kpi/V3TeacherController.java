@@ -49,6 +49,9 @@ public class V3TeacherController extends BaseAdminSecurityController {
 
     private static final Boolean is_DEV=false;
 
+    //极大值
+    private static final Double mxValue=5000.0;
+
     /**
      * @api {POST} /v1/tk/kpi/add/  01 kpi添加
      * @apiName addKpi
@@ -2363,20 +2366,110 @@ public class V3TeacherController extends BaseAdminSecurityController {
 
             List<Long> contentIds = teacherContentScores.stream().map(v1 -> Long.parseLong(v1.get("contentId").toString())).toList();
             List<Content> contentList = Content.find.query().where().in("id",contentIds).findList();
+            List<Element> elementList=Element.find.query().where().in("id",contentList.stream().map(Content::getElementId).toList()).findList();
             List<TeacherContentScore> tcsList=TeacherContentScore.find.query().where().in("content_id",contentIds).findList();
 
-            List<Content> addContentList=new ArrayList<>();
+            List<TeacherContentScore> updateTeacherContentScoreList=new ArrayList<>();
+            Transaction transaction = DB.beginTransaction();
+
             teacherContentScores.forEach(tcsMp->{
                 long contentId = Long.parseLong(tcsMp.get("contentId").toString());
                 int time = Integer.parseInt(tcsMp.get("time").toString());
                 String type = tcsMp.get("type").toString();
-                Map<String,Object> varMp= this.simpleConvertVar(tcsMp.get("var"));
+                Map<String,Object> varMp= (Map<String, Object>) tcsMp.get("var");
+
+                double score = varMp.get("score")!=null?Double.parseDouble(varMp.get("score").toString()):0.0;
 
                 TeacherContentScore tcs = tcsList.stream().filter(v1 -> v1.getContentId() == contentId).findFirst().orElse(null);
                 Content content = contentList.stream().filter(v1 -> v1.getId() == contentId).findFirst().orElse(null);
 
+                if(tcs!=null&&content!=null){
+                    if(type.contains("exclude")){
+                        if(score>0.0){
+                            tcs.setScore(mxValue);
+                        }else{
+                            tcs.setScore(-mxValue);
+                        }
+                        tcs.setTime(time);
+                    }
+                    else if(type.contains("select")){
+                        tcs.setScore(score);
+                        tcs.setTime(time);
+                    }
+                    else{
+                        Element element = elementList.stream().filter(v1 -> Objects.equals(v1.getId(), content.getElementId())).findFirst().orElse(null);
+                        double countScore=time*content.getScore();
+                        if(element!=null){
+                            if(countScore>element.getScore()){
+                                countScore=element.getScore();
+                            }
+                        }
+                        tcs.setScore(countScore);
+                        tcs.setTime(time);
+                    }
+                    if(tcs.getScore()==null){
+                        tcs.setScore(0.0);
+                    }
+                    updateTeacherContentScoreList.add(tcs);
+                }
             });
-            return ok();
+            try{
+                DB.updateAll(updateTeacherContentScoreList);
+            } catch (Exception e) {
+                transaction.rollback();
+                return okCustomJson(CODE40002,"内容分数更新失败");
+            }
+            Set<Long> elementIds = contentList.stream().map(models.school.kpi.v3.Content::getElementId).collect(Collectors.toSet());
+            List<TeacherElementScore> teacherElementScoreList = TeacherElementScore.find.query().where().eq("user_id", userId).findList();
+            List<TeacherElementScore> filterTeacherElementScoreList = teacherElementScoreList.stream().filter(v1 -> elementIds.contains(v1.getElementId())).toList();
+            filterTeacherElementScoreList.forEach(tes->{
+                tes.setScore(updateTeacherContentScoreList.stream().filter(v1-> Objects.equals(v1.getElementId(), tes.getElementId())).map(TeacherContentScore::getScore).mapToDouble(Double::doubleValue).sum());
+            });
+            try{
+                DB.updateAll(filterTeacherElementScoreList);
+            } catch (Exception e) {
+                transaction.rollback();
+                return okCustomJson(CODE40002,"要素分数更新失败");
+            }
+
+            Set<Long> indicatorIds = elementList.stream().map(Element::getIndicatorId).collect(Collectors.toSet());
+            List<TeacherIndicatorScore> teacherIndicatorScoreList=TeacherIndicatorScore.find.query().where().eq("user_id", userId).findList();
+            List<TeacherIndicatorScore> filterTeacherIndicatorScoreList = teacherIndicatorScoreList.stream().filter(v1 -> indicatorIds.contains(v1.getIndicatorId())).toList();
+            List<TeacherElementScore> list1 = teacherElementScoreList.stream().filter(v1 ->indicatorIds.contains(v1.getIndicatorId())).toList();
+            filterTeacherIndicatorScoreList.forEach(tis->{
+                double sum = list1.stream().filter(v1 -> v1.getScore() != null && Objects.equals(v1.getIndicatorId(), tis.getIndicatorId())).map(TeacherElementScore::getScore).mapToDouble(Double::doubleValue).sum();
+                if(sum>=Math.abs(mxValue)||sum<=-Math.abs(mxValue)){
+                    double tmpSum=sum;
+                    sum=sum-((int)sum/mxValue)*mxValue;
+                    if(sum==0.0){
+                        sum=tmpSum;
+                    }
+                }
+                tis.setScore(sum);
+            });
+            try{
+                DB.updateAll(filterTeacherIndicatorScoreList);
+            } catch (Exception e) {
+                transaction.rollback();
+                return okCustomJson(CODE40002,"指标更新失败");
+            }
+
+            List<Long> list = teacherIndicatorScoreList.stream().map(TeacherIndicatorScore::getKpiId).toList();
+            TeacherKPIScore tks = TeacherKPIScore.find.query().where().eq("user_id", userId).in("kpi_id", list).setMaxRows(1).findOne();
+            if(tks!=null){
+                double sum = teacherIndicatorScoreList.stream().map(TeacherIndicatorScore::getScore).filter(v1-> Objects.nonNull(v1) && v1 < mxValue && v1 > -mxValue).mapToDouble(Double::doubleValue).sum();
+                tks.setScore(sum);
+                try{
+                    tks.update();
+                    transaction.commit();
+                } catch (Exception e) {
+                    transaction.rollback();
+                    return okCustomJson(CODE40002,"kpi分数更新失败");
+                }
+            }else{
+                return okCustomJson(CODE40002,"该教师无KPI");
+            }
+            return okCustomJson(CODE200,"评分成功");
         });
     }
 
