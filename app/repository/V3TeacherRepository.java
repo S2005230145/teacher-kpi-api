@@ -299,6 +299,7 @@ public class V3TeacherRepository {
                 DB.updateAll(teacherContentScoreList);
             } catch (Exception e) {
                 errorMsg.add("内容分数更新失败");
+                transaction.rollback();
             }
 
             //更新element分数
@@ -312,6 +313,7 @@ public class V3TeacherRepository {
                 DB.updateAll(filterTeacherElementScoreList);
             } catch (Exception e) {
                 errorMsg.add("要素分数更新失败");
+                transaction.rollback();
             }
             //更新Indicator分数
             Set<Long> indicatorIds = elementList.stream().map(Element::getIndicatorId).collect(Collectors.toSet());
@@ -325,6 +327,7 @@ public class V3TeacherRepository {
                 DB.updateAll(filterTeacherIndicatorScoreList);
             } catch (Exception e) {
                 errorMsg.add("指标更新失败");
+                transaction.rollback();
             }
 
             //更新kpi分数(总分)
@@ -337,6 +340,7 @@ public class V3TeacherRepository {
                     transaction.commit();
                 } catch (Exception e) {
                     errorMsg.add("kpi分数更新失败");
+                    transaction.rollback();
                 }
             }else{
                 errorMsg.add("该教师无KPI");
