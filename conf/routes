@@ -67,6 +67,7 @@ POST         /v1/tk/getList/                                                    
 POST         /v1/tk/getKpiList/                                                  controllers.school.teacher.kpi.V3TeacherController.getKpiList(request:Request)
 POST         /v1/tk/dispatch/                                                    controllers.school.teacher.kpi.V3TeacherController.dispatch(request:Request)
 POST         /v1/tk/grade/                                                       controllers.school.teacher.kpi.V3TeacherController.grade(request:Request)
+POST         /v1/tk/grade/new/                                                   controllers.school.teacher.kpi.V3TeacherController.newGrade(request:Request)
 POST         /v1/tk/export/                                                      controllers.school.teacher.kpi.V3TeacherController.export(request:Request)
 POST         /v1/tk/getElementList/                                              controllers.school.teacher.kpi.V3TeacherController.getElementList(request:Request)
 POST         /v1/tk/getContentList/                                              controllers.school.teacher.kpi.V3TeacherController.getContentList(request:Request)
@@ -96,11 +97,16 @@ POST         /v1/tk/teacher/list/                                               
 POST         /v1/tk/teacher/add/                                                 controllers.school.teacher.kpi.V3TeacherController.addTeacher(request:Request)
 POST         /v1/tk/teacher/delete/                                              controllers.school.teacher.kpi.V3TeacherController.deleteTeacher(request:Request)
 POST         /v1/tk/teacher/file/                                                controllers.school.teacher.kpi.V3TeacherController.getTeacherFile(request:Request)
+#test
+POST         /v1/tk/type/json/add/                                               controllers.school.teacher.kpi.V3TeacherController.addTypeJson(request:Request)
+POST         /v1/tk/type/json/list/                                              controllers.school.teacher.kpi.V3TeacherController.getTypeJsonList(request:Request)
+POST         /v1/tk/type/json/delete/                                            controllers.school.teacher.kpi.V3TeacherController.deleteTypeJson(request:Request)
 
 POST         /v1/tk/test/                                                        controllers.TestController.test()
 #==========显示 小程序==========
 POST         /v1/front/tk/getList/                                               controllers.school.teacher.kpi.V3TeacherFrontController.getList(request:Request)
 POST         /v1/front/tk/getElementList/                                        controllers.school.teacher.kpi.V3TeacherFrontController.getElementList(request:Request)
+POST         /v1/front/tk/getElementList/new/                                    controllers.school.teacher.kpi.V3TeacherFrontController.getElementList2(request:Request)
 POST         /v1/front/tk/getExamSummary/                                        controllers.school.teacher.kpi.V3TeacherFrontController.getExamSummary(request:Request)
 POST         /v1/front/tk/getRankAndScore/                                       controllers.school.teacher.kpi.V3TeacherFrontController.getRankAndScore(request:Request)
 POST         /v1/front/tk/getUserStats/                                          controllers.school.teacher.kpi.V3TeacherFrontController.getUserStats(request:Request)
@@ -109,5 +115,6 @@ POST         /v1/front/tk/getKPI/                                               
 POST         /v1/front/tk/is/audit/                                              controllers.school.teacher.kpi.V3TeacherFrontController.isAudit(request:Request)
 POST         /v1/front/tk/teacher/person/status/                                 controllers.school.teacher.kpi.V3TeacherFrontController.getPersonStatus(request:Request)
 POST         /v1/front/tk/file/upload/                                           controllers.school.teacher.kpi.V3TeacherFrontController.uploadFile(request:Request)
+
 
 GET          /*file                                                              controllers.Assets.versioned(path="/public", file: Asset)

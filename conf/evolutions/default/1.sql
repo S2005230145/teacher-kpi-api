@@ -214,6 +214,7 @@ create table tk_v3_content (
   id                            bigint auto_increment not null,
   element_id                    bigint,
   content                       varchar(255),
+  type_id                       bigint,
   score                         double,
   constraint pk_tk_v3_content primary key (id)
 );
@@ -388,6 +389,13 @@ create table tk_v1_kpi (
   parent_id                     bigint,
   total_score                   double,
   constraint pk_tk_v1_kpi primary key (id)
+);
+
+create table tk_v3_kpi_score_type (
+  id                            bigint auto_increment not null,
+  description                   varchar(255),
+  json_param                    varchar(255),
+  constraint pk_tk_v3_kpi_score_type primary key (id)
 );
 
 create table v1_member (
@@ -1338,6 +1346,8 @@ drop table if exists tk_v3_indicator;
 drop table if exists tk_v3_kpi;
 
 drop table if exists tk_v1_kpi;
+
+drop table if exists tk_v3_kpi_score_type;
 
 drop table if exists v1_member;
 

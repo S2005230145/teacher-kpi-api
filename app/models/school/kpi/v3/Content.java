@@ -6,10 +6,7 @@ import io.ebean.Model;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import myannotation.DoubleDeserializer;
-import myannotation.EscapeHtmlAuthoritySerializer;
-import myannotation.IntegerDeserializer;
-import myannotation.StringToLongDeserializer;
+import myannotation.*;
 
 /**
  * 评价内容
@@ -30,8 +27,13 @@ public class Content extends Model {
 
     //评价内容 共享一个标准时使用 @#$ 分割  否则用 | 分割
     @Column(name = "content")
-    @JsonDeserialize(using = EscapeHtmlAuthoritySerializer.class)
+    @JsonDeserialize(using = EscapeHtmlSerializer.class)
     public String content;
+
+    //得分类型
+    @Column(name = "type_id")
+    @JsonDeserialize(using = StringToLongDeserializer.class)
+    public Long typeId;
 
     //每次分数
     @Column(name = "score")

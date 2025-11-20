@@ -266,7 +266,6 @@ public class V3TeacherRepository {
         List<Long> contentIds = teacherContentScores.stream().map(TeacherContentScore::getContentId).toList();
         List<Content> contentList = Content.find.query().where().in("id", contentIds).findList();
         List<Element> elementList=Element.find.query().where().in("id",contentList.stream().map(Content::getElementId).toList()).findList();
-
         if(teacherContentScoreList.isEmpty()){
             errorMsg.add("没有该教师的评测内容");
         }

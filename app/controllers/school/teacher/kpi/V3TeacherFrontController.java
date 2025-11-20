@@ -162,6 +162,47 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
         });
     }
 
+    public CompletionStage<Result> getElementList2(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+            Long indicatorId=(jsonNode.findPath("indicatorId") instanceof MissingNode ?null:jsonNode.findPath("indicatorId").asLong());
+            Long userId=(jsonNode.findPath("userId") instanceof MissingNode ?null:jsonNode.findPath("userId").asLong());
+
+            if(indicatorId==null) return ok("indicatorId为空");
+            if(userId==null) return ok("userId为空");
+
+            List<Long> elementIds = TeacherElementScore.find.query().where().eq("user_id", userId).eq("indicator_id", indicatorId).findList().stream().map(TeacherElementScore::getElementId).toList();
+            List<Element> elementList=Element.find.query().where().in("id",elementIds).query().findList();
+            List<Map<String, Object>> tabs=new ArrayList<>();
+            List<List<Map<String, Object>>> contents=new ArrayList<>();
+            List<Content> contentList = Content.find.query().where().in("element_id",elementIds).findList();
+            List<TeacherContentScore> list = TeacherContentScore.find.query().where().eq("user_id", userId).in("element_id",elementIds).findList();
+            List<Long> typeIds = contentList.stream().map(Content::getTypeId).toList();
+            List<KPIScoreType> kpiScoreTypeList = KPIScoreType.find.query().where().in("id",typeIds).findList();
+            elementList.forEach(element->{
+                Map<String, Object> tab = new HashMap<>();
+                tab.put("id",element.getId());
+                tab.put("name",element.getElement());
+                tabs.add(tab);
+                List<Map<String, Object>> contents1=new ArrayList<>();
+                contentList.stream().filter(v1-> Objects.equals(v1.getElementId(), element.getId())).toList().forEach(contentTmp->{
+                    Map<String, Object> content = new HashMap<>();
+                    content.put("id",contentTmp.getId());
+                    content.put("title",contentTmp.getContent());
+                    content.put("description",null);
+                    content.put("time", Objects.requireNonNull(list.stream().filter(v1 -> Objects.equals(v1.getContentId(), contentTmp.getId())).findFirst().orElse(null)).getTime());
+                    content.put("type",kpiScoreTypeList.stream().filter(v1-> Objects.equals(v1.getId(), contentTmp.getTypeId())).findFirst().orElse(null));
+                    contents1.add(content);
+                });
+                contents.add(contents1);
+            });
+            ObjectNode result = Json.newObject();
+            result.set("tabs",Json.toJson(tabs));
+            result.set("contents",Json.toJson(contents));
+            return ok(result);
+        });
+    }
+
     //kpi基本数据 userId kpiId
     public CompletionStage<Result> getExamSummary(Http.Request request){
         JsonNode jsonNode = request.body().asJson();
@@ -534,5 +575,4 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
             return okCustomJson(CODE200,"上传成功");
         });
     }
-
 }

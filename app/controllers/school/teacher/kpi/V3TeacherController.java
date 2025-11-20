@@ -2205,54 +2205,6 @@ public class V3TeacherController extends BaseAdminSecurityController {
         });
     }
 
-    //TODO 内容加权分数和要素定分
-    /**
-     * @api {POST} /v1/tk/content/score/add/  21 内容加权分数添加
-     * @apiName addScoreWeight
-     * @apiGroup Teacher
-     *
-     * @apiDescription 通过elementId来更新内容(内容之间用、号隔开)
-     *
-     * @apiParam {String} id 内容ID
-     * @apiParam {String} score 加权分数
-     *
-     * @apiParamExample {json} 请求示例:
-     * [
-     *      {
-     *          "id":1,//内容ID
-     *          "score":30//加权分数 -为扣分
-     *      },
-     *      {
-     *          "id":2,
-     *          "score":30
-     *      },
-     *      {
-     *          "id":3,
-     *          "score":30
-     *      },
-     *      {
-     *          "id":4,
-     *          "score":-5
-     *      }
-     * ]
-
-     * @apiSuccess (Error 404) {int} msg 没有elementId
-     * @apiSuccess (Error 404) {int} msg 没有contents
-     *
-     * @apiSuccess (Success 200){int} code 200
-     * @apiSuccess (Success 200) {String[]} reason 更新成功
-     *
-     * @apiSuccess (Error 500){int} code 500
-     * @apiSuccess (Error 500) {String[]} reason 错误列表
-     */
-    public CompletionStage<Result> addScoreWeight(Http.Request request){
-        JsonNode jsonNode = request.body().asJson();
-        return CompletableFuture.supplyAsync(()->{
-            List<Content> contentList=objectMapper.convertValue(jsonNode, new TypeReference<>() {});
-            return ok();
-        });
-    }
-
     //获取附件信息 taskId
     public CompletionStage<Result> getTeacherFile(Http.Request request){
         JsonNode jsonNode = request.body().asJson();
@@ -2310,6 +2262,121 @@ public class V3TeacherController extends BaseAdminSecurityController {
             node.put(CODE, CODE200);
             node.set("list",Json.toJson(mpList));
             return ok(node);
+        });
+    }
+
+    public CompletionStage<Result> addTypeJson(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+            if(jsonNode==null) return okCustomJson(CODE40001,"参数错误");
+            String jsonText=jsonNode.findPath("jsonText").asText();
+            String description=jsonNode.findPath("description").asText();
+
+            if(ValidationUtil.isEmpty(jsonText)) return okCustomJson(CODE40001,"jsonText为空");
+            KPIScoreType kpiScoreType = new KPIScoreType();
+            kpiScoreType.setDescription(description);
+            kpiScoreType.setJsonParam(jsonText);
+            try(Transaction transaction = KPIScoreType.find.db().beginTransaction()){
+                kpiScoreType.save();
+                transaction.commit();
+            }catch (Exception e){
+                return okCustomJson(CODE40002,"添加出错: "+e);
+            }
+
+            return okCustomJson(CODE200,"添加成功");
+        });
+    }
+
+    public CompletionStage<Result> deleteTypeJson(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+            if(jsonNode==null) return okCustomJson(CODE40001,"参数错误");
+            long id=jsonNode.findPath("id").asLong();
+
+            if(id<=0) return okCustomJson(CODE40001,"id为空");
+            KPIScoreType kpiScoreType = KPIScoreType.find.byId(id);
+            if(kpiScoreType==null) return okCustomJson(CODE40001,"没有该对象");
+
+            try(Transaction transaction = KPIScoreType.find.db().beginTransaction()){
+                kpiScoreType.delete();
+                transaction.commit();
+            }catch (Exception e){
+                return okCustomJson(CODE40002,"删除出错: "+e);
+            }
+
+            return okCustomJson(CODE200,"删除成功");
+        });
+    }
+
+    public CompletionStage<Result> getTypeJsonList(Http.Request request){
+        return CompletableFuture.supplyAsync(()->{
+            List<KPIScoreType> all = KPIScoreType.find.all();
+            ObjectNode node = Json.newObject();
+            node.put("code", 200);
+            node.set("list",Json.toJson(all));
+            return ok(node);
+        });
+    }
+
+    //新评分
+    /***
+     * {
+     *     "userId":1,//用户ID
+     *     "tcs":[//教师评分对应的内容
+     *         {
+     *             "contentId":1,//内容ID
+     *             "time":1,//次数 (除了count外其他都是 1)
+     *             "type":"exclude"
+     *             "var":{
+     *                 "name":"完成",
+     *                 "score":30
+     *             }
+     *         },
+     *         {
+     *             "contentId":4,
+     *             "time":2,
+     *             "type":"count"
+     *             "var":{
+     *             }
+     *         },
+     *         {
+     *             "contentId":49,
+     *             "time":1,
+     *             "type":"select",
+     *             "var":{
+     *                 "name":"一等奖",
+     *                 "score":18
+     *             }
+     *         }
+     *     ]
+     * }
+     */
+    public CompletionStage<Result> newGrade(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+
+            Long userId= jsonNode.findPath("userId") instanceof MissingNode ? null : jsonNode.findPath("userId").asLong();
+            List<Map<String,Object>> teacherContentScores= objectMapper.convertValue(jsonNode.findPath("tcs"), new TypeReference<>() {});
+
+            if(userId==null) return ok("没有userId");
+            if(teacherContentScores==null) return ok("tcs为空");
+
+            List<Long> contentIds = teacherContentScores.stream().map(v1 -> Long.parseLong(v1.get("contentId").toString())).toList();
+            List<Content> contentList = Content.find.query().where().in("id",contentIds).findList();
+            List<TeacherContentScore> tcsList=TeacherContentScore.find.query().where().in("content_id",contentIds).findList();
+
+            List<Content> addContentList=new ArrayList<>();
+            teacherContentScores.forEach(tcsMp->{
+                long contentId = Long.parseLong(tcsMp.get("contentId").toString());
+                int time = Integer.parseInt(tcsMp.get("time").toString());
+                String type = tcsMp.get("type").toString();
+                Map<String,Object> varMp= this.simpleConvertVar(tcsMp.get("var"));
+
+                TeacherContentScore tcs = tcsList.stream().filter(v1 -> v1.getContentId() == contentId).findFirst().orElse(null);
+                Content content = contentList.stream().filter(v1 -> v1.getId() == contentId).findFirst().orElse(null);
+
+            });
+            return ok();
         });
     }
 
@@ -2391,5 +2458,33 @@ public class V3TeacherController extends BaseAdminSecurityController {
         }
 
         return Json.toJson(dataList);
+    }
+
+    /**
+     * 方法1: 最简单直接的转换
+     */
+    private Map<String, Object> simpleConvertVar(Object obj) {
+        if (obj == null) {
+            return new HashMap<>();
+        }
+
+        try {
+            Map<String, Object> map = new HashMap<>();
+
+            java.lang.reflect.Field nameField = obj.getClass().getDeclaredField("name");
+            java.lang.reflect.Field scoreField = obj.getClass().getDeclaredField("score");
+
+            nameField.setAccessible(true);
+            scoreField.setAccessible(true);
+
+            map.put("name", nameField.get(obj));
+            map.put("score", scoreField.get(obj));
+
+            return map;
+
+        } catch (Exception e) {
+            // 如果反射失败，返回空Map
+            return new HashMap<>();
+        }
     }
 }
