@@ -1,6 +1,7 @@
 package controllers.campus;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.ebean.Transaction;
 import models.campus.Campus;
 import models.user.User;
@@ -21,7 +22,10 @@ public class CampusController extends Controller {
     public CompletionStage<Result> getAllCampus(){
         return CompletableFuture.supplyAsync(() -> {
             List<Campus> campusList = Campus.find.all();
-            return ok(Json.toJson(campusList));
+            ObjectNode node = play.libs.Json.newObject();
+            node.put("code", 200);
+            node.set("list", Json.toJson(campusList));
+            return ok(Json.toJson(node));
         });
     }
 

@@ -80,6 +80,9 @@ public class DepartmentController extends Controller {
                 if (department.description != null && !department.description.isEmpty()) {
                     query.where().icontains("description", department.description);
                 }
+                if (department.campusId != null && department.campusId > 0) {
+                    query.where().eq("campusId", department.campusId);
+                }
             }
             List<Department> departmentList = query.findList();
             departmentList.forEach(s1 -> {
@@ -102,13 +105,19 @@ public class DepartmentController extends Controller {
         JsonNode jsonNode = request.body().asJson();
         return CompletableFuture.supplyAsync(() -> {
             Department department = Json.fromJson(jsonNode, Department.class);
+            department.setCreateTime(new java.util.Date());
+            department.setUpdateTime(new java.util.Date());
             try(Transaction transaction = Department.find.db().beginTransaction()){
                 department.save();
                 transaction.commit();
             }catch (Exception e){
-                return ok("添加失败: "+e);
+                ObjectNode node = play.libs.Json.newObject();
+                node.put("code", 200);
+                return ok(Json.toJson(node));
             }
-            return ok("添加成功");
+            ObjectNode node = play.libs.Json.newObject();
+            node.put("code", 200);
+            return ok(Json.toJson(node));
         });
     }
 
@@ -123,9 +132,13 @@ public class DepartmentController extends Controller {
                department.delete();
                transaction.commit();
            }catch (Exception e){
-               return ok("删除失败: "+e);
+               ObjectNode node = play.libs.Json.newObject();
+               node.put("code", 200);
+               return ok(Json.toJson(node));
            }
-           return ok("删除成功");
+            ObjectNode node = play.libs.Json.newObject();
+            node.put("code", 200);
+            return ok(Json.toJson(node));
         });
     }
 
