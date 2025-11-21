@@ -2,14 +2,17 @@ package controllers.campus;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.ebean.DB;
 import io.ebean.Transaction;
 import models.campus.Campus;
+import models.department.Department;
 import models.user.User;
 import play.libs.Json;
 import play.mvc.Controller;
 import play.mvc.Http;
 import play.mvc.Result;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -36,7 +39,7 @@ public class CampusController extends Controller {
         JsonNode jsonNode = request.body().asJson();
         return CompletableFuture.supplyAsync(() -> {
             Campus campus = Json.fromJson(jsonNode, Campus.class);
-            try(Transaction transaction = User.find.db().beginTransaction()){
+            try(Transaction transaction = DB.beginTransaction()){
                 campus.save();
                 transaction.commit();
             }catch (Exception e){
@@ -53,7 +56,24 @@ public class CampusController extends Controller {
         JsonNode jsonNode = request.body().asJson();
         return CompletableFuture.supplyAsync(() -> {
             Campus campus = Json.fromJson(jsonNode, Campus.class);
-            try(Transaction transaction = User.find.db().beginTransaction()){
+            //查询该校区的所有部门
+            List<Department> departmentList = Department.find.query().where().eq("campusId", campus.getId()).findList();
+            //查询该校区的所有的老师
+            List<User> userList = new ArrayList<>();
+            for(Department department : departmentList){
+                List<User> users = User.find.query().where().eq("departmentId", department.getId()).findList();
+                userList.addAll(users); // 添加所有用户到列表中
+            }
+            try(Transaction transaction = DB.beginTransaction()){
+                // 先删除教师
+                for(User user : userList) {
+                    user.delete();
+                }
+                // 再删除部门
+                for(Department department : departmentList) {
+                    department.delete();
+                }
+                // 最后删除校区
                 campus.delete();
                 transaction.commit();
             }catch (Exception e){
@@ -63,6 +83,7 @@ public class CampusController extends Controller {
         });
     }
 
+
     /**
      * 修改校区
      */
@@ -70,7 +91,7 @@ public class CampusController extends Controller {
         JsonNode jsonNode = request.body().asJson();
         return CompletableFuture.supplyAsync(() -> {
             Campus campus = Json.fromJson(jsonNode, Campus.class);
-            try(Transaction transaction = User.find.db().beginTransaction()){
+            try(Transaction transaction = DB.beginTransaction()){
                 campus.update();
                 transaction.commit();
             }catch (Exception e){

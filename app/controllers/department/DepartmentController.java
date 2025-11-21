@@ -2,6 +2,7 @@ package controllers.department;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.ebean.DB;
 import io.ebean.ExpressionList;
 import io.ebean.Query;
 import io.ebean.Transaction;
@@ -107,7 +108,7 @@ public class DepartmentController extends Controller {
             Department department = Json.fromJson(jsonNode, Department.class);
             department.setCreateTime(new java.util.Date());
             department.setUpdateTime(new java.util.Date());
-            try(Transaction transaction = Department.find.db().beginTransaction()){
+            try(Transaction transaction = DB.beginTransaction()){
                 department.save();
                 transaction.commit();
             }catch (Exception e){
@@ -128,7 +129,11 @@ public class DepartmentController extends Controller {
         JsonNode jsonNode = request.body().asJson();
         return CompletableFuture.supplyAsync(() -> {
            Department department = Json.fromJson(jsonNode, Department.class);
-           try(Transaction transaction = Department.find.db().beginTransaction()){
+           List<User> userList = User.find.query().where().eq("departmentId", department.id).findList();
+           try(Transaction transaction = DB.beginTransaction()){
+               for (User user : userList) {
+                   user.delete();
+               }
                department.delete();
                transaction.commit();
            }catch (Exception e){
@@ -149,7 +154,7 @@ public class DepartmentController extends Controller {
         JsonNode jsonNode = request.body().asJson();
         return CompletableFuture.supplyAsync(() -> {
             Department department = Json.fromJson(jsonNode, Department.class);
-            try(Transaction transaction = Department.find.db().beginTransaction()){
+            try(Transaction transaction = DB.beginTransaction()){
                 department.update();
                 transaction.commit();
             }catch (Exception e){
