@@ -2,6 +2,7 @@ package controllers.department;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import controllers.BaseAdminSecurityController;
 import io.ebean.DB;
 import io.ebean.ExpressionList;
 import io.ebean.Query;
@@ -18,7 +19,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
-public class DepartmentController extends Controller {
+public class DepartmentController extends BaseAdminSecurityController {
 
     /*
         @Id
@@ -55,7 +56,7 @@ public class DepartmentController extends Controller {
         return CompletableFuture.supplyAsync(() -> {
             List<Department> departmentList = Department.find.query().where().findList();
             ObjectNode node = play.libs.Json.newObject();
-            node.put("code", 200);
+            node.put("code", CODE200);
             node.set("list", Json.toJson(departmentList));
             return ok(Json.toJson(node));
         });
@@ -90,7 +91,7 @@ public class DepartmentController extends Controller {
                 s1.campus = Campus.find.byId(s1.campusId);
             });
             ObjectNode result = play.libs.Json.newObject();
-            result.put("code", 200);
+            result.put("code", CODE200);
             result.set("list", Json.toJson(departmentList));
             return ok(result);
         });
@@ -113,11 +114,11 @@ public class DepartmentController extends Controller {
                 transaction.commit();
             }catch (Exception e){
                 ObjectNode node = play.libs.Json.newObject();
-                node.put("code", 200);
+                node.put("code", CODE40002);
                 return ok(Json.toJson(node));
             }
             ObjectNode node = play.libs.Json.newObject();
-            node.put("code", 200);
+            node.put("code", CODE200);
             return ok(Json.toJson(node));
         });
     }
@@ -138,11 +139,11 @@ public class DepartmentController extends Controller {
                transaction.commit();
            }catch (Exception e){
                ObjectNode node = play.libs.Json.newObject();
-               node.put("code", 200);
+               node.put("code", CODE40002);
                return ok(Json.toJson(node));
            }
             ObjectNode node = play.libs.Json.newObject();
-            node.put("code", 200);
+            node.put("code", CODE200);
             return ok(Json.toJson(node));
         });
     }
@@ -158,9 +159,13 @@ public class DepartmentController extends Controller {
                 department.update();
                 transaction.commit();
             }catch (Exception e){
-                return ok("修改失败: "+e);
+                ObjectNode node = play.libs.Json.newObject();
+                node.put("code", CODE40002);
+                return ok(Json.toJson(node));
             }
-            return ok("修改成功");
+            ObjectNode node = play.libs.Json.newObject();
+            node.put("code", CODE200);
+            return ok(Json.toJson(node));
         });
     }
 

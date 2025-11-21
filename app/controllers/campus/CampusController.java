@@ -2,13 +2,13 @@ package controllers.campus;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import controllers.BaseAdminSecurityController;
 import io.ebean.DB;
 import io.ebean.Transaction;
 import models.campus.Campus;
 import models.department.Department;
 import models.user.User;
 import play.libs.Json;
-import play.mvc.Controller;
 import play.mvc.Http;
 import play.mvc.Result;
 
@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
-public class CampusController extends Controller {
+public class CampusController extends BaseAdminSecurityController {
 
     /**
      * 获取所有校区信息
@@ -26,8 +26,8 @@ public class CampusController extends Controller {
         return CompletableFuture.supplyAsync(() -> {
             List<Campus> campusList = Campus.find.all();
             ObjectNode node = play.libs.Json.newObject();
-            node.put("code", 200);
-            node.set("list", Json.toJson(campusList));
+            node.put("code", CODE200);
+            node.put("data", Json.toJson(campusList));
             return ok(Json.toJson(node));
         });
     }
@@ -43,9 +43,13 @@ public class CampusController extends Controller {
                 campus.save();
                 transaction.commit();
             }catch (Exception e){
-                return ok("添加失败: "+e);
+                ObjectNode node = play.libs.Json.newObject();
+                node.put("code", CODE40002);
+                return ok(Json.toJson(node));
             }
-            return ok("添加成功");
+            ObjectNode node = play.libs.Json.newObject();
+            node.put("code", CODE200);
+            return ok(Json.toJson(node));
         });
     }
 
@@ -77,9 +81,13 @@ public class CampusController extends Controller {
                 campus.delete();
                 transaction.commit();
             }catch (Exception e){
-                return ok("删除失败: "+e);
+                ObjectNode node = play.libs.Json.newObject();
+                node.put("code", CODE40002);
+                return ok(Json.toJson(node));
             }
-            return ok("删除成功");
+            ObjectNode node = play.libs.Json.newObject();
+            node.put("code", CODE200);
+            return ok(Json.toJson(node));
         });
     }
 
@@ -95,9 +103,13 @@ public class CampusController extends Controller {
                 campus.update();
                 transaction.commit();
             }catch (Exception e){
-                return ok("修改失败: "+e);
+                ObjectNode node = play.libs.Json.newObject();
+                node.put("code", CODE40002);
+                return ok(Json.toJson(node));
             }
-            return ok("修改成功");
+            ObjectNode node = play.libs.Json.newObject();
+            node.put("code", CODE200);
+            return ok(Json.toJson(node));
         });
     }
 
