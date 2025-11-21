@@ -10,6 +10,7 @@
 /target/
 /target/
 /target/
+/conf/application.conf
 /test/
 /apidoc/
 /web/logs/access.log
