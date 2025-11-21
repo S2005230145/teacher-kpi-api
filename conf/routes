@@ -4,6 +4,7 @@
 
 #upload
 
++nocsrf
 POST         /v1/tk/upload/                                                    controllers.basic.UploaderManager.upload(request: Request)
 POST         /v1/tk/upload2/                                                   controllers.basic.UploaderManager.upload2(request: Request)
 POST         /v1/tk/upload_base64/                                             controllers.basic.UploaderManager.uploadBase64(request: Request)
@@ -41,6 +42,24 @@ GET          /v1/tk/captcha/gen/                                                
 POST         /v1/tk/captcha/check/                                               controllers.captcha.ImageCaptchaController.validate(request: Request)
 
 #ADMIN MODULE
+
+GET          /v1/tk/actions/                                                     controllers.manager.ActionController.listActions()
+POST         /v1/tk/action/new/                                                  controllers.manager.ActionController.addAction(request: Request)
+POST         /v1/tk/action/:id/                                                  controllers.manager.ActionController.updateAction(request: Request,id:String)
+POST         /v1/tk/action/                                                      controllers.manager.ActionController.delAction(request: Request)
+GET          /v1/tk/action/:actionId/                                            controllers.manager.ActionController.getAction(actionId:String)
+GET          /v1/tk/actions_by_filter/:groupId/                                  controllers.manager.ActionController.getGroupActionByGroupId(groupId:Int)
+
+GET          /v1/tk/admin_member/info/                                           controllers.manager.MemberManager.getAdminMemberInfo(request:Request)
+GET          /v1/tk/admin_members/                                               controllers.manager.MemberManager.listAdminMembers()
+POST         /v1/tk/admin_member/new/                                            controllers.manager.MemberManager.addAdminMember(request:Request)
+POST         /v1/tk/admin_member/:id/                                            controllers.manager.MemberManager.updateAdminMember(request:Request,id:Long)
+POST         /v1/tk/admin_member/                                                controllers.manager.MemberManager.delAdminMember(request:Request)
+GET          /v1/tk/admin_members/:memberId/                                     controllers.manager.MemberManager.getAdminMember(memberId:Long)
+POST         /v1/tk/admin_members/status/                                        controllers.manager.MemberManager.setAdminMemberStatus(request:Request)
+POST         /v1/tk/bind_member_to_group/                                        controllers.manager.MemberManager.bindMemberToGroup(request:Request)
+GET          /v1/tk/user_groups/                                                 controllers.manager.MemberManager.listUserGroups(request:Request,memberId:Long?=0)
+
 # 教师绩效
 POST         /v1/tk/kpi/add/                                                     controllers.school.teacher.kpi.V3TeacherController.addKpi(request:Request)
 POST         /v1/tk/regular/add/                                                 controllers.school.teacher.kpi.V3TeacherController.add(request:Request)
@@ -48,6 +67,8 @@ POST         /v1/tk/getList/                                                    
 POST         /v1/tk/getKpiList/                                                  controllers.school.teacher.kpi.V3TeacherController.getKpiList(request:Request)
 POST         /v1/tk/dispatch/                                                    controllers.school.teacher.kpi.V3TeacherController.dispatch(request:Request)
 POST         /v1/tk/grade/                                                       controllers.school.teacher.kpi.V3TeacherController.grade(request:Request)
+POST         /v1/tk/grade/new/                                                   controllers.school.teacher.kpi.V3TeacherController.newGrade(request:Request)
+POST         /v1/tk/export/is/format/                                            controllers.school.teacher.kpi.V3TeacherController.isFormat(request:Request)
 POST         /v1/tk/export/                                                      controllers.school.teacher.kpi.V3TeacherController.export(request:Request)
 POST         /v1/tk/getElementList/                                              controllers.school.teacher.kpi.V3TeacherController.getElementList(request:Request)
 POST         /v1/tk/getContentList/                                              controllers.school.teacher.kpi.V3TeacherController.getContentList(request:Request)
@@ -96,14 +117,5 @@ POST         /v1/front/tk/is/audit/                                             
 POST         /v1/front/tk/teacher/person/status/                                 controllers.school.teacher.kpi.V3TeacherFrontController.getPersonStatus(request:Request)
 POST         /v1/front/tk/file/upload/                                           controllers.school.teacher.kpi.V3TeacherFrontController.uploadFile(request:Request)
 
-GET          /v1/tk/department/list/        controllers.department.DepartmentController.getAllDepartment
-POST         /v1/tk/department/add/         controllers.department.DepartmentController.addDepartment(request:Request)
-POST         /v1/tk/department/update       controllers.department.DepartmentController.updateDepartment(request:Request)
-POST         /v1/tk/department/delete       controllers.department.DepartmentController.deleteDepartment(request:Request)
-GET          /v1/tk/department/searchlist   controllers.department.DepartmentController.getAllDepartmentBySearch(request:Request)
 
-GET          /v1/tk/campus/list/            controllers.campus.CampusController.getAllCampus
-POST         /v1/tk/campus/add/             controllers.campus.CampusController.addCampus(request:Request)
-POST         /v1/tk/campus/delete/          controllers.campus.CampusController.deleteCampus(request:Request)
-POST         /v1/tk/campus/update/          controllers.campus.CampusController.updateCampus(request:Request)
-
+GET          /*file                                                              controllers.Assets.versioned(path="/public", file: Asset)

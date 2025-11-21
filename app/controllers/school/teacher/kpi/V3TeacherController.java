@@ -892,6 +892,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
 
             Long userId= jsonNode.findPath("userId") instanceof MissingNode ? null : jsonNode.findPath("userId").asLong();
             Long kpiId= jsonNode.findPath("kpiId") instanceof MissingNode ? null : jsonNode.findPath("kpiId").asLong();
+            boolean format= !(jsonNode.findPath("format") instanceof MissingNode) && jsonNode.findPath("format").asBoolean();
 
             if(userId==null) return ok("userId为空");
             if(kpiId==null) return ok("kpiId为空");
@@ -926,6 +927,30 @@ public class V3TeacherController extends BaseAdminSecurityController {
                     fos.write(pdfBytes);
                 }
 
+                if(format){
+                    Transaction transaction = DB.beginTransaction();
+                    TeacherKPIScore kpi = TeacherKPIScore.find.query().where().eq("user_id",userId).eq("kpi_id",kpiId).setMaxRows(1).findOne();
+                    if(kpi!=null){
+                        List<TeacherIndicatorScore> indicatorList = TeacherIndicatorScore.find.query().where().eq("user_id",userId).eq("kpi_id",kpi.getKpiId()).findList();
+                        List<Long> indicatorIds = indicatorList.stream().map(TeacherIndicatorScore::getIndicatorId).toList();
+                        List<TeacherElementScore> elementList = TeacherElementScore.find.query().where().eq("user_id",userId).in("indicator_id",indicatorIds).findList();
+                        List<Long> elementIds = elementList.stream().map(TeacherElementScore::getElementId).toList();
+                        List<TeacherContentScore> contentList = TeacherContentScore.find.query().where().eq("user_id", userId).in("element_id", elementIds).findList();
+                        List<TeacherTask> teacherTaskList = TeacherTask.find.query().where().eq("user_id", userId).eq("tes_id", elementList.stream().map(TeacherElementScore::getId).toList()).findList();
+                        try{
+                            kpi.delete();
+                            DB.deleteAll(indicatorList);
+                            DB.deleteAll(elementList);
+                            DB.deleteAll(contentList);
+                            DB.deleteAll(teacherTaskList);
+                            transaction.commit();
+                        }catch (Exception e){
+                            System.out.println("出错："+e);
+                            transaction.rollback();
+                        }
+                    }
+                }
+
                 return ok(file)
                         .withHeader("content-disposition", "attachment; filename=\"" + filename + "\"")
                         .as( "application/pdf");
@@ -933,6 +958,50 @@ public class V3TeacherController extends BaseAdminSecurityController {
                 return ok("导出失败"+e);
             }
 
+        });
+    }
+
+    //是否正式导出
+    public CompletionStage<Result> isFormat(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+            Long userId= jsonNode.findPath("userId") instanceof MissingNode ? null : jsonNode.findPath("userId").asLong();
+            Long kpiId= jsonNode.findPath("kpiId") instanceof MissingNode ? null : jsonNode.findPath("kpiId").asLong();
+
+            if(userId==null) return ok("userId为空");
+            if(kpiId==null) return ok("kpiId为空");
+
+            TeacherKPIScore tks = TeacherKPIScore.find.query().where()
+                    .eq("user_id",userId)
+                    .eq("kpi_id",kpiId)
+                    .setMaxRows(1).findOne();
+            if(tks==null) return okCustomJson(CODE40001,"该用户没有该KPI");
+            List<TeacherIndicatorScore> tisList = TeacherIndicatorScore.find.query().where()
+                    .eq("user_id",userId)
+                    .eq("kpi_id",kpiId)
+                    .findList();
+            List<Long> indicatorIds = tisList.stream().map(TeacherIndicatorScore::getIndicatorId).toList();
+
+            List<TeacherElementScore> tesList = TeacherElementScore.find.query().where()
+                    .eq("user_id",userId)
+                    .in("indicator_id",indicatorIds)
+                    .findList();
+
+            List<TeacherElementScore> tesListHasFinalScore = tesList.stream().filter(v1 -> v1.getFinalScore() != null).toList();
+            if(tesList.size()>tesListHasFinalScore.size()){
+                //最终分数未评完
+                ObjectNode node = Json.newObject();
+                node.put("code", CODE200);
+                node.put("format",false);
+                node.put("msg","预导出");
+                return ok(node);
+            }else{
+                ObjectNode node = Json.newObject();
+                node.put("code", CODE200);
+                node.put("format",true);
+                node.put("msg","正式导出");
+                return ok(node);
+            }
         });
     }
 
@@ -2478,6 +2547,8 @@ public class V3TeacherController extends BaseAdminSecurityController {
             return okCustomJson(CODE200,"评分成功");
         });
     }
+
+
 
     //==========================================
     //工具
