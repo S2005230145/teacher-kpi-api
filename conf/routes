@@ -117,5 +117,16 @@ POST         /v1/front/tk/is/audit/                                             
 POST         /v1/front/tk/teacher/person/status/                                 controllers.school.teacher.kpi.V3TeacherFrontController.getPersonStatus(request:Request)
 POST         /v1/front/tk/file/upload/                                           controllers.school.teacher.kpi.V3TeacherFrontController.uploadFile(request:Request)
 
+GET          /v1/tk/department/list/        controllers.department.DepartmentController.getAllDepartment
+POST         /v1/tk/department/add/         controllers.department.DepartmentController.addDepartment(request:Request)
+POST         /v1/tk/department/update       controllers.department.DepartmentController.updateDepartment(request:Request)
+POST         /v1/tk/department/delete       controllers.department.DepartmentController.deleteDepartment(request:Request)
+GET          /v1/tk/department/searchlist   controllers.department.DepartmentController.getAllDepartmentBySearch(request:Request)
+
+GET          /v1/tk/campus/list/            controllers.campus.CampusController.getAllCampus
+POST         /v1/tk/campus/add/             controllers.campus.CampusController.addCampus(request:Request)
+POST         /v1/tk/campus/delete/          controllers.campus.CampusController.deleteCampus(request:Request)
+POST         /v1/tk/campus/update/          controllers.campus.CampusController.updateCampus(request:Request)
 
 GET          /*file                                                              controllers.Assets.versioned(path="/public", file: Asset)
+

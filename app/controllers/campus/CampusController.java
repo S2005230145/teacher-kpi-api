@@ -27,7 +27,7 @@ public class CampusController extends BaseAdminSecurityController {
             List<Campus> campusList = Campus.find.all();
             ObjectNode node = play.libs.Json.newObject();
             node.put("code", CODE200);
-            node.put("data", Json.toJson(campusList));
+            node.put("list", Json.toJson(campusList));
             return ok(Json.toJson(node));
         });
     }
