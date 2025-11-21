@@ -10,6 +10,7 @@ import controllers.BaseAdminSecurityController;
 import io.ebean.*;
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
+import models.department.Department;
 import models.school.kpi.v3.*;
 import models.table.ParseResult;
 import models.user.Role;
@@ -2223,17 +2224,22 @@ public class V3TeacherController extends BaseAdminSecurityController {
             String typeName=(jsonNode.findPath("typeName") instanceof MissingNode ?null:jsonNode.findPath("typeName").asText());
             Long roleId=(jsonNode.findPath("roleId") instanceof MissingNode ?null:jsonNode.findPath("roleId").asLong());
 
+            Long departmentId=(jsonNode.findPath("departmentId") instanceof MissingNode ?null:jsonNode.findPath("departmentId").asLong());
+
             ExpressionList<User> userExpressionList = User.find.query().where();
             if(id!=null&&id>0) userExpressionList.eq("id",id);
             if(phone!=null&&!phone.isEmpty()) userExpressionList.icontains("phone",phone);
             if(userName!=null&&!userName.isEmpty()) userExpressionList.icontains("user_name",userName);
             if(typeName!=null&&!typeName.isEmpty()) userExpressionList.icontains("type_name",typeName);
             if(roleId!=null&&roleId>0) userExpressionList.eq("role_id",roleId);
+            if(departmentId!=null&&departmentId>0) userExpressionList.eq("department_id",departmentId);
 
             List<User> userList = userExpressionList.findList();
+            List<Department> departmentList = Department.find.query().where().findList();
             List<Role> roleList = Role.find.query().where().findList();
             userList.forEach(user->{
                 user.setRole(roleList.stream().filter(v1-> Objects.equals(v1.getId(), user.getRoleId())).findFirst().orElse(null));
+                user.setDepartment(departmentList.stream().filter(v1-> Objects.equals(v1.getId(), user.getDepartmentId())).findFirst().orElse(null));
             });
 
             ObjectNode node = Json.newObject();
