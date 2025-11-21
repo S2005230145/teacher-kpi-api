@@ -68,6 +68,7 @@ POST         /v1/tk/getKpiList/                                                 
 POST         /v1/tk/dispatch/                                                    controllers.school.teacher.kpi.V3TeacherController.dispatch(request:Request)
 POST         /v1/tk/grade/                                                       controllers.school.teacher.kpi.V3TeacherController.grade(request:Request)
 POST         /v1/tk/grade/new/                                                   controllers.school.teacher.kpi.V3TeacherController.newGrade(request:Request)
+POST         /v1/tk/export/is/format/                                            controllers.school.teacher.kpi.V3TeacherController.isFormat(request:Request)
 POST         /v1/tk/export/                                                      controllers.school.teacher.kpi.V3TeacherController.export(request:Request)
 POST         /v1/tk/getElementList/                                              controllers.school.teacher.kpi.V3TeacherController.getElementList(request:Request)
 POST         /v1/tk/getContentList/                                              controllers.school.teacher.kpi.V3TeacherController.getContentList(request:Request)
