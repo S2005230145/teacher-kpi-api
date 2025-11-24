@@ -67,6 +67,8 @@ POST         /v1/tk/getList/                                                    
 POST         /v1/tk/getKpiList/                                                  controllers.school.teacher.kpi.V3TeacherController.getKpiList(request:Request)
 POST         /v1/tk/dispatch/                                                    controllers.school.teacher.kpi.V3TeacherController.dispatch(request:Request)
 POST         /v1/tk/grade/                                                       controllers.school.teacher.kpi.V3TeacherController.grade(request:Request)
+POST         /v1/tk/grade/new/                                                   controllers.school.teacher.kpi.V3TeacherController.newGrade(request:Request)
+POST         /v1/tk/export/is/format/                                            controllers.school.teacher.kpi.V3TeacherController.isFormat(request:Request)
 POST         /v1/tk/export/                                                      controllers.school.teacher.kpi.V3TeacherController.export(request:Request)
 POST         /v1/tk/getElementList/                                              controllers.school.teacher.kpi.V3TeacherController.getElementList(request:Request)
 POST         /v1/tk/getContentList/                                              controllers.school.teacher.kpi.V3TeacherController.getContentList(request:Request)
@@ -87,21 +89,44 @@ POST         /v1/tk/element/add/                                                
 POST         /v1/tk/content/add/                                                 controllers.school.teacher.kpi.V3TeacherController.addContent(request:Request)
 POST         /v1/tk/teacher/list/not/dispatch/                                   controllers.school.teacher.kpi.V3TeacherController.getTeacherListNotDispatch(request:Request)
 POST         /v1/tk/teacher/list/dispatch/                                       controllers.school.teacher.kpi.V3TeacherController.getTeacherListDispatch(request:Request)
-#POST         /v1/tk/teacher/list/                                                controllers.school.teacher.kpi.V3TeacherController.getTeacherList(request:Request)
+
 POST         /v1/tk/user/list/                                                   controllers.school.teacher.kpi.V3TeacherController.getUserList(request:Request)
 POST         /v1/tk/role/list/                                                   controllers.school.teacher.kpi.V3TeacherController.getRoleList(request:Request)
 POST         /v1/tk/user/delete/                                                 controllers.school.teacher.kpi.V3TeacherController.deleteUser(request:Request)
 GET          /v1/tk/getKpiList/                                                  controllers.school.teacher.kpi.V3TeacherController.getKpiListGet(request:Request)
+POST         /v1/tk/teacher/list/                                                controllers.school.teacher.kpi.V3TeacherController.getTeacherList(request:Request)
+POST         /v1/tk/teacher/add/                                                 controllers.school.teacher.kpi.V3TeacherController.addTeacher(request:Request)
+POST         /v1/tk/teacher/delete/                                              controllers.school.teacher.kpi.V3TeacherController.deleteTeacher(request:Request)
+POST         /v1/tk/teacher/file/                                                controllers.school.teacher.kpi.V3TeacherController.getTeacherFile(request:Request)
+#test
+POST         /v1/tk/type/json/add/                                               controllers.school.teacher.kpi.V3TeacherController.addTypeJson(request:Request)
+POST         /v1/tk/type/json/list/                                              controllers.school.teacher.kpi.V3TeacherController.getTypeJsonList(request:Request)
+POST         /v1/tk/type/json/delete/                                            controllers.school.teacher.kpi.V3TeacherController.deleteTypeJson(request:Request)
 
 POST         /v1/tk/test/                                                        controllers.TestController.test()
-#==========显示==========
+#==========显示 小程序==========
 POST         /v1/front/tk/getList/                                               controllers.school.teacher.kpi.V3TeacherFrontController.getList(request:Request)
 POST         /v1/front/tk/getElementList/                                        controllers.school.teacher.kpi.V3TeacherFrontController.getElementList(request:Request)
+POST         /v1/front/tk/getElementList/new/                                    controllers.school.teacher.kpi.V3TeacherFrontController.getElementList2(request:Request)
 POST         /v1/front/tk/getExamSummary/                                        controllers.school.teacher.kpi.V3TeacherFrontController.getExamSummary(request:Request)
 POST         /v1/front/tk/getRankAndScore/                                       controllers.school.teacher.kpi.V3TeacherFrontController.getRankAndScore(request:Request)
 POST         /v1/front/tk/getUserStats/                                          controllers.school.teacher.kpi.V3TeacherFrontController.getUserStats(request:Request)
 POST         /v1/front/tk/getStatistics/                                         controllers.school.teacher.kpi.V3TeacherFrontController.getStatistics(request:Request)
 POST         /v1/front/tk/getKPI/                                                controllers.school.teacher.kpi.V3TeacherFrontController.getKPI(request:Request)
+POST         /v1/front/tk/is/audit/                                              controllers.school.teacher.kpi.V3TeacherFrontController.isAudit(request:Request)
+POST         /v1/front/tk/teacher/person/status/                                 controllers.school.teacher.kpi.V3TeacherFrontController.getPersonStatus(request:Request)
+POST         /v1/front/tk/file/upload/                                           controllers.school.teacher.kpi.V3TeacherFrontController.uploadFile(request:Request)
 
+GET          /v1/tk/department/list/        controllers.department.DepartmentController.getAllDepartment
+POST         /v1/tk/department/add/         controllers.department.DepartmentController.addDepartment(request:Request)
+POST         /v1/tk/department/update       controllers.department.DepartmentController.updateDepartment(request:Request)
+POST         /v1/tk/department/delete       controllers.department.DepartmentController.deleteDepartment(request:Request)
+GET          /v1/tk/department/searchlist   controllers.department.DepartmentController.getAllDepartmentBySearch(request:Request)
+
+GET          /v1/tk/campus/list/            controllers.campus.CampusController.getAllCampus
+POST         /v1/tk/campus/add/             controllers.campus.CampusController.addCampus(request:Request)
+POST         /v1/tk/campus/delete/          controllers.campus.CampusController.deleteCampus(request:Request)
+POST         /v1/tk/campus/update/          controllers.campus.CampusController.updateCampus(request:Request)
 
 GET          /*file                                                              controllers.Assets.versioned(path="/public", file: Asset)
+
