@@ -191,7 +191,11 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
                     content.put("title",contentTmp.getContent());
                     content.put("description",null);
                     content.put("time", Objects.requireNonNull(list.stream().filter(v1 -> Objects.equals(v1.getContentId(), contentTmp.getId())).findFirst().orElse(null)).getTime());
-                    content.put("type",kpiScoreTypeList.stream().filter(v1-> Objects.equals(v1.getId(), contentTmp.getTypeId())).findFirst().orElse(null));
+                    KPIScoreType kpiScoreType = kpiScoreTypeList.stream().filter(v1 -> Objects.equals(v1.getId(), contentTmp.getTypeId())).findFirst().orElse(null);
+                    content.put("type",kpiScoreType);
+                    if(kpiScoreType!=null){
+                        content.put("data",Json.toJson(kpiScoreType.getJsonParam()));
+                    }
                     contents1.add(content);
                 });
                 contents.add(contents1);
