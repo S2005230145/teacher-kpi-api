@@ -7,6 +7,8 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import controllers.BaseController;
 import io.ebean.DB;
 import models.admin.ShopAdmin;
+import models.campus.Campus;
+import models.department.Department;
 import models.org.Org;
 import models.shop.Shop;
 import models.user.Role;
@@ -23,6 +25,7 @@ import utils.*;
 
 import javax.inject.Inject;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.*;
@@ -42,14 +45,14 @@ public class LoginController extends BaseController {
     /**
      * @api {POST}  /v2/tk/login/noauth/ 01登录
      * @apiName login
-     * @apiGroup Admin-Authority
-     * @apiParam {jsonObject} data json串格式
-     * @apiParam {string} username 用户名.
+     * @apiGroup New
+     * @apiParam {string} phone 手机号.
      * @apiParam {string} password 密码, 6位至20位
-     * @apiSuccess (Success 200){String}  user_name 用户名
-     * @apiSuccess (Success 200){long} id 用户id
-     * @apiSuccess (Success 200){String} token token
-     * @apiSuccess (Error 40001) {int} code 40001  参数错误
+     * @apiParam {Long} campusId 校区ID
+     * @apiSuccess (Success 200){User} user信息
+     * @apiSuccess (Success 200){long} code 200
+     * @apiSuccess (Success 200){String} token 令牌
+     * @apiSuccess (Error 40001) {int} code 40001 参数错误
      * @apiSuccess (Error 40003) {int} code 40003 用户名或密码错误
      */
     @BodyParser.Of(BodyParser.Json.class)
@@ -58,30 +61,38 @@ public class LoginController extends BaseController {
         String loginIP = businessUtils.getRequestIP(request);
         return CompletableFuture.supplyAsync(() -> {
             if (null == jsonNode) return okCustomJson(CODE40001, "参数错误");
-            String userName = jsonNode.findPath("username").asText();
+            String phone = jsonNode.findPath("phone").asText();
             String password = jsonNode.findPath("password").asText();
-            if (ValidationUtil.isEmpty(userName) || ValidationUtil.isEmpty(password))
-                return okCustomJson(CODE40001, "参数错误");
+            long campusId = jsonNode.findPath("campusId").asLong();
+            if (ValidationUtil.isPhoneNumber(phone) || ValidationUtil.isEmpty(password))
+                return okCustomJson(CODE40001, "手机号或密码的参数错误");
+            if (campusId<=0) return okCustomJson(CODE40001, "缺少校区ID");
 
             User member = User.find.query().where()
-                    .eq("user_name", userName)
+                    .eq("phone", phone)
                     .orderBy().asc("id")
                     .setMaxRows(1).findOne();
-            System.out.println(member);
             if(member!=null){
                 member.setRole(Role.find.query().where().eq("id",member.getRoleId()).orderBy().asc("id").setMaxRows(1).findOne());
             }
-            if (null == member) return okCustomJson(CODE40003, "用户名或密码错误");
-            System.out.println(encodeUtils.getMd5WithSalt(password));
+            if (null == member) return okCustomJson(CODE40003, "手机号或密码错误");
             if (!member.password.equalsIgnoreCase(encodeUtils.getMd5WithSalt(password))) {
                 if (businessUtils.uptoErrorLimit(request, KEY_LOGIN_MAX_ERROR_BY_ID + member.id, 10)) {
                     member.setStatus(ShopAdmin.STATUS_LOCK);
                     member.save();
                 }
-                return okCustomJson(CODE40003, "用户名或密码错误");
+                return okCustomJson(CODE40003, "手机号或密码错误");
             }
             if (member.status == ShopAdmin.STATUS_LOCK)
                 return okCustomJson(CODE40008, "帐号被锁定，请联系管理员");
+
+            List<Department> departmentList = Department.find.query().where()
+                    .eq("campus_id", campusId)
+                    .findList();
+            List<Long> departmentIds = departmentList.stream().map(Department::getId).toList();
+            if(!departmentIds.contains(member.getDepartmentId())){
+                return okCustomJson(CODE40003, "该用户的校区不正确");
+            }
 
             redis.remove(KEY_LOGIN_MAX_ERROR_TIMES + loginIP);
             ObjectNode result = (ObjectNode) Json.toJson(member);
@@ -90,7 +101,7 @@ public class LoginController extends BaseController {
             String authToken = UUID.randomUUID().toString();
             result.put("token", authToken);
             handleCacheToken(member, authToken);
-            businessUtils.deleteVcodeCache(userName);
+            businessUtils.deleteVcodeCache(phone);
             redis.remove(KEY_LOGIN_MAX_ERROR_TIMES + member.id);
             return ok(result);
         });

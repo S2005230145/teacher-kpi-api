@@ -11,6 +11,7 @@ import io.ebean.PagedList;
 import io.ebean.Transaction;
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
+import models.campus.Campus;
 import models.school.kpi.v3.*;
 import models.user.User;
 import play.libs.Files;
@@ -48,7 +49,6 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
     public CompletionStage<Result> getList(Http.Request request){
         JsonNode jsonNode = request.body().asJson();
         return CompletableFuture.supplyAsync(()->{
-
             int currentPage=(jsonNode.findPath("currentPage") instanceof MissingNode ?1:jsonNode.findPath("currentPage").asInt());
             int pageSize=(jsonNode.findPath("pageSize") instanceof MissingNode ?10:jsonNode.findPath("pageSize").asInt());
             Long userId=(jsonNode.findPath("userId") instanceof MissingNode ?null:jsonNode.findPath("userId").asLong());
@@ -379,6 +379,51 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
     }
 
     //获取KPI信息
+    /**
+     * @api {POST} /v1/front/tk/getKPI/  03 获取KPI
+     * @apiName getKPI
+     * @apiGroup New
+     *
+     * @apiDescription 获取该教师的KPI
+     *
+     * @apiParam {Long} userId 用户ID
+     *
+     * @apiParamExample {json} 请求示例:
+     * {
+     *     "userId":1
+     * }
+     *
+     * @apiSuccess (Error 40001) {int} code 40001
+     * @apiSuccess (Error 40001) {int} reason 所有空的信息
+     *
+     * @apiSuccess (Success 200){int} code 200
+     * @apiSuccess (Success 200) {Object[]} mockData 数据
+     * @apiSuccessExample {json} 响应示例:
+     * {
+     *     "code":200
+     *     "mockData":[
+     *          {
+     *              "id":0,
+     *              "name":"",//kpi名称
+     *              "description":"",//描述 null
+     *              "type":"",//类型
+     *              "typeText":"",//类型描述
+     *              "status":"",//状态
+     *              "statusText":"",//状态描述
+     *              "currentValue":"",//当前分数
+     *              "score":"",//分数
+     *              "maxScore":"",//最高分数
+     *              "progress":"",//进度
+     *              "weight":"",//权重
+     *              "targetValue":"",//目标分数
+     *              "deadline":"",//截至日期
+     *              "createTime":"",//创建时间
+     *
+     *          }
+     *     ]
+     * }
+     *
+     */
     public CompletionStage<Result> getKPI(Http.Request request){
         JsonNode jsonNode = request.body().asJson();
         return CompletableFuture.supplyAsync(()->{
@@ -422,8 +467,9 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
                     mp.put("currentValue",tks.getScore());
                     mp.put("score",tks.getScore());
                     mp.put("maxScore",tks.getScore());
-                    mp.put("progress",(int)Math.round((double)filterTcsListScore.size()/filterTcsList.size()));
-                }else {
+                    mp.put("progress",(int)Math.round((double)filterTcsListScore.size()/filterTcsList.size()*100));
+                }
+                else {
                     mp.put("status", null);
                     mp.put("statusText", null);
                     mp.put("currentValue",null);
@@ -433,8 +479,8 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
                 }
                 mp.put("weight",100);
                 mp.put("targetValue","100分");
-                mp.put("deadline",null);
-                mp.put("createTime",LocalDate.now().format(formatter));
+                mp.put("deadline",kpi.getEndTime());
+                mp.put("createTime",kpi.getCreateTime());
                 mockDataMpList.add(mp);
             });
             ObjectNode result = Json.newObject();
@@ -577,6 +623,96 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
             }
             transaction.commit();
             return okCustomJson(CODE200,"上传成功");
+        });
+    }
+
+    //是否提交过审核判断
+    /**
+     * @api {POST} /v1/front/tk/is/submit/audit/  01 审核判断
+     * @apiName isSubmitAudit
+     * @apiGroup New
+     *
+     * @apiDescription 是否提交过审核判断
+     *
+     * @apiParam {Long} elementId 要素ID
+     * @apiParam {String} userId 用户ID
+     *
+     * @apiParamExample {json} 请求示例:
+     * {
+     *     "elementId":1
+     *     "userId":1
+     * }
+     *
+     * @apiSuccess (Error 40001) {int} code 40001
+     * @apiSuccess (Error 40001) {int} reason 所有空的信息
+     *
+     * @apiSuccess (Success 200){int} code 200
+     * @apiSuccess (Success 200) {boolean} status 状态
+     * @apiSuccessExample {json} 响应示例:
+     * {
+     *     "code":200
+     *     "status":true
+     * }
+     *
+     */
+    public CompletionStage<Result> isSubmitAudit(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+            if(jsonNode==null) return okCustomJson(CODE40001,"参数错误");
+            long elementId=jsonNode.findPath("elementId").asLong();
+            long userId=jsonNode.findPath("userId").asLong();
+
+            if(elementId<=0) return okCustomJson(CODE40001,"elementId为空");
+            if(userId<=0) return okCustomJson(CODE40001,"userId为空");
+
+            TeacherElementScore tes = TeacherElementScore.find.query().where().eq("element_id", elementId).eq("user_id", userId).setMaxRows(1).findOne();
+            if(tes==null) return okCustomJson(CODE40001,"该用户没有该要素任务");
+            TeacherTask tt = TeacherTask.find.query().where().eq("tes_id",tes.getId()).eq("user_id",userId).setMaxRows(1).findOne();
+
+            ObjectNode result = Json.newObject();
+            result.put(CODE,CODE200);
+            result.put("status", tt != null);
+            return ok(result);
+        });
+    }
+
+    /**
+     * @api {POST} /v1/front/tk/school/list/  02 学校列表
+     * @apiName schoolList
+     * @apiGroup New
+     *
+     * @apiDescription 学校信息列表
+     *
+     * @apiSuccess (Success 200){int} code 200
+     * @apiSuccess (Success 200) {boolean} list 学校数据
+     * @apiSuccessExample {json} 响应示例:
+     * {
+     *     "code":200
+     *     "list":[
+     *          {
+     *             "id":0,
+     *             "campusName":"",
+     *             "address":"",
+     *             "phone":"",
+     *             "principal":"",
+     *             "capacity":"",
+     *             "establishDate":"",
+     *             "status":"",
+     *             "createTime":"",
+     *             "updateTime":""
+     *          }
+     *     ]
+     * }
+     *
+     */
+    public CompletionStage<Result> schoolList(Http.Request request){
+        return CompletableFuture.supplyAsync(()->{
+            List<Campus> list = Campus.find.query().where().findList();
+
+            ObjectNode result = Json.newObject();
+            result.put(CODE,CODE200);
+            result.set("list", Json.toJson(list));
+            return ok(result);
         });
     }
 }

@@ -1,5 +1,6 @@
 package models.department;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import io.ebean.Finder;
 import io.ebean.Model;
@@ -39,9 +40,11 @@ public class Department extends Model {
     public String description;
 
     @Column(name = "create_time")
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
     public Date createTime;
 
     @Column(name = "update_time")
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
     public Date updateTime;
 
     @Transient

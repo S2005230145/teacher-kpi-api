@@ -1,5 +1,6 @@
 package models.campus;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import io.ebean.Finder;
 import io.ebean.Model;
@@ -47,9 +48,11 @@ public class Campus extends Model {
     public Integer status; // 校区状态：1-正常运营，2-暂停运营，3-已关闭
 
     @Column(name = "create_time")
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
     public Date createTime; // 记录创建时间
 
     @Column(name = "update_time")
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
     public Date updateTime; // 记录最后更新时间
 
     // JPA查询器
