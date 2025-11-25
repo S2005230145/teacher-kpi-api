@@ -10,6 +10,7 @@ import utils.Pair;
 
 import java.text.DecimalFormat;
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
 @Singleton
@@ -216,6 +217,11 @@ public class V3TeacherRepository {
                 teacherElementScore.setKpiId(kpiId);
                 teacherElementScore.setElementId(element.getId());
                 teacherElementScore.setIndicatorId(element.getIndicatorId());
+                if(element.getType()==1){
+                    teacherElementScore.setRobotScore(this.generateRandomDouble(0,element.getScore()));
+                }else{
+                    teacherElementScore.setRobotScore(null);
+                }
                 addTeacherElementScoreList.add(teacherElementScore);
             });
             //content下发
@@ -497,5 +503,15 @@ public class V3TeacherRepository {
         double value = min + (max - min) * random.nextDouble();
         DecimalFormat df = new DecimalFormat("#.##");
         return Double.parseDouble(df.format(value));
+    }
+
+    private double generateRandomDouble(double min, double max) {
+        if (min >= max) {
+            throw new IllegalArgumentException("最小值必须小于最大值");
+        }
+
+        double randomValue = ThreadLocalRandom.current().nextDouble(min, max);
+        // 保留两位小数
+        return Math.round(randomValue * 100.0) / 100.0;
     }
 }

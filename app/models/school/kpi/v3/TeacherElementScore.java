@@ -48,6 +48,11 @@ public class TeacherElementScore extends Model {
     @JsonDeserialize(using = StringToLongDeserializer.class)
     public Long indicatorId;
 
+    //机器分数
+    @Column(name = "robot_score")
+    @JsonDeserialize(using = DoubleDeserializer.class)
+    public Double robotScore;
+
     //该要数的最终总分
     @Column(name = "final_score")
     @JsonDeserialize(using = DoubleDeserializer.class)

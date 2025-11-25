@@ -33,6 +33,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -48,7 +50,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
 
     ObjectMapper objectMapper = new ObjectMapper();
 
-    private static final Boolean is_DEV=false;
+    private static final Boolean is_DEV=true;
 
     //极大值
     private static final Double mxValue=5000.0;
@@ -440,6 +442,10 @@ public class V3TeacherController extends BaseAdminSecurityController {
             //条件
             Long id=(jsonNode.findPath("id") instanceof MissingNode || jsonNode.findPath("id").isEmpty() ?null:jsonNode.findPath("id").asLong());
             String title=(jsonNode.findPath("title") instanceof MissingNode ?null:jsonNode.findPath("title").asText());
+            String createTime=(jsonNode.findPath("createTime") instanceof MissingNode ?null:jsonNode.findPath("createTime").asText());
+            String endTime=(jsonNode.findPath("endTime") instanceof MissingNode ?null:jsonNode.findPath("endTime").asText());
+
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
             ExpressionList<KPI> expressionList = KPI.find.query().where();
             if(userId!=null){
@@ -448,6 +454,20 @@ public class V3TeacherController extends BaseAdminSecurityController {
             }
             if(id!=null) expressionList.eq("id",id);
             if(title!=null&&!title.isEmpty()) expressionList.icontains("title",title);
+            if(createTime!=null&&!createTime.isEmpty()) {
+                try {
+                    expressionList.ge("create_time",sdf.parse(createTime));
+                } catch (ParseException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            if(endTime!=null&&!endTime.isEmpty()) {
+                try {
+                    expressionList.le("end_time",sdf.parse(createTime));
+                } catch (ParseException e) {
+                    throw new RuntimeException(e);
+                }
+            }
 
             PagedList<KPI> pagedList = expressionList.setFirstRow(0).setMaxRows(5).findPagedList();
 
@@ -890,6 +910,15 @@ public class V3TeacherController extends BaseAdminSecurityController {
         JsonNode jsonNode = request.body().asJson();
         return CompletableFuture.supplyAsync(()->{
 
+            if(is_DEV){
+                try {
+                    this.testPDF();
+                    return ok("complete");
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+
             Long userId= jsonNode.findPath("userId") instanceof MissingNode ? null : jsonNode.findPath("userId").asLong();
             Long kpiId= jsonNode.findPath("kpiId") instanceof MissingNode ? null : jsonNode.findPath("kpiId").asLong();
             boolean format= !(jsonNode.findPath("format") instanceof MissingNode) && jsonNode.findPath("format").asBoolean();
@@ -906,15 +935,6 @@ public class V3TeacherController extends BaseAdminSecurityController {
                     .eq("kpi_id", kpiId)
                     .setMaxRows(1).findOne();
             if(tsk==null) return okCustomJson(CODE40001,"该用户没有下发的评分");
-
-            if(is_DEV){
-                try {
-                    this.testPDF();
-                    return ok("complete");
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            }
 
             try {
                 byte[] pdfBytes = AssessmentPDF.v3ExportToPdf(userId, kpiId);
@@ -2512,15 +2532,29 @@ public class V3TeacherController extends BaseAdminSecurityController {
             List<TeacherIndicatorScore> filterTeacherIndicatorScoreList = teacherIndicatorScoreList.stream().filter(v1 -> indicatorIds.contains(v1.getIndicatorId())).toList();
             List<TeacherElementScore> list1 = teacherElementScoreList.stream().filter(v1 ->indicatorIds.contains(v1.getIndicatorId())).toList();
             filterTeacherIndicatorScoreList.forEach(tis->{
-                double sum = list1.stream().filter(v1 -> v1.getScore() != null && Objects.equals(v1.getIndicatorId(), tis.getIndicatorId())).map(TeacherElementScore::getScore).mapToDouble(Double::doubleValue).sum();
+                //上级评分
+                double finalSum=list1.stream().filter(v1 -> v1.getFinalScore() != null && Objects.equals(v1.getIndicatorId(), tis.getIndicatorId())).map(TeacherElementScore::getFinalScore).mapToDouble(Double::doubleValue).sum();
+                //教师评分
+                double sum = list1.stream().filter(v1 -> v1.getFinalScore()==null && v1.getScore() != null && Objects.equals(v1.getIndicatorId(), tis.getIndicatorId())).map(TeacherElementScore::getScore).mapToDouble(Double::doubleValue).sum();
+                //机器评分
+                double robotSum =list1.stream().filter(v1->v1.getFinalScore()==null && v1.getScore()==null &&v1.getRobotScore()!=null&& Objects.equals(v1.getIndicatorId(), tis.getIndicatorId())).map(TeacherElementScore::getRobotScore).mapToDouble(Double::doubleValue).sum();
+
+                double tmpSum=0.0;
                 if(sum>=Math.abs(mxValue)||sum<=-Math.abs(mxValue)){
-                    double tmpSum=sum;
+                    tmpSum=sum;
                     sum=sum-((int)sum/mxValue)*mxValue;
                     if(sum==0.0){
                         sum=tmpSum;
                     }
                 }
-                tis.setScore(sum);
+                if(finalSum>=Math.abs(mxValue)||finalSum<=-Math.abs(mxValue)){
+                    tmpSum=finalSum;
+                    finalSum=finalSum-((int)finalSum/mxValue)*mxValue;
+                    if(finalSum==0.0){
+                        finalSum=tmpSum;
+                    }
+                }
+                tis.setScore(robotSum+sum+finalSum);
             });
             try{
                 DB.updateAll(filterTeacherIndicatorScoreList);
@@ -2548,7 +2582,27 @@ public class V3TeacherController extends BaseAdminSecurityController {
         });
     }
 
+    //删除任务
+    public CompletionStage<Result> deleteTask(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+            if(jsonNode==null) return okCustomJson(CODE40001,"参数错误");
+            long taskId= jsonNode.findPath("taskId").asLong();
 
+            if(taskId<=0) return okCustomJson(CODE40001,"任务ID为空");
+            TeacherTask tt = TeacherTask.find.query().where().eq("id",taskId).setMaxRows(1).findOne();
+            if(tt==null) return okCustomJson(CODE40001,"任务为空");
+            if(!tt.getStatus().equals("已完成"))  return okCustomJson(CODE40001,"该任务非已完成");
+
+            try(Transaction transaction = TeacherTask.find.db().beginTransaction()){
+                tt.delete();
+                transaction.commit();
+            } catch (Exception e) {
+                return okCustomJson(CODE40002,"删除失败: "+e);
+            }
+            return okCustomJson(CODE200,"删除成功");
+        });
+    }
 
     //==========================================
     //工具

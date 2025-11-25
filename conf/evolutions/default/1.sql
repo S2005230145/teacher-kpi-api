@@ -403,6 +403,8 @@ create table tk_v3_indicator (
 create table tk_v3_kpi (
   id                            bigint auto_increment not null,
   title                         varchar(255),
+  create_time                   datetime(6),
+  end_time                      datetime(6),
   constraint pk_tk_v3_kpi primary key (id)
 );
 
@@ -1100,6 +1102,7 @@ create table tk_v3_teacher_element_score (
   score                         double,
   task_id                       bigint,
   indicator_id                  bigint,
+  robot_score                   double,
   final_score                   double,
   constraint pk_tk_v3_teacher_element_score primary key (id)
 );

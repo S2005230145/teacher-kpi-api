@@ -179,10 +179,14 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
             List<TeacherContentScore> list = TeacherContentScore.find.query().where().eq("user_id", userId).in("element_id",elementIds).findList();
             List<Long> typeIds = contentList.stream().map(Content::getTypeId).toList();
             List<KPIScoreType> kpiScoreTypeList = KPIScoreType.find.query().where().in("id",typeIds).findList();
+
+            List<TeacherElementScore> tesList = TeacherElementScore.find.query().where().in("element_id",elementIds).findList();
             elementList.forEach(element->{
                 Map<String, Object> tab = new HashMap<>();
                 tab.put("id",element.getId());
                 tab.put("name",element.getElement());
+                TeacherElementScore teacherElementScore = tesList.stream().filter(v1 -> v1.getElementId() == element.getId()).findFirst().orElse(null);
+                tab.put("robotScore",teacherElementScore!=null?teacherElementScore.getRobotScore():null);
                 tabs.add(tab);
                 List<Map<String, Object>> contents1=new ArrayList<>();
                 contentList.stream().filter(v1-> Objects.equals(v1.getElementId(), element.getId())).toList().forEach(contentTmp->{

@@ -98,6 +98,7 @@ POST         /v1/tk/teacher/list/                                               
 POST         /v1/tk/teacher/add/                                                 controllers.school.teacher.kpi.V3TeacherController.addTeacher(request:Request)
 POST         /v1/tk/teacher/delete/                                              controllers.school.teacher.kpi.V3TeacherController.deleteTeacher(request:Request)
 POST         /v1/tk/teacher/file/                                                controllers.school.teacher.kpi.V3TeacherController.getTeacherFile(request:Request)
+POST         /v1/tk/teacher/task/delete/                                         controllers.school.teacher.kpi.V3TeacherController.deleteTask(request:Request)
 #test
 POST         /v1/tk/type/json/add/                                               controllers.school.teacher.kpi.V3TeacherController.addTypeJson(request:Request)
 POST         /v1/tk/type/json/list/                                              controllers.school.teacher.kpi.V3TeacherController.getTypeJsonList(request:Request)

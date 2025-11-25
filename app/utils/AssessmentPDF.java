@@ -158,13 +158,12 @@ public class AssessmentPDF {
         document.add(table);
     }
     private static void v3AddTableTop(Document document) {
-        Table table = new Table(UnitValue.createPercentArray(new float[]{1, 1, 2, 2, 1, 1})).setWidth(UnitValue.createPercentValue(100));
+        Table table = new Table(UnitValue.createPercentArray(new float[]{1, 1, 2, 2, 1})).setWidth(UnitValue.createPercentValue(100));
         table.addCell(createCell("评价指标",1,1).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
         table.addCell(createCell("评价要素",2,1).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
         table.addCell(createCell("评 价 内 容",2,1).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
         table.addCell(createCell("评 价 标 准",2,1).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
-        table.addCell(createCell("初 始 得 分\n（100分）",2,1).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
-        table.addCell(createCell("最 终 得 分\n（100分）",2,1).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
+        table.addCell(createCell("得 分\n（100分）",2,1).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
 
         table.addCell(new Cell(1,1).add(WordVerticalText.createWordVerticalParagraph("一级   二级   三级",chineseFont,4)).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE).setFontSize(6));
         document.add(table);
@@ -185,7 +184,7 @@ public class AssessmentPDF {
     }
     private static void v3AddItem1(Document document,List<Indicator> indicatorList,List<Element> elementList,List<Content> contentList,List<TeacherElementScore> tes) {
         indicatorList.forEach(indicator -> {
-            Table table = new Table(UnitValue.createPercentArray(new float[]{1, 1, 2, 2, 1, 1})).setWidth(UnitValue.createPercentValue(100));
+            Table table = new Table(UnitValue.createPercentArray(new float[]{1, 1, 2, 2, 1})).setWidth(UnitValue.createPercentValue(100));
             List<Element> filterElementList = elementList.stream().filter(v1 -> Objects.equals(v1.getIndicatorId(), indicator.getId())).toList();
 
             List<Content> filterContentList = new java.util.ArrayList<>(contentList.stream().filter(v1 -> filterElementList.stream().map(Element::getId).toList().contains(v1.getElementId())).toList());
@@ -200,11 +199,12 @@ public class AssessmentPDF {
             filterElementList.forEach(element -> {
                 Double score = Objects.requireNonNull(tes.stream().filter(v1 -> Objects.equals(v1.getElementId(), element.getId())).findFirst().orElse(null)).getScore();
                 Double finalScore = Objects.requireNonNull(tes.stream().filter(v1 -> Objects.equals(v1.getElementId(), element.getId())).findFirst().orElse(null)).getFinalScore();
+                Double robotScore = Objects.requireNonNull(tes.stream().filter(v1 -> Objects.equals(v1.getElementId(), element.getId())).findFirst().orElse(null)).getRobotScore();
                 if(element.getElement()==null){
                     table.addCell(createCellWithIndent(filterContentList.get(0).getContent(),1,2).setTextAlignment(TextAlignment.LEFT).setVerticalAlignment(VerticalAlignment.MIDDLE));
                     table.addCell(createCell(element.getCriteria(), finalCell,1).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
                     //table.addCell(addScoreElement(score!=null?score.toString():null,finalCell));
-                    table.addCell(createCell(score!=null?score.toString():null, finalCell,1).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
+//                    table.addCell(createCell(score!=null?score.toString():null, finalCell,1).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
                     table.addCell(createCell(finalScore!=null?finalScore.toString():null, finalCell,1).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
 
                     filterContentList.remove(0);
@@ -213,17 +213,41 @@ public class AssessmentPDF {
                     });
                 }
                 else{
-                    table.addCell(createCell(element.getElement(),null,null).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
-                    table.addCell(createCellWithIndent(filterContentList.stream().filter(v1-> Objects.equals(v1.getElementId(), element.getId())).map(Content::getContent).collect(Collectors.joining(",")),null,null).setTextAlignment(TextAlignment.LEFT).setVerticalAlignment(VerticalAlignment.MIDDLE));
-                    table.addCell(createCell(element.getCriteria(),null,null).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
+                    table.addCell(createCell(element.getElement(),1,1).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
+                    table.addCell(createCellWithIndent(filterContentList.stream().filter(v1-> Objects.equals(v1.getElementId(), element.getId())).map(Content::getContent).collect(Collectors.joining(",")),1,1).setTextAlignment(TextAlignment.LEFT).setVerticalAlignment(VerticalAlignment.MIDDLE));
+                    table.addCell(createCell(element.getCriteria(),1,1).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
                     //TODO分数
-                    table.addCell(createCell(score!=null?score.toString():null, null,1).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
-                    table.addCell(createCell(finalScore!=null?finalScore.toString():null, null,1).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
+//                    table.addCell(createCell(score!=null?score.toString():" ", 1,1).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
+//                    table.addCell(createCell(finalScore!=null?finalScore.toString():" ", 1,1).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
+                    table.addCell(addScoreTable(finalScore,score,robotScore).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE).setHeight(UnitValue.createPercentValue(100)));
                 }
             });
 
             document.add(table);
         });
+    }
+    private static Cell addScoreTable(Double finalScore,Double score,Double robotScore){
+        // 创建2列的表格，宽度100%
+        Table table = new Table(UnitValue.createPercentArray(new float[]{1, 1}))
+                .setWidth(UnitValue.createPercentValue(100));
+
+        // 顶部左侧单元格
+        table.addCell(createCell(robotScore!=null?"\n"+robotScore.toString()+"\n":"\n\n", 1, 1)
+                .setTextAlignment(TextAlignment.CENTER)
+                .setVerticalAlignment(VerticalAlignment.MIDDLE));
+
+        // 顶部右侧单元格
+        table.addCell(createCell(score!=null?score.toString():" ", 1, 1)
+                .setTextAlignment(TextAlignment.LEFT)
+                .setVerticalAlignment(VerticalAlignment.MIDDLE));
+
+        // 底部跨两列的单元格
+        table.addCell(createCell(finalScore!=null?finalScore.toString():"\n",  1, 2)
+                .setTextAlignment(TextAlignment.CENTER)
+                .setVerticalAlignment(VerticalAlignment.MIDDLE));
+
+        // 将表格包装在Cell中返回
+        return new Cell().add(table);
     }
 
     private static void addTotal(Document document){

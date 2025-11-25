@@ -64,7 +64,7 @@ public class LoginController extends BaseController {
             String phone = jsonNode.findPath("phone").asText();
             String password = jsonNode.findPath("password").asText();
             long campusId = jsonNode.findPath("campusId").asLong();
-            if (ValidationUtil.isPhoneNumber(phone) || ValidationUtil.isEmpty(password))
+            if (!ValidationUtil.isPhoneNumber(phone) || ValidationUtil.isEmpty(password))
                 return okCustomJson(CODE40001, "手机号或密码的参数错误");
             if (campusId<=0) return okCustomJson(CODE40001, "缺少校区ID");
 
