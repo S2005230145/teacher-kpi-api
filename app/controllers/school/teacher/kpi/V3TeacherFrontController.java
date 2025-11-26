@@ -14,7 +14,6 @@ import lombok.extern.slf4j.Slf4j;
 import models.campus.Campus;
 import models.school.kpi.v3.*;
 import models.user.User;
-import play.libs.Files;
 import play.libs.Json;
 import play.mvc.Http;
 import play.mvc.Result;
@@ -24,11 +23,17 @@ import utils.Pair;
 import utils.ValidationUtil;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermission;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -162,6 +167,52 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
         });
     }
 
+    /**
+     * @api {POST} /v1/front/tk/getElementList/new/ 01 更新+1:获取评测要素与内容
+     * @apiName getElementList2
+     * @apiGroup Update
+     *
+     * @apiDescription 获取评测要素与内容
+     *
+     * @apiParam {Long} indicatorId 指标ID
+     * @apiParam {Long} userId 用户ID
+     *
+     * @apiParamExample {json} 请求示例:
+     * {
+     *     "indicatorId":1,
+     *     "userId":1
+     * }
+     *
+     * @apiSuccess (Error 40001) {int} code 40001
+     * @apiSuccess (Error 40001) {int} reason 所有空的信息
+     *
+     * @apiSuccess (Success 200){int} code 200
+     * @apiSuccess (Success 200) {Object[]} tabs 数据
+     * @apiSuccess (Success 200) {Object[]} contents 数据
+     * @apiSuccessExample {json} 响应示例:
+     * {
+     *     "code":200
+     *     "tabs":[
+     *         "id":1,
+     *         "name":"",//要素名
+     *         "robotScore":"",//机器分
+     *         "completed":false //(true) (false) (null)
+     *     ],
+     *     "contents":[
+     *          {
+     *              "id":1,
+     *              "title":"", //内容名
+     *              "description":null,  //描述
+     *              "time":"",  //次数
+     *              "type":"",  //评分类型
+     *              "data":"",  //评分类型json
+     *              "filePath":"", //文件路径
+     *              "finalScore":null //新增：最终得分
+     *          }
+     *     ]
+     * }
+     *
+     */
     public CompletionStage<Result> getElementList2(Http.Request request){
         JsonNode jsonNode = request.body().asJson();
         return CompletableFuture.supplyAsync(()->{
@@ -180,13 +231,23 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
             List<Long> typeIds = contentList.stream().map(Content::getTypeId).toList();
             List<KPIScoreType> kpiScoreTypeList = KPIScoreType.find.query().where().in("id",typeIds).findList();
 
-            List<TeacherElementScore> tesList = TeacherElementScore.find.query().where().in("element_id",elementIds).findList();
+            List<TeacherElementScore> tesList = TeacherElementScore.find.query().where().eq("user_id", userId).in("element_id",elementIds).findList();
+            List<Long> fileIds = list.stream().map(TeacherContentScore::getFileId).toList();
+            List<Long> tesIds = tesList.stream().map(TeacherElementScore::getId).toList();
+            List<TeacherFile> teacherFileList=TeacherFile.find.query().where().in("id",fileIds).findList();
+            List<TeacherTask> teacherTaskList=TeacherTask.find.query().where().eq("user_id", userId).in("tes_id",tesIds).findList();
             elementList.forEach(element->{
                 Map<String, Object> tab = new HashMap<>();
                 tab.put("id",element.getId());
                 tab.put("name",element.getElement());
-                TeacherElementScore teacherElementScore = tesList.stream().filter(v1 -> v1.getElementId() == element.getId()).findFirst().orElse(null);
+                TeacherElementScore teacherElementScore = tesList.stream().filter(v1 -> Objects.equals(v1.getElementId(), element.getId())).findFirst().orElse(null);
                 tab.put("robotScore",teacherElementScore!=null?teacherElementScore.getRobotScore():null);
+                TeacherTask tt=null;
+                if(teacherElementScore!=null){
+                    tt = teacherTaskList.stream().filter(v1 -> Objects.equals(v1.getTesId(), teacherElementScore.getId())).findFirst().orElse(null);
+                    tab.put("finalScore",teacherElementScore.getFinalScore());
+                }
+                tab.put("completed",tt!=null? tt.getStatus().equals("已完成") :null);
                 tabs.add(tab);
                 List<Map<String, Object>> contents1=new ArrayList<>();
                 contentList.stream().filter(v1-> Objects.equals(v1.getElementId(), element.getId())).toList().forEach(contentTmp->{
@@ -199,6 +260,15 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
                     content.put("type",kpiScoreType);
                     if(kpiScoreType!=null){
                         content.put("data",Json.toJson(kpiScoreType.getJsonParam()));
+                    }
+                    TeacherContentScore tcs = list.stream().filter(v1 -> Objects.equals(v1.getContentId(), contentTmp.getId())).findFirst().orElse(null);
+                    if(tcs!=null){
+                        TeacherFile teacherFile = teacherFileList.stream().filter(v1 -> Objects.equals(v1.getId(), tcs.getFileId())).findFirst().orElse(null);
+                        if(teacherFile!=null){
+                            content.put("filePath",teacherFile.getFilePath());
+                        }else{
+                            content.put("filePath",null);
+                        }
                     }
                     contents1.add(content);
                 });
@@ -573,6 +643,42 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
     }
 
     //上传附件
+    /**
+     * @api {POST} /v1/front/tk/file/upload/ 02 要素附件上传
+     * @apiName uploadFile
+     * @apiGroup Update
+     *
+     * @apiDescription 要素附件上传(支持多个)
+     *
+     * @apiParam {File} file 二进制文件
+     * @apiParam {Long} contentId 内容ID
+     * @apiParam {Long} userId 用户ID
+     *
+     * @apiParamExample {json} 请求示例:
+     * {
+     *     "file":"二进制文件",
+     *     "contentId":1,
+     *     "userId":1
+     * }
+     *
+     * @apiSuccess (Error 40001) {int} code 40001
+     * @apiSuccess (Error 40001) {int} reason 所有空的信息
+     *
+     * @apiSuccess (Error 40001) {int} code 40003
+     * @apiSuccess (Error 40001) {int} reason 上传失败
+     *
+     * @apiSuccess (Error 40001) {int} code 40002
+     * @apiSuccess (Error 40001) {int} reason 所有报错的信息
+     *
+     * @apiSuccess (Success 200){int} code 200
+     * @apiSuccess (Success 200) {String} reason 上传成功
+     * @apiSuccessExample {json} 响应示例:
+     * {
+     *     "code":200,
+     *     "reason":"上传成功"
+     * }
+     *
+     */
     public CompletionStage<Result> uploadFile(Http.Request request){
         return CompletableFuture.supplyAsync(()->{
             Http.MultipartFormData<play.libs.Files.TemporaryFile> multipartFormData = request.body().asMultipartFormData();
@@ -585,24 +691,77 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
             if(contentId<=0) return okCustomJson(CODE40001,"没有contentId");
             if(userId<=0) return okCustomJson(CODE40001,"没有userId");
 
-            Http.MultipartFormData.FilePart<Files.TemporaryFile> filePart = files.get(0);
-            //存文件
-            String filename = filePart.getFilename();
-            String suffix = filename.substring(filename.lastIndexOf("."));
-            filename=UUID.randomUUID().toString().replace("-", "").toUpperCase()+suffix;
+            TeacherContentScore tcs = TeacherContentScore.find.query().where()
+                    .eq("user_id", userId)
+                    .eq("content_id", contentId)
+                    .setMaxRows(1).findOne();
+            if(tcs==null) return okCustomJson(CODE40001,"该教师没有被下发的内容");
+
+            List<String> fileNameList=new ArrayList<>();
+            AtomicBoolean status= new AtomicBoolean(true);
             String path = null;
             if (osName.contains("win")) {
                 path=config.getString("fileUpload.windows");
-            } else {
+            }
+            else {
                 path=config.getString("fileUpload.linux");
             }
             File dir = new File(path, "/teacher_file");
             if (!dir.exists()) dir.mkdirs();
-            File destination = new File(dir, filename);
-            filePart.getRef().copyTo(destination.toPath(), false);
+            //删除旧文件
+            if(tcs.getFileId()!=null && tcs.getFileId()>0){
+                TeacherFile teacherFile = TeacherFile.find.byId(tcs.getFileId());
+                if(teacherFile!=null){
+                    for (String filePath : teacherFile.getFilePath().split(",")) {
+                        File oldDestination = new File(dir, filePath);
+                        try {
+                            Files.deleteIfExists(oldDestination.toPath());
+                        }
+                        catch (IOException ex) {
+                            log.info("旧文件不存在: {}", String.valueOf(ex));
+                        }
+                    }
+                    try(Transaction transaction = TeacherFile.find.db().beginTransaction()){
+                        teacherFile.delete();
+                        transaction.commit();
+                    } catch (Exception e) {
+                        return okCustomJson(CODE40002,"删除TeacherFile失败");
+                    }
+                }
+            }
 
+            //存文件
+            files.forEach(filePart->{
+                String filename = filePart.getFilename();
+                String suffix = filename.substring(filename.lastIndexOf("."));
+                filename=UUID.randomUUID().toString().replace("-", "").toUpperCase()+suffix;
+                File destination = new File(dir, filename);
+                try {
+                    filePart.getRef().copyTo(destination.toPath(), false);
+                    this.setFilePermissions777(destination.toPath());
+                }catch (Exception e) {
+                    status.set(false);
+                    if(!fileNameList.isEmpty()){
+                        fileNameList.forEach(fileName->{
+                            File oldDestination = new File(dir, fileName);
+                            try {
+                                Files.deleteIfExists(oldDestination.toPath());
+                            }
+                            catch (IOException ex) {
+                                log.info("文件不存在: {}", String.valueOf(ex));
+                            }
+                        });
+                    }
+                    return;
+                }
+                fileNameList.add("teacher_file/"+filename);
+            });
+
+            if(!status.get()){
+                return okCustomJson(CODE40003,"上传失败");
+            }
             TeacherFile teacherFile = new TeacherFile();
-            teacherFile.setFilePath("teacher_file/"+filename);
+            teacherFile.setFilePath(String.join(",",fileNameList));
             teacherFile.setDescription(description);
             teacherFile.setContentId(contentId);
             Transaction transaction = DB.beginTransaction();
@@ -613,11 +772,6 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
                 return okCustomJson(CODE40002,"教师文件出错: "+e);
             }
 
-            TeacherContentScore tcs = TeacherContentScore.find.query().where()
-                    .eq("user_id", userId)
-                    .eq("content_id", contentId)
-                    .setMaxRows(1).findOne();
-            if(tcs==null) return okCustomJson(CODE40001,"该教师没有被下发的内容");
             tcs.setFileId(teacherFile.getId());
             try{
                 tcs.update();
@@ -625,6 +779,19 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
                 transaction.rollback();
                 return okCustomJson(CODE40002,"教师内容更新出错: "+e);
             }
+
+            TeacherElementScore tes = TeacherElementScore.find.query().where().eq("element_id", tcs.getElementId()).setMaxRows(1).findOne();
+            Element element = Element.find.query().where().eq("id", tcs.getElementId()).setMaxRows(1).findOne();
+            if(element!=null&&tes!=null){
+                tes.setRobotScore(files.size()*this.generateRandomDouble(1.0,3.0));
+                try{
+                    tes.update();
+                }catch (Exception e){
+                    transaction.rollback();
+                    return okCustomJson(CODE40002,"机器得分更新出错: "+e);
+                }
+            }
+
             transaction.commit();
             return okCustomJson(CODE200,"上传成功");
         });
@@ -719,4 +886,111 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
             return ok(result);
         });
     }
+
+    //撤销审核
+    /**
+     * @api {POST} /v1/front/tk/audit/withDraw/ 04 撤销审核
+     * @apiName withDrawAudit
+     * @apiGroup New
+     *
+     * @apiDescription 撤销审核
+     *
+     * @apiParam {Long} elementId 要素ID
+     * @apiParam {Long} userId 用户ID
+     *
+     * @apiParamExample {json} 请求示例:
+     * {
+     *     "elementId":1,
+     *     "userId":1
+     * }
+     *
+     * @apiSuccess (Error 40001) {int} code 40001
+     * @apiSuccess (Error 40001) {int} reason 所有空的信息
+     *
+     * @apiSuccess (Error 40001) {int} code 40004
+     * @apiSuccess (Error 40001) {int} reason 该要素已评测完毕，无法撤回
+     *
+     * @apiSuccess (Error 40001) {int} code 40002
+     * @apiSuccess (Error 40001) {int} reason 所有报错的信息
+     *
+     * @apiSuccess (Success 200){int} code 200
+     * @apiSuccess (Success 200) {String} reason 删除成功
+     * @apiSuccessExample {json} 响应示例:
+     * {
+     *     "code":200,
+     *     "reason":"删除成功"
+     * }
+     *
+     */
+    public CompletionStage<Result> withDrawAudit(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+            if(jsonNode==null) return okCustomJson(CODE40001,"参数错误");
+            long elementId=jsonNode.findPath("elementId").asLong();
+            long userId=jsonNode.findPath("userId").asLong();
+
+            if(elementId<=0) return okCustomJson(CODE40001,"没有elementId");
+            if(userId<=0) return okCustomJson(CODE40001,"没有userId");
+
+            TeacherElementScore tes = TeacherElementScore.find.query().where().eq("user_id",userId).eq("element_id", elementId).setMaxRows(1).findOne();
+            if(tes!=null){
+                TeacherTask tt = TeacherTask.find.query().where().eq("user_id",userId).eq("tes_id", tes.getId()).setMaxRows(1).findOne();
+                if(tt==null) return okCustomJson(CODE40001,"该要素没有任务");
+                if(tt.getStatus().equals("已完成")) return okCustomJson(CODE40004,"该要素已评测完毕，无法撤回");
+                Transaction transaction = DB.beginTransaction();
+                try{
+                    tt.delete();
+                    transaction.commit();
+                }catch (Exception e){
+                    transaction.rollback();
+                    return okCustomJson(CODE40002,"删除TeacherTask失败");
+                }
+            }
+            return okCustomJson(CODE200,"删除成功");
+        });
+    }
+
+    //工具
+    private double generateRandomDouble(double min, double max) {
+        if (min >= max) {
+            throw new IllegalArgumentException("最小值必须小于最大值");
+        }
+
+        double randomValue = ThreadLocalRandom.current().nextDouble(min, max);
+        // 保留两位小数
+        return Math.round(randomValue * 100.0) / 100.0;
+    }
+    private void setFilePermissions777(Path filePath) {
+        try {
+            // 检查文件是否存在
+            if (!Files.exists(filePath)) {
+                System.out.println("文件设置失败");
+                return;
+            }
+
+            // 设置777权限
+            Set<PosixFilePermission> permissions = new HashSet<>();
+
+            // 所有者权限：读、写、执行
+            permissions.add(PosixFilePermission.OWNER_READ);
+            permissions.add(PosixFilePermission.OWNER_WRITE);
+            permissions.add(PosixFilePermission.OWNER_EXECUTE);
+
+            // 组权限：读、写、执行
+            permissions.add(PosixFilePermission.GROUP_READ);
+            permissions.add(PosixFilePermission.GROUP_WRITE);
+            permissions.add(PosixFilePermission.GROUP_EXECUTE);
+
+            // 其他用户权限：读、写、执行
+            permissions.add(PosixFilePermission.OTHERS_READ);
+            permissions.add(PosixFilePermission.OTHERS_WRITE);
+            permissions.add(PosixFilePermission.OTHERS_EXECUTE);
+
+            Files.setPosixFilePermissions(filePath, permissions);
+
+        } catch (UnsupportedOperationException | IOException e) {
+            System.out.println(e);
+        }
+    }
+
 }

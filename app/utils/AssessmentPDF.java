@@ -205,7 +205,8 @@ public class AssessmentPDF {
                     table.addCell(createCell(element.getCriteria(), finalCell,1).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
                     //table.addCell(addScoreElement(score!=null?score.toString():null,finalCell));
 //                    table.addCell(createCell(score!=null?score.toString():null, finalCell,1).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
-                    table.addCell(createCell(finalScore!=null?finalScore.toString():null, finalCell,1).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
+//                    table.addCell(createCell(finalScore!=null?finalScore.toString():null, finalCell,1).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
+                    table.addCell(addScoreTable1(finalScore,score,robotScore,finalCell,1));
 
                     filterContentList.remove(0);
                     filterContentList.forEach(content -> {
@@ -219,7 +220,7 @@ public class AssessmentPDF {
                     //TODO分数
 //                    table.addCell(createCell(score!=null?score.toString():" ", 1,1).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
 //                    table.addCell(createCell(finalScore!=null?finalScore.toString():" ", 1,1).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
-                    table.addCell(addScoreTable(finalScore,score,robotScore).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE).setHeight(UnitValue.createPercentValue(100)));
+                    table.addCell(addScoreTable(finalScore,score,robotScore));
                 }
             });
 
@@ -229,26 +230,88 @@ public class AssessmentPDF {
     private static Cell addScoreTable(Double finalScore,Double score,Double robotScore){
         // 创建2列的表格，宽度100%
         Table table = new Table(UnitValue.createPercentArray(new float[]{1, 1}))
-                .setWidth(UnitValue.createPercentValue(100));
+                .setWidth(UnitValue.createPercentValue(100))
+                .setMarginTop(0)
+                .setMarginBottom(0)
+                .setPadding(0);
 
         // 顶部左侧单元格
-        table.addCell(createCell(robotScore!=null?"\n"+robotScore.toString()+"\n":"\n\n", 1, 1)
+        table.addCell(createCell(robotScore!=null?robotScore.toString():"\n", 1, 1)
                 .setTextAlignment(TextAlignment.CENTER)
+                .setBorderLeft(Border.NO_BORDER)
+                .setBorderTop(Border.NO_BORDER)
                 .setVerticalAlignment(VerticalAlignment.MIDDLE));
 
         // 顶部右侧单元格
-        table.addCell(createCell(score!=null?score.toString():" ", 1, 1)
-                .setTextAlignment(TextAlignment.LEFT)
+        table.addCell(createCell(score!=null?score.toString():"\n", 1, 1)
+                .setTextAlignment(TextAlignment.CENTER)
+                .setBorderRight(Border.NO_BORDER)
+                .setBorderTop(Border.NO_BORDER)
                 .setVerticalAlignment(VerticalAlignment.MIDDLE));
 
         // 底部跨两列的单元格
         table.addCell(createCell(finalScore!=null?finalScore.toString():"\n",  1, 2)
                 .setTextAlignment(TextAlignment.CENTER)
+                .setBorder(Border.NO_BORDER)
+                .setBorderLeft(Border.NO_BORDER)
+                .setBorderRight(Border.NO_BORDER)
+                .setBorderTop(Border.NO_BORDER)
                 .setVerticalAlignment(VerticalAlignment.MIDDLE));
 
         // 将表格包装在Cell中返回
-        return new Cell().add(table);
+        return new Cell().add(table).setMarginTop(0).setMarginBottom(0).setPadding(0);
     }
+
+    private static Cell addScoreTable1(Double finalScore,Double score,Double robotScore,int finalCell,int row){
+        // 创建2列的表格，宽度100%
+        Table table = new Table(UnitValue.createPercentArray(new float[]{1, 1}))
+                .setWidth(UnitValue.createPercentValue(100))
+                .setMarginTop(0)
+                .setMarginBottom(0)
+                .setPadding(0);
+
+        String fixPassFinalScore = getFixPassScore(finalScore);
+        String fixPassScore = getFixPassScore(score);
+        String fixPassRobotScore = getFixPassScore(robotScore);
+
+        // 顶部左侧单元格
+        table.addCell(createCell(robotScore!=null?fixPassRobotScore.equals("0")?robotScore.toString():fixPassRobotScore:"\n", 1, 1)
+                .setTextAlignment(TextAlignment.CENTER)
+                .setBorderLeft(Border.NO_BORDER)
+                .setBorderTop(Border.NO_BORDER)
+                .setVerticalAlignment(VerticalAlignment.MIDDLE));
+
+        // 顶部右侧单元格
+        table.addCell(createCell(score!=null?fixPassScore.equals("0")?score.toString():fixPassScore:"\n", 1, 1)
+                .setTextAlignment(TextAlignment.CENTER)
+                .setBorderRight(Border.NO_BORDER)
+                .setBorderTop(Border.NO_BORDER)
+                .setVerticalAlignment(VerticalAlignment.MIDDLE));
+
+        // 底部跨两列的单元格
+        table.addCell(createCell(finalScore!=null?fixPassFinalScore.equals("0")?finalScore.toString():fixPassFinalScore:"\n",  1, 2)
+                .setTextAlignment(TextAlignment.CENTER)
+                .setBorder(Border.NO_BORDER)
+                .setBorderLeft(Border.NO_BORDER)
+                .setBorderRight(Border.NO_BORDER)
+                .setBorderTop(Border.NO_BORDER)
+                .setVerticalAlignment(VerticalAlignment.MIDDLE));
+
+        // 将表格包装在Cell中返回
+        return new Cell(finalCell,row).add(table).setMarginTop(0).setMarginBottom(0).setPadding(0);
+    }
+
+    private static String getFixPassScore(Double score){
+        if(score==null) return "0";
+        if(score>=5000){
+            return "合格";
+        }else if(score<=-5000){
+            return "不合格";
+        }else{
+            return "0";
+        }
+    }
+
 
     private static void addTotal(Document document){
         Table table = new Table(UnitValue.createPercentArray(new float[]{1, 1, 2, 2, 1, 1})).setWidth(UnitValue.createPercentValue(100));
@@ -259,9 +322,9 @@ public class AssessmentPDF {
         document.add(table);
     }
     private static void addTotal(Document document,Double score){
-        Table table = new Table(UnitValue.createPercentArray(new float[]{1, 1, 2, 2, 1, 1})).setWidth(UnitValue.createPercentValue(100));
+        Table table = new Table(UnitValue.createPercentArray(new float[]{1, 1, 2, 2, 1})).setWidth(UnitValue.createPercentValue(100));
 
-        table.addCell(createCell("总 分   100 分",1,5).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
+        table.addCell(createCell("总 分   100 分",1,4).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
         table.addCell(createCell(score!=null?score.toString():null,1,1).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
 
         document.add(table);

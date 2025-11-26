@@ -230,6 +230,8 @@ create table tk_v3_content (
   content                       varchar(255),
   type_id                       bigint,
   score                         double,
+  top_score                     double,
+  bottom_score                  double,
   constraint pk_tk_v3_content primary key (id)
 );
 

@@ -9,7 +9,6 @@ import controllers.BaseAdminSecurityController;
 
 import io.ebean.*;
 import jakarta.inject.Inject;
-import lombok.extern.slf4j.Slf4j;
 import models.department.Department;
 import models.school.kpi.v3.*;
 import models.table.ParseResult;
@@ -38,6 +37,7 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 
@@ -50,7 +50,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
 
     ObjectMapper objectMapper = new ObjectMapper();
 
-    private static final Boolean is_DEV=true;
+    private static final Boolean is_DEV=false;
 
     //极大值
     private static final Double mxValue=5000.0;
@@ -2462,16 +2462,22 @@ public class V3TeacherController extends BaseAdminSecurityController {
             List<Long> contentIds = teacherContentScores.stream().map(v1 -> Long.parseLong(v1.get("contentId").toString())).toList();
             List<Content> contentList = Content.find.query().where().in("id",contentIds).findList();
             List<Element> elementList=Element.find.query().where().in("id",contentList.stream().map(Content::getElementId).toList()).findList();
-            List<TeacherContentScore> tcsList=TeacherContentScore.find.query().where().in("content_id",contentIds).findList();
+            List<TeacherContentScore> tcsList=TeacherContentScore.find.query().where().eq("user_id",userId).in("content_id",contentIds).findList();
 
             List<TeacherContentScore> updateTeacherContentScoreList=new ArrayList<>();
             Transaction transaction = DB.beginTransaction();
 
+            AtomicBoolean isVarMpEmpty= new AtomicBoolean(false);
             teacherContentScores.forEach(tcsMp->{
                 long contentId = Long.parseLong(tcsMp.get("contentId").toString());
                 int time = Integer.parseInt(tcsMp.get("time").toString());
                 String type = tcsMp.get("type").toString();
                 Map<String,Object> varMp= (Map<String, Object>) tcsMp.get("var");
+
+                if(varMp==null){
+                    isVarMpEmpty.set(true);
+                    return;
+                }
 
                 double score = varMp.get("score")!=null?Double.parseDouble(varMp.get("score").toString()):0.0;
 
@@ -2492,7 +2498,9 @@ public class V3TeacherController extends BaseAdminSecurityController {
                         tcs.setTime(time);
                     }
                     else{
-                        Element element = elementList.stream().filter(v1 -> Objects.equals(v1.getId(), content.getElementId())).findFirst().orElse(null);
+                        Element element = elementList.stream()
+                                .filter(v1 -> Objects.equals(v1.getId(), content.getElementId()))
+                                .findFirst().orElse(null);
                         double countScore=time*content.getScore();
                         if(element!=null){
                             if(countScore>element.getScore()){
@@ -2505,9 +2513,14 @@ public class V3TeacherController extends BaseAdminSecurityController {
                     if(tcs.getScore()==null){
                         tcs.setScore(0.0);
                     }
+                    if(content.getTopScore()!=null&&tcs.getScore()>=content.getTopScore()) tcs.setScore(content.getTopScore());
+                    if(content.getBottomScore()!=null&&tcs.getScore()<=content.getBottomScore()) tcs.setScore(content.getBottomScore());
                     updateTeacherContentScoreList.add(tcs);
                 }
             });
+            if(isVarMpEmpty.get()){
+                return okCustomJson(CODE40001,"var为空");
+            }
             try{
                 DB.updateAll(updateTeacherContentScoreList);
             } catch (Exception e) {
@@ -2519,6 +2532,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
             List<TeacherElementScore> filterTeacherElementScoreList = teacherElementScoreList.stream().filter(v1 -> elementIds.contains(v1.getElementId())).toList();
             filterTeacherElementScoreList.forEach(tes->{
                 tes.setScore(updateTeacherContentScoreList.stream().filter(v1-> Objects.equals(v1.getElementId(), tes.getElementId())).map(TeacherContentScore::getScore).mapToDouble(Double::doubleValue).sum());
+
             });
             try{
                 DB.updateAll(filterTeacherElementScoreList);
