@@ -65,6 +65,7 @@ POST         /v1/tk/kpi/add/                                                    
 POST         /v1/tk/regular/add/                                                 controllers.school.teacher.kpi.V3TeacherController.add(request:Request)
 POST         /v1/tk/getList/                                                     controllers.school.teacher.kpi.V3TeacherController.getList(request:Request)
 POST         /v1/tk/getKpiList/                                                  controllers.school.teacher.kpi.V3TeacherController.getKpiList(request:Request)
+POST         /v1/tk/teacher/kpi/list/                                            controllers.school.teacher.kpi.V3TeacherController.getKpiListByUserId(request:Request)
 POST         /v1/tk/dispatch/                                                    controllers.school.teacher.kpi.V3TeacherController.dispatch(request:Request)
 POST         /v1/tk/grade/                                                       controllers.school.teacher.kpi.V3TeacherController.grade(request:Request)
 POST         /v1/tk/grade/new/                                                   controllers.school.teacher.kpi.V3TeacherController.newGrade(request:Request)
@@ -74,6 +75,7 @@ POST         /v1/tk/getElementList/                                             
 POST         /v1/tk/getContentList/                                              controllers.school.teacher.kpi.V3TeacherController.getContentList(request:Request)
 POST         /v1/tk/delete/                                                      controllers.school.teacher.kpi.V3TeacherController.deleteElementOrContentOrIndicatorOrKpi(request:Request)
 POST         /v1/tk/withDraw/                                                    controllers.school.teacher.kpi.V3TeacherController.withDraw(request:Request)
+POST         /v1/tk/withDraw/other/                                              controllers.school.teacher.kpi.V3TeacherController.withDrawNew(request:Request)
 POST         /v1/tk/auto/                                                        controllers.school.teacher.kpi.V3TeacherController.isAutoCalculator(request:Request)
 POST         /v1/tk/singleKpi/add/                                               controllers.school.teacher.kpi.V3TeacherController.addSingleKpi(request:Request)
 POST         /v1/tk/post/                                                        controllers.school.teacher.kpi.V3TeacherController.postAudit(request:Request)
@@ -99,10 +101,13 @@ POST         /v1/tk/teacher/add/                                                
 POST         /v1/tk/teacher/delete/                                              controllers.school.teacher.kpi.V3TeacherController.deleteTeacher(request:Request)
 POST         /v1/tk/teacher/file/                                                controllers.school.teacher.kpi.V3TeacherController.getTeacherFile(request:Request)
 POST         /v1/tk/teacher/task/delete/                                         controllers.school.teacher.kpi.V3TeacherController.deleteTask(request:Request)
+
 #test
 POST         /v1/tk/type/json/add/                                               controllers.school.teacher.kpi.V3TeacherController.addTypeJson(request:Request)
 POST         /v1/tk/type/json/list/                                              controllers.school.teacher.kpi.V3TeacherController.getTypeJsonList(request:Request)
 POST         /v1/tk/type/json/delete/                                            controllers.school.teacher.kpi.V3TeacherController.deleteTypeJson(request:Request)
+POST         /v1/tk/type/json/update/                                            controllers.school.teacher.kpi.V3TeacherController.updateTypeJson(request:Request)
+
 
 POST         /v1/tk/test/                                                        controllers.TestController.test()
 #==========显示 小程序==========
@@ -117,9 +122,14 @@ POST         /v1/front/tk/getKPI/                                               
 POST         /v1/front/tk/is/audit/                                              controllers.school.teacher.kpi.V3TeacherFrontController.isAudit(request:Request)
 POST         /v1/front/tk/teacher/person/status/                                 controllers.school.teacher.kpi.V3TeacherFrontController.getPersonStatus(request:Request)
 POST         /v1/front/tk/file/upload/                                           controllers.school.teacher.kpi.V3TeacherFrontController.uploadFile(request:Request)
+POST         /v1/front/tk/file/upload/add/                                       controllers.school.teacher.kpi.V3TeacherFrontController.uploadFileAdd(request:Request)
+POST         /v1/front/tk/file/upload/delete/                                    controllers.school.teacher.kpi.V3TeacherFrontController.uploadFileDelete(request:Request)
+
 POST         /v1/front/tk/is/submit/audit/                                       controllers.school.teacher.kpi.V3TeacherFrontController.isSubmitAudit(request:Request)
 POST         /v1/front/tk/school/list/                                           controllers.school.teacher.kpi.V3TeacherFrontController.schoolList(request:Request)
 POST         /v1/front/tk/audit/withDraw/                                        controllers.school.teacher.kpi.V3TeacherFrontController.withDrawAudit(request:Request)
+POST         /v1/front/tk/file/delete/test/                                      controllers.school.teacher.kpi.V3TeacherFrontController.deleteFileTest(request:Request)
+POST         /v1/front/tk/file/delete/                                           controllers.school.teacher.kpi.V3TeacherFrontController.deleteFile(request:Request)
 
 GET          /v1/tk/department/list/                                             controllers.department.DepartmentController.getAllDepartment()
 POST         /v1/tk/department/add/                                              controllers.department.DepartmentController.addDepartment(request:Request)

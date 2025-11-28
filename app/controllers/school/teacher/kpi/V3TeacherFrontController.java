@@ -168,7 +168,7 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
     }
 
     /**
-     * @api {POST} /v1/front/tk/getElementList/new/ 01 更新+1:获取评测要素与内容
+     * @api {POST} /v1/front/tk/getElementList/new/ 01 更新+2:获取评测要素与内容
      * @apiName getElementList2
      * @apiGroup Update
      *
@@ -207,7 +207,9 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
      *              "type":"",  //评分类型
      *              "data":"",  //评分类型json
      *              "filePath":"", //文件路径
-     *              "finalScore":null //新增：最终得分
+     *              "score":"",//新增：得分
+     *              "typeName":"select",//新增：类型
+     *              "finalScore":null //最终得分
      *          }
      *     ]
      * }
@@ -255,9 +257,17 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
                     content.put("id",contentTmp.getId());
                     content.put("title",contentTmp.getContent());
                     content.put("description",null);
-                    content.put("time", Objects.requireNonNull(list.stream().filter(v1 -> Objects.equals(v1.getContentId(), contentTmp.getId())).findFirst().orElse(null)).getTime());
+                    TeacherContentScore tcsTmp = Objects.requireNonNull(list.stream().filter(v1 -> Objects.equals(v1.getContentId(), contentTmp.getId())).findFirst().orElse(null));
+                    content.put("time", tcsTmp.getTime());
+                    content.put("score", tcsTmp.getScore());
                     KPIScoreType kpiScoreType = kpiScoreTypeList.stream().filter(v1 -> Objects.equals(v1.getId(), contentTmp.getTypeId())).findFirst().orElse(null);
                     content.put("type",kpiScoreType);
+                    if(kpiScoreType!=null){
+                        String typeName = Json.toJson(kpiScoreType.getJsonParam()).findPath("type").asText();
+                        content.put("typeName",typeName);
+                    }else{
+                        content.put("typeName",null);
+                    }
                     if(kpiScoreType!=null){
                         content.put("data",Json.toJson(kpiScoreType.getJsonParam()));
                     }
@@ -683,11 +693,12 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
         return CompletableFuture.supplyAsync(()->{
             Http.MultipartFormData<play.libs.Files.TemporaryFile> multipartFormData = request.body().asMultipartFormData();
             List<Http.MultipartFormData.FilePart<play.libs.Files.TemporaryFile>> files = multipartFormData.getFiles();
-
+            log.info("=====File Size======");
+            log.info(String.valueOf(files.size()));
+            log.info("=====File Size======");
             String description = multipartFormData.asFormUrlEncoded().containsKey("description")?multipartFormData.asFormUrlEncoded().get("description")[0]:null;
             long contentId = multipartFormData.asFormUrlEncoded().containsKey("contentId")?Long.parseLong(multipartFormData.asFormUrlEncoded().get("contentId")[0]):0;
             long userId = multipartFormData.asFormUrlEncoded().containsKey("userId")?Long.parseLong(multipartFormData.asFormUrlEncoded().get("userId")[0]):0;
-
             if(contentId<=0) return okCustomJson(CODE40001,"没有contentId");
             if(userId<=0) return okCustomJson(CODE40001,"没有userId");
 
@@ -713,12 +724,10 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
                 TeacherFile teacherFile = TeacherFile.find.byId(tcs.getFileId());
                 if(teacherFile!=null){
                     for (String filePath : teacherFile.getFilePath().split(",")) {
-                        File oldDestination = new File(dir, filePath);
-                        try {
-                            Files.deleteIfExists(oldDestination.toPath());
-                        }
-                        catch (IOException ex) {
-                            log.info("旧文件不存在: {}", String.valueOf(ex));
+                        File oldDestination = new File(path, filePath);
+                        boolean delete = oldDestination.delete();
+                        if(!delete){
+                            log.info("文件删除失败");
                         }
                     }
                     try(Transaction transaction = TeacherFile.find.db().beginTransaction()){
@@ -744,11 +753,9 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
                     if(!fileNameList.isEmpty()){
                         fileNameList.forEach(fileName->{
                             File oldDestination = new File(dir, fileName);
-                            try {
-                                Files.deleteIfExists(oldDestination.toPath());
-                            }
-                            catch (IOException ex) {
-                                log.info("文件不存在: {}", String.valueOf(ex));
+                            boolean delete = oldDestination.delete();
+                            if(!delete){
+                                log.info("文件不存在");
                             }
                         });
                     }
@@ -794,6 +801,242 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
 
             transaction.commit();
             return okCustomJson(CODE200,"上传成功");
+        });
+    }
+
+    /**
+     * @api {POST} /v1/front/tk/file/upload/add/ *02.5.1 要素附件新文件添加
+     * @apiName uploadFileAdd
+     * @apiGroup Update
+     *
+     * @apiDescription 要素附件上传
+     *
+     * @apiParam {File} file 二进制文件
+     * @apiParam {String} description 描述
+     * @apiParam {Long} contentId 内容ID
+     * @apiParam {Long} userId 用户ID
+     *
+     * @apiParamExample {json} 请求示例:
+     * {
+     *     "file":"二进制文件",
+     *     "description":"",
+     *     "contentId":1,
+     *     "userId":1,
+     * }
+     *
+     * @apiSuccess (Error 40001) {int} code 40001
+     * @apiSuccess (Error 40001) {int} reason 所有空的信息
+     *
+     * @apiSuccess (Error 40001) {int} code 40003
+     * @apiSuccess (Error 40001) {int} reason 上传失败
+     *
+     * @apiSuccess (Error 40001) {int} code 40002
+     * @apiSuccess (Error 40001) {int} reason 所有报错的信息
+     *
+     * @apiSuccess (Success 200){int} code 200
+     * @apiSuccess (Success 200) {String} reason 上传成功
+     * @apiSuccessExample {json} 响应示例:
+     * {
+     *     "code":200,
+     *     "reason":"上传成功"
+     * }
+     *
+     */
+    public CompletionStage<Result> uploadFileAdd(Http.Request request){
+        return CompletableFuture.supplyAsync(()->{
+            Http.MultipartFormData<play.libs.Files.TemporaryFile> multipartFormData = request.body().asMultipartFormData();
+            List<Http.MultipartFormData.FilePart<play.libs.Files.TemporaryFile>> files = multipartFormData.getFiles();
+
+            String description = multipartFormData.asFormUrlEncoded().containsKey("description")?multipartFormData.asFormUrlEncoded().get("description")[0]:null;
+            long contentId = multipartFormData.asFormUrlEncoded().containsKey("contentId")?Long.parseLong(multipartFormData.asFormUrlEncoded().get("contentId")[0]):0;
+            long userId = multipartFormData.asFormUrlEncoded().containsKey("userId")?Long.parseLong(multipartFormData.asFormUrlEncoded().get("userId")[0]):0;
+
+            Http.MultipartFormData.FilePart<play.libs.Files.TemporaryFile> filePart = files.get(0);
+            if(contentId<=0) return okCustomJson(CODE40001,"没有contentId");
+            if(userId<=0) return okCustomJson(CODE40001,"没有userId");
+
+            TeacherContentScore tcs = TeacherContentScore.find.query().where()
+                    .eq("user_id", userId)
+                    .eq("content_id", contentId)
+                    .setMaxRows(1).findOne();
+            if(tcs==null) return okCustomJson(CODE40001,"该教师没有被下发的内容");
+
+            String path = null;
+            if (osName.contains("win")) {
+                path=config.getString("fileUpload.windows");
+            }
+            else {
+                path=config.getString("fileUpload.linux");
+            }
+            File dir = new File(path, "/teacher_file");
+            if (!dir.exists()) dir.mkdirs();
+
+            //文件操作
+            String filename = filePart.getFilename();
+            String suffix = filename.substring(filename.lastIndexOf("."));
+            filename=UUID.randomUUID().toString().replace("-", "").toUpperCase()+suffix;
+            File destination = new File(dir, filename);
+            try {
+                filePart.getRef().copyTo(destination.toPath(), false);
+                this.setFilePermissions777(destination.toPath());
+            }catch (Exception e) {
+                return okCustomJson(40004,"文件上传失败");
+            }
+            //转为数据库存储
+            filename="teacher_file/"+filename;
+
+            TeacherFile teacherFile = TeacherFile.find.byId(tcs.getFileId());
+            if(teacherFile==null){
+                //第一次添加文件
+                teacherFile=new TeacherFile();
+                teacherFile.setFilePath(filename);
+                teacherFile.setDescription(description);
+                teacherFile.setContentId(contentId);
+                Transaction transaction =DB.beginTransaction();
+                try{
+                    teacherFile.save();
+                } catch (Exception e) {
+                    return okCustomJson(CODE40002,"添加TeacherFile出错:"+e);
+                }
+                tcs.setFileId(teacherFile.getId());
+                try{
+                    tcs.update();
+                } catch (Exception e) {
+                    return okCustomJson(CODE40002,"更新tcs出错:"+e);
+                }
+                transaction.commit();
+            }
+            else{
+                String filePath = teacherFile.getFilePath();
+
+                teacherFile.setFilePath(filePath+","+filename);
+                teacherFile.setDescription(description);
+                teacherFile.setContentId(contentId);
+                Transaction transaction =DB.beginTransaction();
+                try{
+                    teacherFile.update();
+                } catch (Exception e) {
+                    return okCustomJson(CODE40002,"更新TeacherFile出错:"+e);
+                }
+                transaction.commit();
+            }
+
+            return okCustomJson(CODE200,"上传成功");
+        });
+    }
+
+    /**
+     * @api {POST} /v1/front/tk/file/upload/delete/ *02.5.2 要素附件新文件删除
+     * @apiName uploadFileDelete
+     * @apiGroup Update
+     *
+     * @apiDescription 要素附件上传
+     *
+     * @apiParam {String} filePath 历史文件路径
+     * @apiParam {String} description 描述
+     * @apiParam {Long} contentId 内容ID
+     * @apiParam {Long} userId 用户ID
+     *
+     * @apiParamExample {json} 请求示例:
+     * {
+     *     "filePath":"",
+     *     "description":"",
+     *     "contentId":1,
+     *     "userId":1,
+     * }
+     *
+     * @apiSuccess (Error 40001) {int} code 40001
+     * @apiSuccess (Error 40001) {int} reason 所有空的信息
+     *
+     * @apiSuccess (Error 40001) {int} code 40003
+     * @apiSuccess (Error 40001) {int} reason 上传失败
+     *
+     * @apiSuccess (Error 40001) {int} code 40002
+     * @apiSuccess (Error 40001) {int} reason 所有报错的信息
+     *
+     * @apiSuccess (Success 200){int} code 200
+     * @apiSuccess (Success 200) {String} reason 上传成功
+     * @apiSuccessExample {json} 响应示例:
+     * {
+     *     "code":200,
+     *     "reason":"上传成功"
+     * }
+     *
+     */
+    public CompletionStage<Result> uploadFileDelete(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+            if(jsonNode==null) return okCustomJson(CODE40001,"参数错误");
+            String filePath = jsonNode.findPath("filePath").asText();
+            String description = jsonNode.findPath("description").asText();
+            long contentId = jsonNode.findPath("contentId").asLong();
+            long userId = jsonNode.findPath("contentId").asLong();
+
+            if(ValidationUtil.isEmpty(filePath)) return okCustomJson(CODE40001,"没有filePath");
+            if(contentId<=0) return okCustomJson(CODE40001,"没有contentId");
+            if(userId<=0) return okCustomJson(CODE40001,"没有userId");
+
+            TeacherContentScore tcs = TeacherContentScore.find.query().where()
+                    .eq("user_id", userId)
+                    .eq("content_id", contentId)
+                    .setMaxRows(1).findOne();
+            if(tcs==null) return okCustomJson(CODE40001,"该教师没有被下发的内容");
+
+            String path = null;
+            if (osName.contains("win")) {
+                path=config.getString("fileUpload.windows");
+            }
+            else {
+                path=config.getString("fileUpload.linux");
+            }
+            File file = new File(path, filePath);
+            if(!file.exists()) return okCustomJson(CODE40004,"文件不存在");
+
+            boolean st = file.delete();
+            if(st){
+                TeacherFile teacherFile = TeacherFile.find.byId(tcs.getFileId());
+                if(teacherFile==null) return okCustomJson(CODE40001,"该教师没有文件");
+
+                String replaceFilePath = teacherFile.getFilePath().replace(filePath, "");
+                if(replaceFilePath.endsWith(",")){
+                    replaceFilePath=replaceFilePath.substring(0, replaceFilePath.length() - 1);
+                }else if(replaceFilePath.startsWith(",")){
+                    replaceFilePath=replaceFilePath.substring(1);
+                }else{
+                    replaceFilePath=replaceFilePath.replace(",,",",");
+                }
+
+                if(replaceFilePath.isEmpty()){
+                    //最后一个文件被删除了
+                    Transaction transaction = DB.beginTransaction();
+                    try{
+                        teacherFile.delete();
+                    }catch (Exception e){
+                        return okCustomJson(CODE40002,"删除TeacherFile出错");
+                    }
+                    tcs.setFileId(null);
+                    try{
+                        tcs.update();
+                    }catch (Exception e){
+                        return okCustomJson(CODE40002,"删除TeacherContentScore出错");
+                    }
+                    transaction.commit();
+                }else{
+                    teacherFile.setFilePath(replaceFilePath);
+                    teacherFile.setDescription(description);
+                    teacherFile.setContentId(contentId);
+                    try(Transaction transaction = TeacherFile.find.db().beginTransaction()){
+                        teacherFile.update();
+                        transaction.commit();
+                    }catch (Exception e){
+                        return okCustomJson(CODE40002,"更新TeacherFile出错");
+                    }
+                }
+
+                return okCustomJson(CODE200,"上传成功");
+            }else{
+                return okCustomJson(CODE200,"文件删除失败");
+            }
         });
     }
 
@@ -945,6 +1188,113 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
                     transaction.rollback();
                     return okCustomJson(CODE40002,"删除TeacherTask失败");
                 }
+            }
+            return okCustomJson(CODE200,"删除成功");
+        });
+    }
+
+    //test
+    //删除文件(test)
+    public CompletionStage<Result> deleteFileTest(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+            if(jsonNode==null) return okCustomJson(CODE40001,"参数错误");
+            String path=jsonNode.findPath("path").asText();
+
+            if(ValidationUtil.isEmpty(path)) return okCustomJson(CODE40001,"没有文件");
+
+            String fullPath = null;
+            if (osName.contains("win")) {
+                fullPath=config.getString("fileUpload.windows");
+            }
+            else {
+                fullPath=config.getString("fileUpload.linux");
+            }
+            File dir = new File(fullPath, "/teacher_file");
+            File oldDestination = new File(dir, path);
+            boolean isDelete = oldDestination.delete();
+            if(isDelete){
+                return okCustomJson(CODE200,"删除成功");
+            }else{
+                return okCustomJson(CODE40001,"删除失败,文件未找到");
+            }
+
+        });
+    }
+
+    //删除文件
+    /**
+     * @api {POST} /v1/front/tk/file/delete/ *05 删除文件
+     * @apiName deleteFile
+     * @apiGroup New
+     *
+     * @apiDescription 删除文件
+     *
+     * @apiParam {Long} contentId 内容ID
+     * @apiParam {Long} userId 用户ID
+     *
+     * @apiParamExample {json} 请求示例:
+     * {
+     *     "contentId":1,
+     *     "userId":1
+     * }
+     *
+     * @apiSuccess (Error 40001) {int} code 40001
+     * @apiSuccess (Error 40001) {int} reason 所有空的信息
+     *
+     * @apiSuccess (Error 40001) {int} code 40002
+     * @apiSuccess (Error 40001) {int} reason 所有报错的信息
+     *
+     * @apiSuccess (Success 200){int} code 200
+     * @apiSuccess (Success 200) {String} reason 删除成功
+     * @apiSuccessExample {json} 响应示例:
+     * {
+     *     "code":200,
+     *     "reason":"删除成功"
+     * }
+     *
+     */
+    public CompletionStage<Result> deleteFile(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+            if(jsonNode==null) return okCustomJson(CODE40001,"参数错误");
+            long contentId=jsonNode.findPath("contentId").asLong();
+            long userId=jsonNode.findPath("userId").asLong();
+
+            if(contentId<=0) return okCustomJson(CODE40001,"没有contentId");
+            if(userId<=0) return okCustomJson(CODE40001,"没有userId");
+
+            TeacherContentScore tcs = TeacherContentScore.find.query().where()
+                    .eq("user_id",userId)
+                    .eq("content_id",contentId)
+                    .setMaxRows(1).findOne();
+            if(tcs==null) return okCustomJson(CODE40001,"没有tcs");
+            TeacherFile tf = TeacherFile.find.byId(tcs.getFileId());
+            if(tf==null) return okCustomJson(CODE40001,"没有tf");
+            String[] paths = tf.getFilePath().split(",");
+
+            boolean isDelete;
+            for (String path : paths) {
+                String fullPath;
+                if (osName.contains("win")) {
+                    fullPath=config.getString("fileUpload.windows");
+                }
+                else {
+                    fullPath=config.getString("fileUpload.linux");
+                }
+                File dir = new File(fullPath, "/teacher_file");
+                File oldDestination = new File(dir, path);
+                isDelete = oldDestination.delete();
+                if(!isDelete){
+                    return okCustomJson(CODE40001,"删除失败,文件未找到");
+                }
+            }
+
+            try(Transaction transaction = TeacherFile.find.db().beginTransaction()){
+                tf.delete();
+                transaction.commit();
+            } catch (Exception e) {
+                return okCustomJson(CODE40002,"删除TeacherFile出错");
             }
             return okCustomJson(CODE200,"删除成功");
         });

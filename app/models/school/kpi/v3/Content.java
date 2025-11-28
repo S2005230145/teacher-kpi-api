@@ -35,6 +35,14 @@ public class Content extends Model {
     @JsonDeserialize(using = StringToLongDeserializer.class)
     public Long typeId;
 
+    //描述
+    @Column(name = "description")
+    @JsonDeserialize(using = EscapeHtmlSerializer.class)
+    public String description;
+
+    @Transient
+    public KPIScoreType kpiScoreType;
+
     //每次分数
     @Column(name = "score")
     @JsonDeserialize(using = DoubleDeserializer.class)
