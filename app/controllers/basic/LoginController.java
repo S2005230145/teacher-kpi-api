@@ -186,10 +186,14 @@ public class LoginController extends BaseController {
     /**
      * @api {post} /v1/tk/user/new/ 03 注册
      * @apiName signUp
-     * @apiGroup Admin-Authority
+     * @apiGroup UserNew
      * @apiParam {string} userName 用户名
-     * @apiParam {string} vCode 短信验证码，预留
+     * @apiParam {string} phone 手机号
      * @apiParam {String} password 登录密码 6-20位，不允许包含非法字符
+     * @apiParam {String} typeName 职业
+     * @apiParam {Long} roleId 角色ID
+     * @apiParam {Long} departmentId 部门ID
+     * @apiParam {int} status 状态
      * @apiSuccess (Success 200){int} code 200成功创建
      * @apiSuccess (Error 40003){int} code 40001 参数错误
      * @apiSuccess (Error 40001){int} code 40002 帐号已被注册
@@ -209,6 +213,9 @@ public class LoginController extends BaseController {
             Long roleId=json.findPath("roleId").asLong();
             String typeName=(json.findPath("typeName") instanceof MissingNode ?null:json.findPath("typeName").asText());
             int status=json.findPath("status").asInt();
+            long departmentId=json.findPath("departmentId").asLong();
+
+            if(departmentId<0) return okCustomJson(CODE40001,"没有选择部门");
 
             if (ValidationUtil.isEmpty(userName))
                 return okCustomJson(40006, "无效的用户名");
@@ -226,6 +233,7 @@ public class LoginController extends BaseController {
             member.setRoleId(roleId);
             member.setStatus(status);
             member.setPhone(phone);
+            member.setDepartmentId(departmentId);
             if(typeName!=null){
                 member.setTypeName(typeName);
             }
@@ -283,6 +291,7 @@ public class LoginController extends BaseController {
             return ok(result);
         });
     }
+
 
     /**
      * @api {POST} /v1/tk/reset_login_password/ 01 重置登录密码
@@ -435,8 +444,8 @@ public class LoginController extends BaseController {
             if(roleId>0) user.setRoleId(roleId);
             user.setStatus(status);
             if(!ValidationUtil.isEmpty(typeName)) user.setTypeName(typeName);
-            if(!ValidationUtil.isEmpty(phone)) user.setTypeName(phone);
-            if(!ValidationUtil.isEmpty(userName)) user.setTypeName(userName);
+            if(!ValidationUtil.isEmpty(phone)) user.setPhone(phone);
+            if(!ValidationUtil.isEmpty(userName)) user.setUserName(userName);
 
             try(Transaction transaction = User.find.db().beginTransaction()){
                 user.update();

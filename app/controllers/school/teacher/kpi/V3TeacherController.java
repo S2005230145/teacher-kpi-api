@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.MissingNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.typesafe.config.Config;
 import constants.BusinessConstant;
 import controllers.BaseAdminSecurityController;
 
@@ -49,9 +50,14 @@ public class V3TeacherController extends BaseAdminSecurityController {
     @Inject
     FileParseService fileParseService;
 
+    @Inject
+    Config config;
+
     ObjectMapper objectMapper = new ObjectMapper();
 
     private static final Boolean is_DEV=false;
+
+    private static String osName = System.getProperty("os.name").toLowerCase();
 
     //极大值
     private static final Double mxValue=5000.0;
@@ -1648,6 +1654,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
      * @apiParamExample {json} 请求示例:
      * {
      *     "userId":1,//用户ID
+     *     "kpiId":1,
      *     "tcs":[//教师评分对应的内容
      *         {
      *             "contentId":1,//内容ID
@@ -1681,12 +1688,13 @@ public class V3TeacherController extends BaseAdminSecurityController {
         return CompletableFuture.supplyAsync(()->{
 
             Long userId= jsonNode.findPath("userId") instanceof MissingNode ? null : jsonNode.findPath("userId").asLong();
+            Long kpiId= jsonNode.findPath("kpiId") instanceof MissingNode ? null : jsonNode.findPath("kpiId").asLong();
             List<TeacherContentScore> teacherContentScores= objectMapper.convertValue(jsonNode.findPath("tcs"), new TypeReference<>() {});
 
             if(userId==null) return ok("没有userId");
             if(teacherContentScores==null) return ok("tcs为空");
 
-            Pair<Boolean, List<String>> grade = v3TeacherRepository.grade(userId, teacherContentScores);
+            Pair<Boolean, List<String>> grade = v3TeacherRepository.grade(userId,kpiId, teacherContentScores);
 
 
 
@@ -1764,12 +1772,35 @@ public class V3TeacherController extends BaseAdminSecurityController {
                         List<Long> elementIds = elementList.stream().map(TeacherElementScore::getElementId).toList();
                         List<TeacherContentScore> contentList = TeacherContentScore.find.query().where().eq("user_id", userId).in("element_id", elementIds).findList();
                         List<TeacherTask> teacherTaskList = TeacherTask.find.query().where().eq("user_id", userId).eq("tes_id", elementList.stream().map(TeacherElementScore::getId).toList()).findList();
+                        List<Long> fileIds = contentList.stream().map(TeacherContentScore::getFileId).toList();
+                        List<TeacherFile> teacherFileList = TeacherFile.find.query().where().in("id", fileIds).findList();
+                        String path = null;
+                        if (osName.contains("win")) {
+                            path=config.getString("fileUpload.windows");
+                        }
+                        else {
+                            path=config.getString("fileUpload.linux");
+                        }
+                        List<TeacherFile> deleteTeacherFileList=new ArrayList<>();
+                        String finalPath = path;
+                        teacherFileList.forEach(teacherFile -> {
+                                if(teacherFile!=null){
+                                    for (String filePath : teacherFile.getFilePath().split(",")) {
+                                        File oldDestination = new File(finalPath, filePath);
+                                        boolean delete = oldDestination.delete();
+                                        if(delete){
+                                            deleteTeacherFileList.add(teacherFile);
+                                        }
+                                    }
+                                }
+                        });
                         try{
                             kpi.delete();
                             DB.deleteAll(indicatorList);
                             DB.deleteAll(elementList);
                             DB.deleteAll(contentList);
                             DB.deleteAll(teacherTaskList);
+                            DB.deleteAll(deleteTeacherFileList);
                             transaction.commit();
                         }catch (Exception e){
                             System.out.println("出错："+e);
@@ -3273,6 +3304,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
     /***
      * {
      *     "userId":1,//用户ID
+     *     "kpiId":1,
      *     "tcs":[//教师评分对应的内容
      *         {
      *             "contentId":1,//内容ID
@@ -3381,7 +3413,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
                 return okCustomJson(CODE40002,"内容分数更新失败");
             }
             Set<Long> elementIds = contentList.stream().map(models.school.kpi.v3.Content::getElementId).collect(Collectors.toSet());
-            List<TeacherElementScore> teacherElementScoreList = TeacherElementScore.find.query().where().eq("user_id", userId).findList();
+            List<TeacherElementScore> teacherElementScoreList = TeacherElementScore.find.query().where().eq("user_id", userId).in("element_id",elementIds).findList();
             List<TeacherElementScore> filterTeacherElementScoreList = teacherElementScoreList.stream().filter(v1 -> elementIds.contains(v1.getElementId())).toList();
             filterTeacherElementScoreList.forEach(tes->{
                 tes.setScore(updateTeacherContentScoreList.stream().filter(v1-> Objects.equals(v1.getElementId(), tes.getElementId())).map(TeacherContentScore::getScore).mapToDouble(Double::doubleValue).sum());
@@ -3395,7 +3427,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
             }
 
             Set<Long> indicatorIds = elementList.stream().map(Element::getIndicatorId).collect(Collectors.toSet());
-            List<TeacherIndicatorScore> teacherIndicatorScoreList=TeacherIndicatorScore.find.query().where().eq("user_id", userId).findList();
+            List<TeacherIndicatorScore> teacherIndicatorScoreList=TeacherIndicatorScore.find.query().where().eq("user_id", userId).in("indicator_id",indicatorIds).findList();
             List<TeacherIndicatorScore> filterTeacherIndicatorScoreList = teacherIndicatorScoreList.stream().filter(v1 -> indicatorIds.contains(v1.getIndicatorId())).toList();
             List<TeacherElementScore> list1 = teacherElementScoreList.stream().filter(v1 ->indicatorIds.contains(v1.getIndicatorId())).toList();
             filterTeacherIndicatorScoreList.forEach(tis->{

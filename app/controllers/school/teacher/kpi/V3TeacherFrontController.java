@@ -54,61 +54,60 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
     public CompletionStage<Result> getList(Http.Request request){
         JsonNode jsonNode = request.body().asJson();
         return CompletableFuture.supplyAsync(()->{
-            int currentPage=(jsonNode.findPath("currentPage") instanceof MissingNode ?1:jsonNode.findPath("currentPage").asInt());
-            int pageSize=(jsonNode.findPath("pageSize") instanceof MissingNode ?10:jsonNode.findPath("pageSize").asInt());
             Long userId=(jsonNode.findPath("userId") instanceof MissingNode ?null:jsonNode.findPath("userId").asLong());
             Long kpiId=(jsonNode.findPath("kpiId") instanceof MissingNode ?null:jsonNode.findPath("kpiId").asLong());
 
             if(userId==null) return ok("userId为空");
-
-            ExpressionList<KPI> expressionList = KPI.find.query().where();
-            {
-                Set<Long> kpiIds = TeacherKPIScore.find.query().where().eq("user_id",userId).findList().stream().map(TeacherKPIScore::getKpiId).collect(Collectors.toSet());
-                expressionList.in("id",kpiIds);
-            }
-
-            Pair<PagedList<KPI>, List<String>> list = v3TeacherRepository.getKpiList(expressionList,currentPage,pageSize);
+            if(kpiId==null) return ok("kpiId为空");
 
             ObjectNode result = Json.newObject();
-            result.set("kpi",Json.toJson(list.first()));
 
             //===========================================
             List<Map<String,Object>> indicatorMpList=new ArrayList<>();
-            List<Long> kpiIds = list.first().getList().stream().map(KPI::getId).toList();
-            ExpressionList<TeacherIndicatorScore> tisExpressionList = TeacherIndicatorScore.find.query().where();
-            tisExpressionList.eq("user_id", userId);
-            List<TeacherIndicatorScore> tisList = tisExpressionList.in("kpi_id", kpiIds).findList();
-            if(kpiId!=null){
-                tisList=tisList.stream().filter(v1-> Objects.equals(v1.getKpiId(), kpiId)).toList();
-            }
 
+            KPI kpi = KPI.find.byId(kpiId);
+            if(kpi==null) return ok("kpi为空");
+
+            List<TeacherIndicatorScore> tisList = TeacherIndicatorScore.find.query().where()
+                    .eq("user_id", userId)
+                    .eq("kpi_id", kpiId)
+                    .findList();
             List<Long> tisIds = tisList.stream().map(TeacherIndicatorScore::getIndicatorId).toList();
-            ExpressionList<TeacherElementScore> tesExpressionList = TeacherElementScore.find.query().where();
-            tesExpressionList.eq("user_id", userId);
-            List<TeacherElementScore> tesList = tesExpressionList.in("indicator_id",tisIds).findList();
+            List<Indicator> indicatorList = Indicator.find.query().where().in("id", tisIds).findList();
+
+            List<TeacherElementScore> tesList = TeacherElementScore.find.query().where()
+                    .eq("user_id", userId)
+                    .in("indicator_id",tisIds)
+                    .findList();
             List<Long> tesIds = tesList.stream().map(TeacherElementScore::getElementId).toList();
 
-            ExpressionList<TeacherContentScore> tcsExpressionList = TeacherContentScore.find.query().where();
-            tcsExpressionList.eq("user_id", userId);
-            List<TeacherContentScore> tcsList=tcsExpressionList.in("element_id",tesIds).findList();
+            List<TeacherContentScore> tcsList= TeacherContentScore.find.query().where()
+                    .eq("user_id", userId)
+                    .in("element_id",tesIds)
+                    .findList();
 
             //获取所有KPI
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-            List<TeacherIndicatorScore> finalTisList = tisList;
-            list.first().getList().forEach(kpi -> {
-                kpi.getIndicatorList().forEach(indicator -> {
-                    TeacherIndicatorScore tis = finalTisList.stream().filter(v1 -> Objects.equals(v1.getIndicatorId(), indicator.getId())).findFirst().orElse(null);
+            indicatorList.forEach(indicator -> {
+                    TeacherIndicatorScore tis = tisList.stream()
+                            .filter(v1 -> Objects.equals(v1.getIndicatorId(), indicator.getId()))
+                            .findFirst().orElse(null);
                     Map<String, Object> mp = new HashMap<>();
                     mp.put("id",indicator.getId());
                     mp.put("indicatorName",indicator.getIndicatorName()+" "+indicator.getSubName());
                     mp.put("description",null);
-                    List<Long> tesIdByInner = tesList.stream().filter(v1 -> Objects.equals(v1.getIndicatorId(), indicator.getId())).map(TeacherElementScore::getElementId).toList();
-                    List<TeacherContentScore> tcsListByInner = tcsList.stream().filter(v1 -> tesIdByInner.contains(v1.getElementId())).toList();
+                    List<Long> tesIdByInner = tesList.stream()
+                            .filter(v1 -> Objects.equals(v1.getIndicatorId(), indicator.getId()))
+                            .map(TeacherElementScore::getElementId)
+                            .toList();
+                    List<TeacherContentScore> tcsListByInner = tcsList.stream()
+                            .filter(v1 -> tesIdByInner.contains(v1.getElementId()))
+                            .toList();
                     mp.put("score",tis!=null?tis.getScore():null);
-                    double precent= (double)tcsListByInner.stream().filter(v1->v1.getScore()!=null).toList().size()/tcsListByInner.size();
+                    double precent= (double)tcsListByInner.stream()
+                            .filter(v1->v1.getScore()!=null).toList().size()/tcsListByInner.size();
                     int progress = (int) Math.round(precent * 100);
                     mp.put("progress",progress);
-                    //TODO 下发时间
                     mp.put("assessTime",LocalDate.now().format(formatter));
                     if(progress==100){
                         mp.put("status","completed");
@@ -122,7 +121,6 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
                     }
                     indicatorMpList.add(mp);
                 });
-            });
             result.set("indicator",Json.toJson(indicatorMpList));
             return ok(result);
         });
@@ -843,14 +841,15 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
      */
     public CompletionStage<Result> uploadFileAdd(Http.Request request){
         return CompletableFuture.supplyAsync(()->{
+            log.info(request.body().toString());
             Http.MultipartFormData<play.libs.Files.TemporaryFile> multipartFormData = request.body().asMultipartFormData();
-            List<Http.MultipartFormData.FilePart<play.libs.Files.TemporaryFile>> files = multipartFormData.getFiles();
-
+            if(multipartFormData==null) return okCustomJson(CODE40001,"MultipartForm解析出错");
+            Http.MultipartFormData.FilePart<play.libs.Files.TemporaryFile> filePart = multipartFormData.getFile("file");
+            if(filePart==null) return okCustomJson(CODE40001,"文件为空");
             String description = multipartFormData.asFormUrlEncoded().containsKey("description")?multipartFormData.asFormUrlEncoded().get("description")[0]:null;
             long contentId = multipartFormData.asFormUrlEncoded().containsKey("contentId")?Long.parseLong(multipartFormData.asFormUrlEncoded().get("contentId")[0]):0;
             long userId = multipartFormData.asFormUrlEncoded().containsKey("userId")?Long.parseLong(multipartFormData.asFormUrlEncoded().get("userId")[0]):0;
 
-            Http.MultipartFormData.FilePart<play.libs.Files.TemporaryFile> filePart = files.get(0);
             if(contentId<=0) return okCustomJson(CODE40001,"没有contentId");
             if(userId<=0) return okCustomJson(CODE40001,"没有userId");
 
@@ -863,7 +862,6 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
                     .eq("user_id", userId)
                     .eq("element_id",tcs.getElementId())
                     .setMaxRows(1).findOne();
-
             String path = null;
             if (osName.contains("win")) {
                 path=config.getString("fileUpload.windows");
@@ -873,7 +871,6 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
             }
             File dir = new File(path, "/teacher_file");
             if (!dir.exists()) dir.mkdirs();
-
             //文件操作
             String filename = filePart.getFilename();
             String suffix = filename.substring(filename.lastIndexOf("."));
@@ -888,10 +885,9 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
             //转为数据库存储
             filename="teacher_file/"+filename;
 
-            TeacherFile teacherFile = TeacherFile.find.byId(tcs.getFileId());
-            if(teacherFile==null){
+            if(tcs.getFileId()==null){
                 //第一次添加文件
-                teacherFile=new TeacherFile();
+                TeacherFile teacherFile=new TeacherFile();
                 teacherFile.setFilePath(filename);
                 teacherFile.setDescription(description);
                 teacherFile.setContentId(contentId);
@@ -918,6 +914,8 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
                 transaction.commit();
             }
             else{
+                TeacherFile teacherFile = TeacherFile.find.byId(tcs.getFileId());
+                if(teacherFile==null) return okCustomJson(CODE40001,"该教师没有文件");
                 String filePath = teacherFile.getFilePath();
 
                 teacherFile.setFilePath(filePath+","+filename);
@@ -931,7 +929,6 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
                 }
                 transaction.commit();
             }
-
             return okCustomJson(CODE200,"上传成功");
         });
     }
@@ -1321,6 +1318,7 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
             return okCustomJson(CODE200,"删除成功");
         });
     }
+
 
     //工具
     private double generateRandomDouble(double min, double max) {

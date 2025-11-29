@@ -263,7 +263,7 @@ public class V3TeacherRepository {
     }
 
     //传过来无需elementId
-    public Pair<Boolean, List<String>> grade(Long userId,List<TeacherContentScore> teacherContentScores){
+    public Pair<Boolean, List<String>> grade(Long userId,Long kpiId,List<TeacherContentScore> teacherContentScores){
         //错误列表
         List<String> errorMsg=new ArrayList<>();
         Transaction transaction = DB.beginTransaction();
@@ -337,8 +337,7 @@ public class V3TeacherRepository {
             }
 
             //更新kpi分数(总分)
-            List<Long> list = teacherIndicatorScoreList.stream().map(TeacherIndicatorScore::getKpiId).toList();
-            TeacherKPIScore tks = TeacherKPIScore.find.query().where().eq("user_id", userId).in("kpi_id", list).setMaxRows(1).findOne();
+            TeacherKPIScore tks = TeacherKPIScore.find.query().where().eq("user_id", userId).eq("kpi_id", kpiId).setMaxRows(1).findOne();
             if(tks!=null){
                 tks.setScore(teacherIndicatorScoreList.stream().map(TeacherIndicatorScore::getScore).filter(Objects::nonNull).mapToDouble(Double::doubleValue).sum());
                 try{
