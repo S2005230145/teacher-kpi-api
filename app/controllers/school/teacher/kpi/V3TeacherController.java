@@ -57,37 +57,839 @@ public class V3TeacherController extends BaseAdminSecurityController {
     private static final Double mxValue=5000.0;
 
     /**
-     * @api {POST} /v1/tk/kpi/add/  01 kpi添加
+     * @api {POST} /v1/tk/kpi/add/  01 添加kpi
      * @apiName addKpi
-     * @apiGroup Teacher
+     * @apiGroup TeacherAdd
      *
-     * @apiDescription 批量创建kpi
+     * @apiDescription 添加kpi
      *
      * @apiParam {String} title KPI标题
+     * @apiParam {String} createTime 创建时间
+     * @apiParam {String} endTime 截至时间
      *
      * @apiParamExample {json} 请求示例:
-     *     [
-     *       {
-     *         "title": ""//kpi标题名称
-     *       }
-     *     ]
+     * {
+     *    "title": "",//kpi标题名称
+     *    "createTime":"",
+     *    "endTime":""
+     * }
      *
      * @apiSuccess (Success 200) {int} code 200
-     * @apiSuccess (Success 200) {String[]} reason []
+     * @apiSuccess (Success 200) {String} reason 添加成功
      *
-     * @apiSuccess (Error 500) {int} code 500
-     * @apiSuccess (Error 500) {String[]} reason 错误信息
+     * @apiSuccess (Error 40001) {int} code 40001
+     * @apiSuccess (Error 40001) {String} reason 所有缺失信息
+     *
+     * @apiSuccess (Error 40002) {int} code 40002
+     * @apiSuccess (Error 40002) {String} reason 所有出错信息
      */
     public CompletionStage<Result> addKpi(Http.Request request){
         JsonNode jsonNode = request.body().asJson();
         return CompletableFuture.supplyAsync(()->{
-            List<KPI> kpiList = objectMapper.convertValue(jsonNode, new TypeReference<>() {});
+            if(jsonNode==null) return okCustomJson(CODE40001,"参数出错");
+            String title = jsonNode.findPath("title").asText();
+            String createTime = jsonNode.findPath("createTime").asText();
+            String endTime = jsonNode.findPath("endTime").asText();
 
-            Pair<Boolean, List<String>> booleanListPair = v3TeacherRepository.addKpi(kpiList);
+            KPI kpi = new KPI();
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+            if(!ValidationUtil.isEmpty(title)) kpi.setTitle(title);
+            if(!ValidationUtil.isEmpty(createTime)){
+                try {
+                    kpi.setCreateTime(sdf.parse(createTime));
+                } catch (ParseException e) {
+                    return okCustomJson(CODE40002,"创建时间转化出错："+e);
+                }
+            }
+            if(!ValidationUtil.isEmpty(endTime)){
+                try {
+                    kpi.setEndTime(sdf.parse(endTime));
+                } catch (ParseException e) {
+                    return okCustomJson(CODE40002,"结束时间转化出错："+e);
+                }
+            }
 
-            return okCustomNode(booleanListPair.first(),booleanListPair.second());
+            try(Transaction transaction = KPI.find.db().beginTransaction()){
+                kpi.save();
+                transaction.commit();
+            }
+            catch (Exception e) {
+                return okCustomJson(CODE40002,"添加失败："+e);
+            }
+
+            return okCustomJson(CODE200,"添加成功");
         });
     }
+
+    /**
+     * @api {POST} /v1/tk/kpi/list/  01 查询kpi
+     * @apiName getKpi
+     * @apiGroup TeacherQuery
+     *
+     * @apiDescription 查询kpi
+     *
+     * @apiParam {int} page 页数
+     * @apiParam {Long} id kpiId
+     * @apiParam {String} title KPI标题
+     * @apiParam {String} createTime 创建时间
+     * @apiParam {String} endTime 截至时间
+     *
+     * @apiParamExample {json} 请求示例:
+     * {
+     *    "page":"",//页数
+     *     //条件
+     *    "id":"",
+     *    "title": "",
+     *    "createTime":"",
+     *    "endTime":""
+     * }
+     *
+     * @apiSuccess (Success 200) {int} code 200
+     * @apiSuccess (Success 200) {JsonArray} list 数据
+     * @apiSuccess (Success 200) {int} pages 页数
+     *
+     * @apiSuccess (Error 40001) {int} code 40001
+     * @apiSuccess (Error 40001) {String} reason 所有缺失信息
+     *
+     * @apiSuccess (Error 40002) {int} code 40002
+     * @apiSuccess (Error 40002) {String} reason 所有出错信息
+     */
+    public CompletionStage<Result> getKpi(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+            if(jsonNode==null) return okCustomJson(CODE40001,"参数出错");
+
+            int page=jsonNode.findPath("page").asInt();
+            if (page < 1) page = 1;
+            final int queryPage = page - 1;
+            //条件
+            long id = jsonNode.findPath("id").asLong();
+            String title = jsonNode.findPath("title").asText();
+            String createTime = jsonNode.findPath("createTime").asText();
+            String endTime = jsonNode.findPath("endTime").asText();
+
+            ExpressionList<KPI> expressionList = KPI.find.query().where();
+            if(id>0) expressionList.eq("id",id);
+            if(!ValidationUtil.isEmpty(title)) expressionList.icontains("title",title);
+            if(!ValidationUtil.isEmpty(createTime)) expressionList.ge("create_time",createTime);
+            if(!ValidationUtil.isEmpty(endTime)) expressionList.le("end_time",endTime);
+
+            PagedList<KPI> pagedList = expressionList
+                    .orderBy().desc("id")
+                    .setFirstRow(queryPage * BusinessConstant.PAGE_SIZE_10)
+                    .setMaxRows(BusinessConstant.PAGE_SIZE_10)
+                    .findPagedList();
+            List<KPI> list = pagedList.getList();
+            int pages = pagedList.getTotalPageCount();
+
+            ObjectNode node = Json.newObject();
+            node.put(CODE, CODE200);
+            node.set("list",Json.toJson(list));
+            node.put("pages",pages);
+            return ok(node);
+        });
+    }
+
+    /**
+     * @api {POST} /v1/tk/kpi/update/  01 更新kpi
+     * @apiName updateKpi
+     * @apiGroup TeacherUpdate
+     *
+     * @apiDescription 更新kpi
+     *
+     * @apiParam {Long} id kpiId(必填)
+     * @apiParam {String} title KPI标题
+     * @apiParam {String} createTime 创建时间
+     * @apiParam {String} endTime 截至时间
+     *
+     * @apiParamExample {json} 请求示例:
+     * {
+     *    "id":1,
+     *    "title": "",
+     *    "createTime":"",
+     *    "endTime":""
+     * }
+     *
+     * @apiSuccess (Success 200) {int} code 200
+     * @apiSuccess (Success 200) {String} reason 更新成功
+     *
+     * @apiSuccess (Error 40001) {int} code 40001
+     * @apiSuccess (Error 40001) {String} reason 所有缺失信息
+     *
+     * @apiSuccess (Error 40002) {int} code 40002
+     * @apiSuccess (Error 40002) {String} reason 所有出错信息
+     */
+    public CompletionStage<Result> updateKpi(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+            if(jsonNode==null) return okCustomJson(CODE40001,"参数出错");
+            //条件
+            long id = jsonNode.findPath("id").asLong();
+            String title = jsonNode.findPath("title").asText();
+            String createTime = jsonNode.findPath("createTime").asText();
+            String endTime = jsonNode.findPath("endTime").asText();
+
+            if(id<=0) return okCustomJson(CODE40001,"没有id");
+
+            KPI kpi = KPI.find.byId(id);
+            if(kpi==null) return okCustomJson(CODE40001,"kpi为空");
+
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+            if(!ValidationUtil.isEmpty(title)) kpi.setTitle(title);
+            if(!ValidationUtil.isEmpty(createTime)){
+                try {
+                    kpi.setCreateTime(sdf.parse(createTime));
+                } catch (ParseException e) {
+                    return okCustomJson(CODE40002,"创建时间转化出错："+e);
+                }
+            }
+            if(!ValidationUtil.isEmpty(endTime)){
+                try {
+                    kpi.setEndTime(sdf.parse(endTime));
+                } catch (ParseException e) {
+                    return okCustomJson(CODE40002,"结束时间转化出错："+e);
+                }
+            }
+
+            try(Transaction transaction = KPI.find.db().beginTransaction()){
+                kpi.update();
+                transaction.commit();
+            }
+            catch (Exception e) {
+                return okCustomJson(CODE40002,"更新失败："+e);
+            }
+
+            return okCustomJson(CODE200,"更新成功");
+        });
+    }
+
+
+    /**
+     * @api {POST} /v1/tk/indicator/add/  02 添加指标
+     * @apiName addIndicator
+     * @apiGroup TeacherAdd
+     *
+     * @apiDescription 添加指标
+     *
+     * @apiParam {Long} kpiId 对应的kpiId(必填)
+     * @apiParam {String} indicatorName 评价指标名称
+     * @apiParam {String} subName 评价指标附属名称
+     *
+     * @apiParamExample {json} 请求示例:
+     * {
+     *    "kpiId": "",
+     *    "indicatorName":"",
+     *    "subName":""
+     * }
+     *
+     * @apiSuccess (Success 200) {int} code 200
+     * @apiSuccess (Success 200) {String} reason 添加成功
+     *
+     * @apiSuccess (Error 40001) {int} code 40001
+     * @apiSuccess (Error 40001) {String} reason 所有缺失信息
+     *
+     * @apiSuccess (Error 40002) {int} code 40002
+     * @apiSuccess (Error 40002) {String} reason 所有出错信息
+     */
+    public CompletionStage<Result> addIndicator(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+            if(jsonNode==null) return okCustomJson(CODE40001,"参数出错");
+            long kpiId = jsonNode.findPath("kpiId").asLong();
+            String indicatorName = jsonNode.findPath("indicatorName").asText();
+            String subName = jsonNode.findPath("subName").asText();
+
+            if(kpiId<=0) return okCustomJson(CODE40002,"缺少对应的KPI");
+
+            Indicator indicator = new Indicator();
+            indicator.setKpiId(kpiId);
+            if(!ValidationUtil.isEmpty(indicatorName)) indicator.setIndicatorName(indicatorName);
+            if(!ValidationUtil.isEmpty(subName)) indicator.setSubName(subName);
+
+            try(Transaction transaction = Indicator.find.db().beginTransaction()){
+                indicator.save();
+                transaction.commit();
+            }
+            catch (Exception e) {
+                return okCustomJson(CODE40002,"添加失败："+e);
+            }
+
+            return okCustomJson(CODE200,"添加成功");
+        });
+    }
+
+    /**
+     * @api {POST} /v1/tk/indicator/list/  02 查询指标
+     * @apiName getIndicator
+     * @apiGroup TeacherQuery
+     *
+     * @apiDescription 查询指标
+     *
+     * @apiParam {int} page 页数
+     * @apiParam {String} id 指标ID
+     * @apiParam {Long} kpiId 对应的kpiId(必填)
+     * @apiParam {String} indicatorName 评价指标名称
+     * @apiParam {String} subName 评价指标附属名称
+     *
+     * @apiParamExample {json} 请求示例:
+     * {
+     *    "page":"",//页数
+     *     //条件
+     *    "id":"",
+     *    "kpiId": "",
+     *    "indicatorName":"",
+     *    "subName":""
+     * }
+     *
+     * @apiSuccess (Success 200) {int} code 200
+     * @apiSuccess (Success 200) {JsonArray} list 数据
+     * @apiSuccess (Success 200) {int} pages 页数
+     *
+     * @apiSuccess (Error 40001) {int} code 40001
+     * @apiSuccess (Error 40001) {String} reason 所有缺失信息
+     *
+     * @apiSuccess (Error 40002) {int} code 40002
+     * @apiSuccess (Error 40002) {String} reason 所有出错信息
+     */
+    public CompletionStage<Result> getIndicator(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+            if(jsonNode==null) return okCustomJson(CODE40001,"参数出错");
+
+            int page=jsonNode.findPath("page").asInt();
+            if (page < 1) page = 1;
+            final int queryPage = page - 1;
+            //条件
+            long id = jsonNode.findPath("id").asLong();
+            long kpiId = jsonNode.findPath("kpiId").asLong();
+            String indicatorName = jsonNode.findPath("indicatorName").asText();
+            String subName = jsonNode.findPath("subName").asText();
+
+            ExpressionList<Indicator> expressionList = Indicator.find.query().where();
+            if(id>0) expressionList.eq("id",id);
+            if(kpiId>0) expressionList.eq("kpi_id",kpiId);
+            if(!ValidationUtil.isEmpty(indicatorName)) expressionList.icontains("indicator_name",indicatorName);
+            if(!ValidationUtil.isEmpty(subName)) expressionList.icontains("sub_name",subName);
+
+            PagedList<Indicator> pagedList = expressionList
+                    .orderBy().desc("id")
+                    .setFirstRow(queryPage * BusinessConstant.PAGE_SIZE_10)
+                    .setMaxRows(BusinessConstant.PAGE_SIZE_10)
+                    .findPagedList();
+            List<Indicator> list = pagedList.getList();
+            int pages = pagedList.getTotalPageCount();
+
+            ObjectNode node = Json.newObject();
+            node.put(CODE, CODE200);
+            node.set("list",Json.toJson(list));
+            node.put("pages",pages);
+            return ok(node);
+        });
+    }
+
+    /**
+     * @api {POST} /v1/tk/indicator/update/  02 更新指标
+     * @apiName updateIndicator
+     * @apiGroup TeacherUpdate
+     *
+     * @apiDescription 更新指标
+     *
+     * @apiParam {Long} id 指标id(必填)
+     * @apiParam {Long} kpiId 对应的kpiId
+     * @apiParam {String} indicatorName 评价指标名称
+     * @apiParam {String} subName 评价指标附属名称
+     *
+     * @apiParamExample {json} 请求示例:
+     * {
+     *    "id":1,
+     *    "kpiId": "",
+     *    "indicatorName":"",
+     *    "subName":""
+     * }
+     *
+     * @apiSuccess (Success 200) {int} code 200
+     * @apiSuccess (Success 200) {String} reason 更新成功
+     *
+     * @apiSuccess (Error 40001) {int} code 40001
+     * @apiSuccess (Error 40001) {String} reason 所有缺失信息
+     *
+     * @apiSuccess (Error 40002) {int} code 40002
+     * @apiSuccess (Error 40002) {String} reason 所有出错信息
+     */
+    public CompletionStage<Result> updateIndicator(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+            if(jsonNode==null) return okCustomJson(CODE40001,"参数出错");
+            //条件
+            long id = jsonNode.findPath("id").asLong();
+            long kpiId = jsonNode.findPath("kpiId").asLong();
+            String indicatorName = jsonNode.findPath("indicatorName").asText();
+            String subName = jsonNode.findPath("subName").asText();
+
+            if(id<=0) return okCustomJson(CODE40001,"没有id");
+
+            Indicator indicator = Indicator.find.byId(id);
+            if(indicator==null) return okCustomJson(CODE40001,"指标为空");
+
+            if(kpiId>0) indicator.setKpiId(kpiId);
+            if(!ValidationUtil.isEmpty(indicatorName)) indicator.setIndicatorName(indicatorName);
+            if(!ValidationUtil.isEmpty(subName)) indicator.setSubName(subName);
+
+            try(Transaction transaction = Indicator.find.db().beginTransaction()){
+                indicator.update();
+                transaction.commit();
+            }
+            catch (Exception e) {
+                return okCustomJson(CODE40002,"更新失败："+e);
+            }
+
+            return okCustomJson(CODE200,"更新成功");
+        });
+    }
+
+
+    /**
+     * @api {POST} /v1/tk/element/add/  03 添加要素
+     * @apiName addElement
+     * @apiGroup TeacherAdd
+     *
+     * @apiDescription 添加要素
+     *
+     * @apiParam {Long} indicatorId 对应的指标Id(必填)
+     * @apiParam {String} element 评价要素名称
+     * @apiParam {String} criteria 评价标准
+     * @apiParam {Integer} type 类型
+     * @apiParam {Double} score 分值
+     *
+     * @apiParamExample {json} 请求示例:
+     * {
+     *    "indicatorId": "",
+     *    "element":"",
+     *    "criteria":"",
+     *    "type":"",
+     *    "score":""
+     * }
+     *
+     * @apiSuccess (Success 200) {int} code 200
+     * @apiSuccess (Success 200) {String} reason 添加成功
+     *
+     * @apiSuccess (Error 40001) {int} code 40001
+     * @apiSuccess (Error 40001) {String} reason 所有缺失信息
+     *
+     * @apiSuccess (Error 40002) {int} code 40002
+     * @apiSuccess (Error 40002) {String} reason 所有出错信息
+     */
+    public CompletionStage<Result> addElement(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+            if(jsonNode==null) return okCustomJson(CODE40001,"参数出错");
+            long indicatorId = jsonNode.findPath("indicatorId").asLong();
+            String elementName = jsonNode.findPath("element").asText();
+            String criteria = jsonNode.findPath("criteria").asText();
+            int type = jsonNode.findPath("type").asInt();
+            double score = jsonNode.findPath("score").asDouble();
+
+            if(indicatorId<=0) return okCustomJson(CODE40002,"缺少对应的指标");
+
+            Element element = new Element();
+            element.setIndicatorId(indicatorId);
+            if(!ValidationUtil.isEmpty(elementName)) element.setElement(elementName);
+            if(!ValidationUtil.isEmpty(criteria)) element.setCriteria(criteria);
+            if(type>=0) element.setType(type);
+            element.setScore(score);
+
+            try(Transaction transaction = Element.find.db().beginTransaction()){
+                element.save();
+                transaction.commit();
+            }
+            catch (Exception e) {
+                return okCustomJson(CODE40002,"添加失败："+e);
+            }
+
+            return okCustomJson(CODE200,"添加成功");
+        });
+    }
+
+    /**
+     * @api {POST} /v1/tk/element/list/  03 查询要素
+     * @apiName getElement
+     * @apiGroup TeacherQuery
+     *
+     * @apiDescription 查询要素
+     *
+     * @apiParam {int} page 页数
+     * @apiParam {Long} id 要素ID
+     * @apiParam {Long} indicatorId 对应的指标Id
+     * @apiParam {String} element 评价要素名称
+     * @apiParam {String} criteria 评价标准
+     * @apiParam {Integer} type 类型
+     *
+     * @apiParamExample {json} 请求示例:
+     * {
+     *    "page":"",//页数
+     *     //条件
+     *    "id":"",
+     *    "indicatorId": "",
+     *    "element":"",
+     *    "criteria":"",
+     *    "type":"",
+     * }
+     *
+     * @apiSuccess (Success 200) {int} code 200
+     * @apiSuccess (Success 200) {JsonArray} list 数据
+     * @apiSuccess (Success 200) {int} pages 页数
+     *
+     * @apiSuccess (Error 40001) {int} code 40001
+     * @apiSuccess (Error 40001) {String} reason 所有缺失信息
+     *
+     * @apiSuccess (Error 40002) {int} code 40002
+     * @apiSuccess (Error 40002) {String} reason 所有出错信息
+     */
+    public CompletionStage<Result> getElement(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+            if(jsonNode==null) return okCustomJson(CODE40001,"参数出错");
+
+            int page=jsonNode.findPath("page").asInt();
+            if (page < 1) page = 1;
+            final int queryPage = page - 1;
+            //条件
+            long id = jsonNode.findPath("id").asLong();
+            long indicatorId = jsonNode.findPath("indicatorId").asLong();
+            String elementName = jsonNode.findPath("element").asText();
+            String criteria = jsonNode.findPath("criteria").asText();
+            int type = jsonNode.findPath("type").asInt();
+
+            ExpressionList<Element> expressionList = Element.find.query().where();
+            if(id>0) expressionList.eq("id",id);
+            if(indicatorId>0) expressionList.eq("indicator_id",indicatorId);
+            if(!ValidationUtil.isEmpty(elementName)) expressionList.icontains("element",elementName);
+            if(!ValidationUtil.isEmpty(criteria)) expressionList.icontains("criteria",criteria);
+            if(type>=0) expressionList.eq("type",type);
+
+            PagedList<Element> pagedList = expressionList
+                    .orderBy().desc("id")
+                    .setFirstRow(queryPage * BusinessConstant.PAGE_SIZE_10)
+                    .setMaxRows(BusinessConstant.PAGE_SIZE_10)
+                    .findPagedList();
+            List<Element> list = pagedList.getList();
+            int pages = pagedList.getTotalPageCount();
+
+            ObjectNode node = Json.newObject();
+            node.put(CODE, CODE200);
+            node.set("list",Json.toJson(list));
+            node.put("pages",pages);
+            return ok(node);
+        });
+    }
+
+    /**
+     * @api {POST} /v1/tk/element/update/  03 更新要素
+     * @apiName updateElement
+     * @apiGroup TeacherUpdate
+     *
+     * @apiDescription 更新指标
+     *
+     * @apiParam {Long} id 指标id(必填)
+     * @apiParam {Long} indicatorId 对应的指标Id(必填)
+     * @apiParam {String} element 评价要素名称
+     * @apiParam {String} criteria 评价标准
+     * @apiParam {Integer} type 类型
+     * @apiParam {Double} score 分值
+     *
+     * @apiParamExample {json} 请求示例:
+     * {
+     *    "id":1,
+     *    "indicatorId": "",
+     *    "element":"",
+     *    "criteria":"",
+     *    "type":"",
+     *    "score":""
+     * }
+     *
+     * @apiSuccess (Success 200) {int} code 200
+     * @apiSuccess (Success 200) {String} reason 更新成功
+     *
+     * @apiSuccess (Error 40001) {int} code 40001
+     * @apiSuccess (Error 40001) {String} reason 所有缺失信息
+     *
+     * @apiSuccess (Error 40002) {int} code 40002
+     * @apiSuccess (Error 40002) {String} reason 所有出错信息
+     */
+    public CompletionStage<Result> updateElement(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+            if(jsonNode==null) return okCustomJson(CODE40001,"参数出错");
+            //条件
+            long id = jsonNode.findPath("id").asLong();
+            long indicatorId = jsonNode.findPath("indicatorId").asLong();
+            String elementName = jsonNode.findPath("element").asText();
+            String criteria = jsonNode.findPath("criteria").asText();
+            int type = jsonNode.findPath("type").asInt();
+            double score = jsonNode.findPath("score").asDouble();
+
+            if(id<=0) return okCustomJson(CODE40001,"没有id");
+
+            Element element = Element.find.byId(id);
+            if(element==null) return okCustomJson(CODE40001,"要素为空");
+
+            if(indicatorId>0) element.setIndicatorId(indicatorId);
+            if(!ValidationUtil.isEmpty(elementName)) element.setElement(elementName);
+            if(!ValidationUtil.isEmpty(criteria)) element.setCriteria(criteria);
+            if(type>=0) element.setType(type);
+            element.setScore(score);
+
+            try(Transaction transaction = Element.find.db().beginTransaction()){
+                element.update();
+                transaction.commit();
+            }
+            catch (Exception e) {
+                return okCustomJson(CODE40002,"更新失败："+e);
+            }
+
+            return okCustomJson(CODE200,"更新成功");
+        });
+    }
+
+
+    /**
+     * @api {POST} /v1/tk/content/add/  04 添加内容
+     * @apiName addContent
+     * @apiGroup TeacherAdd
+     *
+     * @apiDescription 添加内容
+     *
+     * @apiParam {Long} elementId 对应的要素Id(必填)
+     * @apiParam {String} content 评价内容
+     * @apiParam {Long} typeId 得分类型
+     * @apiParam {String} description 描述
+     * @apiParam {Double} score 分权(""为不填,默认0分)
+     * @apiParam {Double} topScore 封顶(""为不填)
+     * @apiParam {Double} bottomScore 封底(""为不填)
+     * @apiParamExample {json} 请求示例:
+     * {
+     *    "elementId": "",
+     *    "content":"",
+     *    "typeId":"",
+     *    "description":"",
+     *    "score":"",
+     *    "topScore":"",
+     *    "bottomScore":"",
+     * }
+     *
+     * @apiSuccess (Success 200) {int} code 200
+     * @apiSuccess (Success 200) {String} reason 添加成功
+     *
+     * @apiSuccess (Error 40001) {int} code 40001
+     * @apiSuccess (Error 40001) {String} reason 所有缺失信息
+     *
+     * @apiSuccess (Error 40002) {int} code 40002
+     * @apiSuccess (Error 40002) {String} reason 所有出错信息
+     */
+    public CompletionStage<Result> addContent(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+            if(jsonNode==null) return okCustomJson(CODE40001,"参数出错");
+            long elementId = jsonNode.findPath("elementId").asLong();
+            String contentName = jsonNode.findPath("content").asText();
+            long typeId = jsonNode.findPath("typeId").asLong();
+            String description = jsonNode.findPath("description").asText();
+            double score = (jsonNode.findPath("score").asText().isEmpty() ?0.0:jsonNode.findPath("score").asDouble());
+            Double topScore =(jsonNode.findPath("topScore").asText().isEmpty() ?null:jsonNode.findPath("topScore").asDouble());
+            Double bottomScore =(jsonNode.findPath("bottomScore").asText().isEmpty() ?null:jsonNode.findPath("bottomScore").asDouble());
+
+            if(elementId<=0) return okCustomJson(CODE40002,"缺少对应的要素");
+
+            Content content=new Content();
+            content.setElementId(elementId);
+            if(!ValidationUtil.isEmpty(contentName)) content.setContent(contentName);
+            if(!ValidationUtil.isEmpty(description)) content.setDescription(description);
+            if(typeId>0) content.setTypeId(typeId);
+            content.setScore(score);
+            content.setTopScore(topScore);
+            content.setBottomScore(bottomScore);
+
+            try(Transaction transaction = Content.find.db().beginTransaction()){
+                content.save();
+                transaction.commit();
+            }
+            catch (Exception e) {
+                return okCustomJson(CODE40002,"添加失败："+e);
+            }
+
+            return okCustomJson(CODE200,"添加成功");
+        });
+    }
+
+    /**
+     * @api {POST} /v1/tk/content/list/  04 查询内容
+     * @apiName getContent
+     * @apiGroup TeacherQuery
+     *
+     * @apiDescription 查询内容
+     *
+     * @apiParam {int} page 页数
+     * @apiParam {Long} id 要素ID
+     * @apiParam {Long} elementId 对应的要素ID
+     * @apiParam {String} content 评价内容
+     * @apiParam {Long} typeId 得分类型
+     * @apiParam {String} description 描述
+     * @apiParam {Double} score 分权
+     * @apiParam {Double} topScore 封顶
+     * @apiParam {Double} bottomScore 封底
+     *
+     * @apiParamExample {json} 请求示例:
+     * {
+     *    "page":"",//页数
+     *     //条件
+     *    "id":"",
+     *    "elementId": "",
+     *    "content":"",
+     *    "typeId":"",
+     *    "description":"",
+     *    "score":"",
+     *    "topScore":"",
+     *    "bottomScore":"",
+     * }
+     *
+     * @apiSuccess (Success 200) {int} code 200
+     * @apiSuccess (Success 200) {JsonArray} list 数据
+     * @apiSuccess (Success 200) {int} pages 页数
+     *
+     * @apiSuccess (Error 40001) {int} code 40001
+     * @apiSuccess (Error 40001) {String} reason 所有缺失信息
+     *
+     * @apiSuccess (Error 40002) {int} code 40002
+     * @apiSuccess (Error 40002) {String} reason 所有出错信息
+     */
+    public CompletionStage<Result> getContent(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+            if(jsonNode==null) return okCustomJson(CODE40001,"参数出错");
+
+            int page=jsonNode.findPath("page").asInt();
+            if (page < 1) page = 1;
+            final int queryPage = page - 1;
+            //条件
+            long id = jsonNode.findPath("id").asLong();
+            long elementId = jsonNode.findPath("elementId").asLong();
+            String contentName = jsonNode.findPath("content").asText();
+            long typeId = jsonNode.findPath("typeId").asLong();
+            String description = jsonNode.findPath("description").asText();
+            Double score = (jsonNode.findPath("score").asText().isEmpty() ?null:jsonNode.findPath("score").asDouble());
+            Double topScore =(jsonNode.findPath("topScore").asText().isEmpty() ?null:jsonNode.findPath("topScore").asDouble());
+            Double bottomScore =(jsonNode.findPath("bottomScore").asText().isEmpty() ?null:jsonNode.findPath("bottomScore").asDouble());
+
+            ExpressionList<Content> expressionList = Content.find.query().where();
+            if(id>0) expressionList.eq("id",id);
+            if(elementId>0) expressionList.eq("element_id",elementId);
+            if(!ValidationUtil.isEmpty(contentName)) expressionList.icontains("content",contentName);
+            if(!ValidationUtil.isEmpty(description)) expressionList.icontains("description",description);
+            if(typeId>0) expressionList.eq("type_id",typeId);
+            if(score!=null) expressionList.eq("score",score);
+            if(topScore!=null) expressionList.eq("top_score",topScore);
+            if(bottomScore!=null) expressionList.eq("bottom_score",bottomScore);
+
+            PagedList<Content> pagedList = expressionList
+                    .orderBy().desc("id")
+                    .setFirstRow(queryPage * BusinessConstant.PAGE_SIZE_10)
+                    .setMaxRows(BusinessConstant.PAGE_SIZE_10)
+                    .findPagedList();
+            List<Content> list = pagedList.getList();
+            int pages = pagedList.getTotalPageCount();
+            //补充 (类型得分)
+            List<KPIScoreType> allKPIScoreType = KPIScoreType.find.all();
+            list.forEach(content -> {
+                KPIScoreType kpiScoreType = allKPIScoreType.stream()
+                        .filter(v1 -> Objects.equals(v1.getId(), content.getTypeId()))
+                        .findFirst().orElse(null);
+                content.setKpiScoreType(kpiScoreType);
+            });
+
+            ObjectNode node = Json.newObject();
+            node.put(CODE, CODE200);
+            node.set("list",Json.toJson(list));
+            node.put("pages",pages);
+            return ok(node);
+        });
+    }
+
+    /**
+     * @api {POST} /v1/tk/content/update/  04 更新内容
+     * @apiName updateContent
+     * @apiGroup TeacherUpdate
+     *
+     * @apiDescription 更新内容
+     * @apiParam {Long} id 要素ID(必填)
+     * @apiParam {Long} elementId 对应的要素Id(必填)
+     * @apiParam {String} content 评价内容
+     * @apiParam {Long} typeId 得分类型
+     * @apiParam {String} description 描述
+     * @apiParam {Double} score 分权(""为不填,默认0分)
+     * @apiParam {Double} topScore 封顶(""为不填)
+     * @apiParam {Double} bottomScore 封底(""为不填)
+     *
+     * @apiParamExample {json} 请求示例:
+     * {
+     *    "id":1,
+     *    "elementId": "",
+     *    "content":"",
+     *    "typeId":"",
+     *    "description":"",
+     *    "score":"",
+     *    "topScore":"",
+     *    "bottomScore":"",
+     * }
+     *
+     * @apiSuccess (Success 200) {int} code 200
+     * @apiSuccess (Success 200) {String} reason 更新成功
+     *
+     * @apiSuccess (Error 40001) {int} code 40001
+     * @apiSuccess (Error 40001) {String} reason 所有缺失信息
+     *
+     * @apiSuccess (Error 40002) {int} code 40002
+     * @apiSuccess (Error 40002) {String} reason 所有出错信息
+     */
+    public CompletionStage<Result> updateContent(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+            if(jsonNode==null) return okCustomJson(CODE40001,"参数出错");
+            //条件
+            long id = jsonNode.findPath("id").asLong();
+            long elementId = jsonNode.findPath("elementId").asLong();
+            String contentName = jsonNode.findPath("content").asText();
+            long typeId = jsonNode.findPath("typeId").asLong();
+            String description = jsonNode.findPath("description").asText();
+            Double score = (jsonNode.findPath("score").asText().isEmpty() ?0.0:jsonNode.findPath("score").asDouble());
+            Double topScore =(jsonNode.findPath("topScore").asText().isEmpty()||jsonNode.findPath("topScore").asText().equals("null") ?null:jsonNode.findPath("topScore").asDouble());
+            Double bottomScore =(jsonNode.findPath("bottomScore").asText().isEmpty()||jsonNode.findPath("topScore").asText().equals("null") ?null:jsonNode.findPath("bottomScore").asDouble());
+
+
+            if(id<=0) return okCustomJson(CODE40001,"没有id");
+
+            Content content = Content.find.byId(id);
+            if(content==null) return okCustomJson(CODE40001,"内容为空");
+
+            if(elementId>0) content.setElementId(elementId);
+            if(!ValidationUtil.isEmpty(contentName)) content.setContent(contentName);
+            if(!ValidationUtil.isEmpty(description)) content.setDescription(description);
+            if(typeId>0) content.setTypeId(typeId);
+            content.setScore(score);
+            content.setTopScore(topScore);
+            content.setBottomScore(bottomScore);
+
+            try(Transaction transaction = Content.find.db().beginTransaction()){
+                content.update();
+                transaction.commit();
+            }
+            catch (Exception e) {
+                return okCustomJson(CODE40002,"更新失败："+e);
+            }
+
+            return okCustomJson(CODE200,"更新成功");
+        });
+    }
+
 
     /**
      * @api {POST} /v1/tk/regular/add/  02 kpi指标及其对应内容添加
@@ -767,9 +1569,13 @@ public class V3TeacherController extends BaseAdminSecurityController {
             //分页查询分页信息
             PagedList<Content> pageList = list.first();
 
+            List<Content> list1 = list.first().getList();
+            List<KPIScoreType> allKPIScoreType = KPIScoreType.find.all();
+            list1.forEach(content1-> allKPIScoreType.stream().filter(v1 -> Objects.equals(v1.getId(), content1.getTypeId())).findFirst().ifPresent(content1::setKpiScoreType));
+
             ObjectNode node = Json.newObject();
             node.put("code", CODE200);
-            node.set("list",Json.toJson(list.first().getList()));
+            node.set("list",Json.toJson(list1));
             node.put("pages", list.first().getTotalPageCount());
             return ok(node);
         });
@@ -1078,9 +1884,9 @@ public class V3TeacherController extends BaseAdminSecurityController {
     }
 
     /**
-     * @api {POST} /v1/tk/delete/  12 多功能删除
+     * @api {POST} /v1/tk/delete/  12 规则删除
      * @apiName deleteElementOrContentOrIndicatorOrKpi
-     * @apiGroup Teacher
+     * @apiGroup TeacherDelete
      *
      * @apiDescription 可以删除element,content,indicator,kpi，注意越高等级的会连带将低等级的删
      *
@@ -1263,15 +2069,19 @@ public class V3TeacherController extends BaseAdminSecurityController {
             if(LeaderIds==null) return ok("LeaderIds为空");
             if(userId==null) return ok("userId为空");
 
+
             if(elementId!=null&&elementId>0){
                 TeacherElementScore tes = TeacherElementScore.find.query().where().eq("user_id", userId).eq("element_id", elementId).setMaxRows(1).findOne();
+                if(tes==null) return okCustomJson(CODE40001,"该教师没有评分要素");
+                TeacherTask tt = TeacherTask.find.query().where().eq("tes_id",tes.getId()).setMaxRows(1).findOne();
+                if(tt!=null) return okCustomJson(CODE40003,"该教师已有上报任务");
                 TeacherTask teacherTask = new TeacherTask();
                 List<String> errMsg=new ArrayList<>();
                 boolean status=true;
                 teacherTask.setUserId(userId);
                 teacherTask.setParentIds(LeaderIds);
                 teacherTask.setStatus("待完成");
-                teacherTask.setTesId(tes!=null?tes.getId():null);
+                teacherTask.setTesId(tes.getId());
                 try(Transaction transaction = DB.beginTransaction()){
                     teacherTask.save();
                     transaction.commit();
@@ -1349,7 +2159,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
     }
 
     /**
-     * @api {POST} /v1/tk/get/leader/task/  *16 获取上级的任务
+     * @api {POST} /v1/tk/get/leader/task/  16 获取上级的任务
      * @apiName getToDoTask
      * @apiGroup Teacher
      *
@@ -1394,7 +2204,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
         JsonNode jsonNode = request.body().asJson();
         return CompletableFuture.supplyAsync(()->{
             Long userId=(jsonNode.findPath("userId") instanceof MissingNode ?null:jsonNode.findPath("userId").asLong());
-            int page=(jsonNode.findPath("page") instanceof MissingNode ?null:jsonNode.findPath("page").asInt());
+            int page=(jsonNode.findPath("page") instanceof MissingNode ?0:jsonNode.findPath("page").asInt());
 
             if(userId==null) return ok("userId为空");
             //条件
@@ -1417,8 +2227,8 @@ public class V3TeacherController extends BaseAdminSecurityController {
                     .like("parent_ids", "%," + userId + ",%")
                     .endOr()
                     .orderBy().desc("id")
-                    .setFirstRow(queryPage * BusinessConstant.PAGE_SIZE_20)
-                    .setMaxRows(BusinessConstant.PAGE_SIZE_20)
+                    .setFirstRow(queryPage * BusinessConstant.PAGE_SIZE_10)
+                    .setMaxRows(BusinessConstant.PAGE_SIZE_10)
                     .findPagedList();
             int pages = leaderTeacherTaskPagedList.getTotalPageCount();
             List<TeacherTask> leaderTeacherTaskList=leaderTeacherTaskPagedList.getList();
@@ -1979,7 +2789,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
     }
 
     /**
-     * @api {POST} /v1/tk/update/chain/  20 内容链式更新
+     * @api {POST} /v1/tk/update/chain/  20 内容链式更新(未使用)
      * @apiName chainUpdate
      * @apiGroup Teacher
      *
@@ -2051,59 +2861,11 @@ public class V3TeacherController extends BaseAdminSecurityController {
         });
     }
 
-    //添加指标 post /v1/tk/indicator/add/
-    public CompletionStage<Result> addIndicator(Http.Request request){
-        JsonNode jsonNode = request.body().asJson();
-        return CompletableFuture.supplyAsync(()->{
-            List<Indicator> indicatorList = objectMapper.convertValue(jsonNode, new TypeReference<>() {});
 
-            if(indicatorList.isEmpty()) return ok("indicatorList为空");
 
-            try(Transaction transaction=Indicator.find.db().beginTransaction()){
-                DB.saveAll(indicatorList);
-                transaction.commit();
-            }catch (Exception e){
-                return okCustomJson(500,e.toString());
-            }
-            return okCustomJson(200,"添加成功");
-        });
-    }
 
-    //添加要素 post /v1/tk/element/add/
-    public CompletionStage<Result> addElement(Http.Request request){
-        JsonNode jsonNode = request.body().asJson();
-        return CompletableFuture.supplyAsync(()->{
-            List<Element> elementList = objectMapper.convertValue(jsonNode, new TypeReference<>() {});
 
-            if(elementList.isEmpty()) return ok("elementList为空");
 
-            try(Transaction transaction=Element.find.db().beginTransaction()){
-                DB.saveAll(elementList);
-                transaction.commit();
-            }catch (Exception e){
-                return okCustomJson(500,e.toString());
-            }
-            return okCustomJson(200,"添加成功");
-        });
-    }
-
-    //添加内容 post /v1/tk/content/add/
-    public CompletionStage<Result> addContent(Http.Request request){
-        JsonNode jsonNode = request.body().asJson();
-        return CompletableFuture.supplyAsync(()->{
-            List<Content> contentList = objectMapper.convertValue(jsonNode, new TypeReference<>() {});
-
-            if(contentList.isEmpty()) return ok("contentList为空");
-
-            try(Transaction transaction=Content.find.db().beginTransaction()){
-                DB.saveAll(contentList);
-                transaction.commit();
-            }catch (Exception e){
-                return okCustomJson(500,e.toString());
-            }
-            return okCustomJson(200,"添加成功");
-        });
-    }
 
     //获取所有该kpiId里未下发的教师
     public CompletionStage<Result> getTeacherListNotDispatch(Http.Request request){
@@ -2323,12 +3085,55 @@ public class V3TeacherController extends BaseAdminSecurityController {
     }
 
     //获取附件信息 taskId
+
+    /**
+     * @api {POST} /v1/tk/teacher/file/ *11 获取附件信息
+     * @apiName getTeacherFile
+     * @apiGroup Update
+     *
+     * @apiDescription 获取附件信息
+     *
+     * @apiParam {Long} taskId 任务ID
+     * @apiParam {Long} userId 用户ID
+     *
+     * @apiParamExample {json} 请求示例:
+     * {
+     *     "taskId":1,
+     *     "userId":1
+     * }
+     *
+     * @apiSuccess (Error 40001) {int} code 40001
+     * @apiSuccess (Error 40001) {int} reason 所有空的信息
+     *
+     * @apiSuccess (Error 40001) {int} code 40003
+     * @apiSuccess (Error 40001) {int} reason 上传失败
+     *
+     * @apiSuccess (Error 40001) {int} code 40002
+     * @apiSuccess (Error 40001) {int} reason 所有报错的信息
+     *
+     * @apiSuccess (Success 200){int} code 200
+     * @apiSuccess (Success 200) {JsonArray} list 数据
+     * @apiSuccessExample {json} 响应示例:
+     * {
+     *     "code":200,
+     *     "list":[
+     *          {
+     *              "content":null,//内容
+     *              "description":"",//描述
+     *              "path":""//文件路径
+     *          }
+     *     ]
+     * }
+     *
+     */
     public CompletionStage<Result> getTeacherFile(Http.Request request){
         JsonNode jsonNode = request.body().asJson();
         return CompletableFuture.supplyAsync(()->{
             long taskId=(jsonNode.findPath("taskId") instanceof MissingNode ?0:jsonNode.findPath("taskId").asLong());
+            long userId=(jsonNode.findPath("userId") instanceof MissingNode ?0:jsonNode.findPath("userId").asLong());
 
             if(taskId<=0) return okCustomJson(CODE40001,"没有任务ID");
+            if(userId<=0) return okCustomJson(CODE40001,"没有用户ID");
 
             TeacherTask tt = TeacherTask.find.query().where()
                     .eq("id", taskId)
@@ -2337,15 +3142,17 @@ public class V3TeacherController extends BaseAdminSecurityController {
 
             long tesId = tt.getTesId();
             TeacherElementScore tes = TeacherElementScore.find.query().where()
+                    .eq("user_id",userId)
                     .eq("id", tesId)
                     .setMaxRows(1).findOne();
             if(tes==null) return okCustomJson(CODE40001,"没有该要素");
 
             List<TeacherContentScore> tcsList = TeacherContentScore.find.query().where()
+                    .eq("user_id",userId)
                     .eq("element_id", tes.getElementId())
                     .findList();
             List<TeacherContentScore> tcsHasFileList = tcsList.stream()
-                    .filter(v1 -> v1.getFileId() > 0)
+                    .filter(v1 -> v1.getFileId()!=null && v1.getFileId() > 0)
                     .toList();
 
             List<Long> fileIds =tcsHasFileList.stream()
@@ -2766,7 +3573,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
 
     /**
      * @api {POST} /v1/tk/dispatch/list/  *22 新下发管理渲染页面
-     * @apiName withDrawNew
+     * @apiName getDispatchList
      * @apiGroup Teacher
      *
      * @apiDescription 新下发管理渲染页面
@@ -2826,12 +3633,12 @@ public class V3TeacherController extends BaseAdminSecurityController {
             if (ValidationUtil.isEmpty(userName)) userExpressionList.icontains("user_name",userName);
 
             PagedList<User> userPagedList = userExpressionList.orderBy().desc("id")
-                    .setFirstRow(queryPage * BusinessConstant.PAGE_SIZE_20)
-                    .setMaxRows(BusinessConstant.PAGE_SIZE_20)
+                    .setFirstRow(queryPage * BusinessConstant.PAGE_SIZE_10)
+                    .setMaxRows(BusinessConstant.PAGE_SIZE_10)
                     .findPagedList();
             int pages = userPagedList.getTotalPageCount();
 
-            List<User> userList = userPagedList.getList();
+            List<User> userList = userPagedList.getList().stream().filter(v1->v1.getDispatchIds()!=null).toList();
             String kpiIds = userList.stream().map(v1->v1.getDispatchIds().replace("+","").replace("+",",")).collect(Collectors.joining(","));
             List<KPI> kpiList = KPI.find.query().where().in("id", kpiIds).findList();
             List<Map<String,Object>> mpList=new ArrayList<>();
@@ -2932,9 +3739,6 @@ public class V3TeacherController extends BaseAdminSecurityController {
         return Json.toJson(dataList);
     }
 
-    /**
-     * 方法1: 最简单直接的转换
-     */
     private Map<String, Object> simpleConvertVar(Object obj) {
         if (obj == null) {
             return new HashMap<>();

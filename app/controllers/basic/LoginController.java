@@ -6,10 +6,12 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import controllers.BaseController;
 import io.ebean.DB;
+import io.ebean.Transaction;
 import models.admin.ShopAdmin;
 import models.campus.Campus;
 import models.department.Department;
 import models.org.Org;
+import models.school.kpi.v3.Content;
 import models.shop.Shop;
 import models.user.Role;
 import models.user.User;
@@ -167,7 +169,6 @@ public class LoginController extends BaseController {
      * @apiName isLogin
      * @apiGroup Admin-Authority
      * @apiSuccess (Success 200){int} code 200
-     * @apiSuccess {boolean} login true已登录 false未登录
      * @apiSuccess (Error 40001){int} code 40001 参数错误
      */
     public CompletionStage<Result> isLogin(Http.Request request) {
@@ -284,13 +285,12 @@ public class LoginController extends BaseController {
     }
 
     /**
-     * @api {POST} /v1/tk/reset_login_password/ 05 重置登录密码
+     * @api {POST} /v1/tk/reset_login_password/ 01 重置登录密码
      * @apiName resetLoginPassword
-     * @apiGroup Admin-Authority
+     * @apiGroup UserPassword
      * @apiParam {string} userName 帐号
-     * @apiParam {string} vcode 短信验证码
      * @apiParam {string} newPassword 新密码
-     * @apiSuccess (Success 200){int}code 200
+     * @apiSuccess (Success 200) {int} code 200
      * @apiSuccess (Error 40001) {int}code 40001无效的参数
      * @apiSuccess (Error 40002) {int}code 40002 无效的短信验证码
      * @apiSuccess (Error 40003) {int}code 40003 无效的密码
@@ -321,12 +321,11 @@ public class LoginController extends BaseController {
     }
 
     /**
-     * @api {POST} /v1/tk/set_login_password/ 06 设置/修改登录密码
+     * @api {POST} /v1/tk/set_login_password/ 02 设置/修改登录密码
      * @apiName setLoginPassword
-     * @apiGroup User
-     * @apiParam {string} [oldPassword] 旧密码
+     * @apiGroup UserPassword
+     * @apiParam {string} oldPassword 旧密码
      * @apiParam {string} password 新密码
-     * @apiParam {string} [vcode] 短信验证码
      * @apiParam {long} uid 用戶Id
      * @apiSuccess (Success 200){int}code 200
      * @apiSuccess (Error 40001) {int}code 40001 无效的参数
@@ -353,6 +352,101 @@ public class LoginController extends BaseController {
             member.setPassword(encodeUtils.getMd5WithSalt(newPassword));
             member.save();
             return okJSON200();
+        });
+    }
+
+    /**
+     * @api {POST} /v1/tk/user/is_admin/ 01 判断管理员
+     * @apiName isAdmin
+     * @apiGroup UserUpdate
+     * @apiParamExample {json} 请求示例:
+     * {}
+     * @apiSuccess (Success 200){int} code 200
+     * @apiSuccess (Success 200){boolean} status true
+     *
+     * @apiSuccess (Success 40005){int} code 40005
+     * @apiSuccess (Success 40005){boolean} status false
+     *
+     * @apiSuccess (Success 40001){int} code 40001
+     * @apiSuccess (Success 40001){String} reason 所有缺少信息
+     */
+    public CompletionStage<Result> isAdmin(Http.Request request){
+        return businessUtils.getUserIdByAuthToken(request).thenApplyAsync((memberInCache) -> {
+            User user = User.find.byId(memberInCache.id);
+            if(user==null) return okCustomJson(CODE40001,"未知用户");
+            Role role = Role.find.byId(user.roleId);
+            if(role==null) return okCustomJson(CODE40001,"未知权限");
+            ObjectNode node = Json.newObject();
+            if(role.nickName.contains("管理员")){
+                node.put(CODE, CODE200);
+                node.set("status",Json.toJson(true));
+            }else{
+                node.put(CODE, CODE40005);
+                node.set("status",Json.toJson(false));
+            }
+            return ok(node);
+        });
+    }
+
+    /**
+     * @api {POST} /v1/tk/user/update/ 02 管理员更新用户(要先判断管理员)
+     * @apiName updateUser
+     * @apiGroup UserUpdate
+     * @apiDescription 前端是否显示更新用户按钮
+     * @apiParam {Long} id 用户ID
+     * @apiParam {string} userName 用户名
+     * @apiParam {string} phone 手机号
+     * @apiParam {string} typeName 职业
+     * @apiParam {int} status 状态
+     * @apiParam {Long} roleId 角色ID
+     * @apiParam {Long} departmentId 部门ID
+     * @apiParamExample {json} 请求示例:
+     * {
+     *    "userName": "",//kpi标题名称
+     *    "phone":"",
+     *    "typeName":"",
+     *    "status":"",
+     *    "roleId":"",
+     *    "departmentId":""
+     * }
+     * @apiSuccess (Success 200){int}code 200
+     * @apiSuccess (Error 40001) {int}code 40001 无效的参数
+     * @apiSuccess (Error 40004) {int}code 40004 该帐号不存在
+     */
+    public CompletionStage<Result> updateUser(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+            if(jsonNode==null) return okCustomJson(CODE40001,"参数出错");
+            //条件
+            long id = jsonNode.findPath("id").asLong();
+            String userName = jsonNode.findPath("userName").asText();
+            String phone = jsonNode.findPath("phone").asText();
+            String typeName = jsonNode.findPath("typeName").asText();
+            int status = jsonNode.findPath("status").asInt();
+            long roleId = jsonNode.findPath("roleId").asLong();
+            long departmentId = jsonNode.findPath("departmentId").asLong();
+
+            if(id<=0) return okCustomJson(CODE40001,"没有id");
+
+            User user = User.find.byId(id);
+            if(user==null) return okCustomJson(CODE40001,"用户为空");
+
+            if(departmentId>0) user.setDepartmentId(departmentId);
+            if(roleId>0) user.setRoleId(roleId);
+            user.setStatus(status);
+            if(!ValidationUtil.isEmpty(typeName)) user.setTypeName(typeName);
+            if(!ValidationUtil.isEmpty(phone)) user.setTypeName(phone);
+            if(!ValidationUtil.isEmpty(userName)) user.setTypeName(userName);
+
+            try(Transaction transaction = User.find.db().beginTransaction()){
+                user.update();
+                transaction.commit();
+            }
+            catch (Exception e) {
+                return okCustomJson(CODE40002,"更新失败："+e);
+            }
+
+            return okCustomJson(CODE200,"更新成功");
         });
     }
 

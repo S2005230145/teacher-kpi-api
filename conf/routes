@@ -15,6 +15,8 @@ POST         /v1/tk/requestd_user_vcode/                                       c
 
 POST         /v1/tk/reset_login_password/                                      controllers.basic.LoginController.resetLoginPassword(request: Request)
 POST         /v1/tk/set_login_password/                                        controllers.basic.LoginController.setLoginPassword(request: Request)
+POST         /v1/tk/user/is_admin/                                             controllers.basic.LoginController.isAdmin(request: Request)
+POST         /v1/tk/user/update/                                               controllers.basic.LoginController.updateUser(request: Request)
 
 +nocsrf
 #登录
@@ -62,11 +64,27 @@ GET          /v1/tk/user_groups/                                                
 
 # 教师绩效
 POST         /v1/tk/kpi/add/                                                     controllers.school.teacher.kpi.V3TeacherController.addKpi(request:Request)
+POST         /v1/tk/kpi/list/                                                    controllers.school.teacher.kpi.V3TeacherController.getKpi(request:Request)
+POST         /v1/tk/kpi/update/                                                  controllers.school.teacher.kpi.V3TeacherController.updateKpi(request:Request)
+
+POST         /v1/tk/indicator/add/                                               controllers.school.teacher.kpi.V3TeacherController.addIndicator(request:Request)
+POST         /v1/tk/indicator/list/                                              controllers.school.teacher.kpi.V3TeacherController.getIndicator(request:Request)
+POST         /v1/tk/indicator/update/                                            controllers.school.teacher.kpi.V3TeacherController.updateIndicator(request:Request)
+
+POST         /v1/tk/element/add/                                                 controllers.school.teacher.kpi.V3TeacherController.addElement(request:Request)
+POST         /v1/tk/element/list/                                                controllers.school.teacher.kpi.V3TeacherController.getElement(request:Request)
+POST         /v1/tk/element/update/                                              controllers.school.teacher.kpi.V3TeacherController.updateElement(request:Request)
+
+POST         /v1/tk/content/add/                                                 controllers.school.teacher.kpi.V3TeacherController.addContent(request:Request)
+POST         /v1/tk/content/list/                                                controllers.school.teacher.kpi.V3TeacherController.getContent(request:Request)
+POST         /v1/tk/content/update/                                              controllers.school.teacher.kpi.V3TeacherController.updateContent(request:Request)
+
 POST         /v1/tk/regular/add/                                                 controllers.school.teacher.kpi.V3TeacherController.add(request:Request)
 POST         /v1/tk/getList/                                                     controllers.school.teacher.kpi.V3TeacherController.getList(request:Request)
 POST         /v1/tk/getKpiList/                                                  controllers.school.teacher.kpi.V3TeacherController.getKpiList(request:Request)
 POST         /v1/tk/teacher/kpi/list/                                            controllers.school.teacher.kpi.V3TeacherController.getKpiListByUserId(request:Request)
 POST         /v1/tk/dispatch/                                                    controllers.school.teacher.kpi.V3TeacherController.dispatch(request:Request)
+POST         /v1/tk/dispatch/list/                                               controllers.school.teacher.kpi.V3TeacherController.getDispatchList(request:Request)
 POST         /v1/tk/grade/                                                       controllers.school.teacher.kpi.V3TeacherController.grade(request:Request)
 POST         /v1/tk/grade/new/                                                   controllers.school.teacher.kpi.V3TeacherController.newGrade(request:Request)
 POST         /v1/tk/export/is/format/                                            controllers.school.teacher.kpi.V3TeacherController.isFormat(request:Request)
@@ -86,9 +104,7 @@ POST         /v1/tk/add/rule/import/                                            
 POST         /v1/tk/update/                                                      controllers.school.teacher.kpi.V3TeacherController.updateElementOrContentOrIndicatorOrKpi(request:Request)
 POST         /v1/tk/update/chain/                                                controllers.school.teacher.kpi.V3TeacherController.chainUpdate(request:Request)
 POST         /v1/tk/kpi/get/                                                     controllers.school.teacher.kpi.V3TeacherController.getKPI(request:Request)
-POST         /v1/tk/indicator/add/                                               controllers.school.teacher.kpi.V3TeacherController.addIndicator(request:Request)
-POST         /v1/tk/element/add/                                                 controllers.school.teacher.kpi.V3TeacherController.addElement(request:Request)
-POST         /v1/tk/content/add/                                                 controllers.school.teacher.kpi.V3TeacherController.addContent(request:Request)
+
 POST         /v1/tk/teacher/list/not/dispatch/                                   controllers.school.teacher.kpi.V3TeacherController.getTeacherListNotDispatch(request:Request)
 POST         /v1/tk/teacher/list/dispatch/                                       controllers.school.teacher.kpi.V3TeacherController.getTeacherListDispatch(request:Request)
 

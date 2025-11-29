@@ -232,9 +232,8 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
             List<TeacherContentScore> list = TeacherContentScore.find.query().where().eq("user_id", userId).in("element_id",elementIds).findList();
             List<Long> typeIds = contentList.stream().map(Content::getTypeId).toList();
             List<KPIScoreType> kpiScoreTypeList = KPIScoreType.find.query().where().in("id",typeIds).findList();
-
             List<TeacherElementScore> tesList = TeacherElementScore.find.query().where().eq("user_id", userId).in("element_id",elementIds).findList();
-            List<Long> fileIds = list.stream().map(TeacherContentScore::getFileId).toList();
+            List<Long> fileIds = list.stream().map(TeacherContentScore::getFileId).filter(Objects::nonNull).toList();
             List<Long> tesIds = tesList.stream().map(TeacherElementScore::getId).toList();
             List<TeacherFile> teacherFileList=TeacherFile.find.query().where().in("id",fileIds).findList();
             List<TeacherTask> teacherTaskList=TeacherTask.find.query().where().eq("user_id", userId).in("tes_id",tesIds).findList();
@@ -860,6 +859,10 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
                     .eq("content_id", contentId)
                     .setMaxRows(1).findOne();
             if(tcs==null) return okCustomJson(CODE40001,"该教师没有被下发的内容");
+            TeacherElementScore tes=TeacherElementScore.find.query().where()
+                    .eq("user_id", userId)
+                    .eq("element_id",tcs.getElementId())
+                    .setMaxRows(1).findOne();
 
             String path = null;
             if (osName.contains("win")) {
@@ -899,6 +902,14 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
                     return okCustomJson(CODE40002,"添加TeacherFile出错:"+e);
                 }
                 tcs.setFileId(teacherFile.getId());
+                if(tes!=null){
+                    tes.setRobotScore(this.generateRandomDouble(0.5,1.5));
+                    try{
+                        tes.update();
+                    } catch (Exception e) {
+                        return okCustomJson(CODE40002,"更新tes出错:"+e);
+                    }
+                }
                 try{
                     tcs.update();
                 } catch (Exception e) {
@@ -970,7 +981,7 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
             String filePath = jsonNode.findPath("filePath").asText();
             String description = jsonNode.findPath("description").asText();
             long contentId = jsonNode.findPath("contentId").asLong();
-            long userId = jsonNode.findPath("contentId").asLong();
+            long userId = jsonNode.findPath("userId").asLong();
 
             if(ValidationUtil.isEmpty(filePath)) return okCustomJson(CODE40001,"没有filePath");
             if(contentId<=0) return okCustomJson(CODE40001,"没有contentId");
@@ -981,6 +992,10 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
                     .eq("content_id", contentId)
                     .setMaxRows(1).findOne();
             if(tcs==null) return okCustomJson(CODE40001,"该教师没有被下发的内容");
+            TeacherElementScore tes=TeacherElementScore.find.query().where()
+                    .eq("user_id", userId)
+                    .eq("element_id",tcs.getElementId())
+                    .setMaxRows(1).findOne();
 
             String path = null;
             if (osName.contains("win")) {
@@ -1005,7 +1020,6 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
                 }else{
                     replaceFilePath=replaceFilePath.replace(",,",",");
                 }
-
                 if(replaceFilePath.isEmpty()){
                     //最后一个文件被删除了
                     Transaction transaction = DB.beginTransaction();
@@ -1019,6 +1033,14 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
                         tcs.update();
                     }catch (Exception e){
                         return okCustomJson(CODE40002,"删除TeacherContentScore出错");
+                    }
+                    if(tes!=null){
+                        tes.setRobotScore(null);
+                        try{
+                            tes.update();
+                        } catch (Exception e) {
+                            return okCustomJson(CODE40002,"更新tes出错:"+e);
+                        }
                     }
                     transaction.commit();
                 }else{

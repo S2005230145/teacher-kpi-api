@@ -43,7 +43,7 @@ public class Content extends Model {
     @Transient
     public KPIScoreType kpiScoreType;
 
-    //每次分数
+    //分权
     @Column(name = "score")
     @JsonDeserialize(using = DoubleDeserializer.class)
     public Double score;

@@ -229,6 +229,7 @@ create table tk_v3_content (
   element_id                    bigint,
   content                       varchar(255),
   type_id                       bigint,
+  description                   varchar(255),
   score                         double,
   top_score                     double,
   bottom_score                  double,
