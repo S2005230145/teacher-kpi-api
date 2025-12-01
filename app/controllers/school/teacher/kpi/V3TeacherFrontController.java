@@ -1,13 +1,14 @@
 package controllers.school.teacher.kpi;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.MissingNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.typesafe.config.Config;
 import controllers.BaseAdminSecurityController;
 import io.ebean.DB;
 import io.ebean.ExpressionList;
-import io.ebean.PagedList;
 import io.ebean.Transaction;
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
@@ -19,7 +20,6 @@ import play.mvc.Http;
 import play.mvc.Result;
 import repository.V3TeacherRepository;
 import utils.BaseUtil;
-import utils.Pair;
 import utils.ValidationUtil;
 
 import java.io.File;
@@ -47,6 +47,8 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
 
     @Inject
     Config config;
+
+    ObjectMapper objectMapper = new ObjectMapper();
 
     private static String osName = System.getProperty("os.name").toLowerCase();
 
@@ -166,7 +168,7 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
     }
 
     /**
-     * @api {POST} /v1/front/tk/getElementList/new/ 01 更新+2:获取评测要素与内容
+     * @api {POST} /v1/front/tk/getElementList/new/ 01 获取评测要素与内容
      * @apiName getElementList2
      * @apiGroup Update
      *
@@ -222,7 +224,18 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
             if(indicatorId==null) return ok("indicatorId为空");
             if(userId==null) return ok("userId为空");
 
-            List<Long> elementIds = TeacherElementScore.find.query().where().eq("user_id", userId).eq("indicator_id", indicatorId).findList().stream().map(TeacherElementScore::getElementId).toList();
+            TeacherIndicatorScore tis = TeacherIndicatorScore.find.query().where()
+                    .eq("user_id",userId)
+                    .eq("indicator_id",indicatorId)
+                    .setMaxRows(1).findOne();
+            if(tis==null) return ok("tis为空");
+            List<Long> elementIds = TeacherElementScore.find.query().where()
+                    .eq("user_id", userId)
+                    .eq("indicator_id", indicatorId)
+                    .findList()
+                    .stream()
+                    .map(TeacherElementScore::getElementId)
+                    .toList();
             List<Element> elementList=Element.find.query().where().in("id",elementIds).query().findList();
             List<Map<String, Object>> tabs=new ArrayList<>();
             List<List<Map<String, Object>>> contents=new ArrayList<>();
@@ -234,7 +247,7 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
             List<Long> fileIds = list.stream().map(TeacherContentScore::getFileId).filter(Objects::nonNull).toList();
             List<Long> tesIds = tesList.stream().map(TeacherElementScore::getId).toList();
             List<TeacherFile> teacherFileList=TeacherFile.find.query().where().in("id",fileIds).findList();
-            List<TeacherTask> teacherTaskList=TeacherTask.find.query().where().eq("user_id", userId).in("tes_id",tesIds).findList();
+            List<TeacherTask> teacherTaskList=TeacherTask.find.query().where().eq("user_id", userId).eq("tis_id",tis.getId()).findList();
             elementList.forEach(element->{
                 Map<String, Object> tab = new HashMap<>();
                 tab.put("id",element.getId());
@@ -243,17 +256,18 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
                 tab.put("robotScore",teacherElementScore!=null?teacherElementScore.getRobotScore():null);
                 TeacherTask tt=null;
                 if(teacherElementScore!=null){
-                    tt = teacherTaskList.stream().filter(v1 -> Objects.equals(v1.getTesId(), teacherElementScore.getId())).findFirst().orElse(null);
+                    tt = teacherTaskList.stream().filter(v1 -> Objects.equals(v1.getTisId(), tis.getId())).findFirst().orElse(null);
                     tab.put("finalScore",teacherElementScore.getFinalScore());
                 }
-                tab.put("completed",tt!=null? tt.getStatus().equals("已完成") :null);
+                tab.put("isLeaderGrade", element.getType() == 1);
+                tab.put("completed", tt != null && tt.getStatus().equals("已完成"));
                 tabs.add(tab);
                 List<Map<String, Object>> contents1=new ArrayList<>();
                 contentList.stream().filter(v1-> Objects.equals(v1.getElementId(), element.getId())).toList().forEach(contentTmp->{
                     Map<String, Object> content = new HashMap<>();
                     content.put("id",contentTmp.getId());
                     content.put("title",contentTmp.getContent());
-                    content.put("description",null);
+                    content.put("description",contentTmp.getDescription());
                     TeacherContentScore tcsTmp = Objects.requireNonNull(list.stream().filter(v1 -> Objects.equals(v1.getContentId(), contentTmp.getId())).findFirst().orElse(null));
                     content.put("time", tcsTmp.getTime());
                     content.put("score", tcsTmp.getScore());
@@ -392,7 +406,7 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
                             Collectors.summingDouble(TeacherKPIScore::getScore)
                     ));
             OptionalDouble average = data.values().stream().mapToDouble(Double::valueOf).average();
-            result.put("averageScore",average.isPresent()?average.getAsDouble():null);
+            result.put("averageScore",average.isPresent()?Math.round(average.getAsDouble()):null);
             List<TeacherKPIScore> excellent = tksListFilterScore.stream().filter(v1 -> v1.getScore() >= 80).toList();
             result.put("excellentRate",(int)Math.round((double)excellent.size()/tksListFilterScore.size()*100));
             List<TeacherKPIScore> pass = tksListFilterScore.stream().filter(v1 -> v1.getScore() >= 60).toList();
@@ -449,7 +463,7 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
                 OptionalDouble average1 = filterKpiTskList.stream().map(TeacherKPIScore::getScore).mapToDouble(Double::valueOf).average();
                 Map<String,Object> mp=new HashMap<>();
                 mp.put("name",kpi.getTitle());
-                mp.put("averageScore",average1.isPresent()?average1.getAsDouble():null);
+                mp.put("averageScore",average1.isPresent()?Math.round(average1.getAsDouble()):null);
                 mp.put("percentage",average1.isPresent()?average1.getAsDouble():null);
                 mp.put("trend",0);
                 itemAnalysisMpList.add(mp);
@@ -530,7 +544,9 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
                 mp.put("typeText","教学");
                 TeacherKPIScore tks = tksList.stream().filter(v1 -> Objects.equals(v1.getKpiId(), kpi.getId())).findFirst().orElse(null);
                 if(tks!=null){
-                    List<Long> filterTesIds = tesList.stream().filter(v1 -> Objects.equals(v1.getKpiId(), tks.getKpiId())).map(TeacherElementScore::getElementId).toList();
+                    List<Long> filterTesIds = tesList.stream()
+                            .filter(v1 -> Objects.equals(v1.getKpiId(), tks.getKpiId()))
+                            .map(TeacherElementScore::getElementId).toList();
                     List<TeacherContentScore> filterTcsList = tcsList.stream().filter(v1 -> filterTesIds.contains(v1.getElementId())).toList();
                     List<TeacherContentScore> filterTcsListScore = filterTcsList.stream().filter(v1 -> v1.getScore() != null).toList();
                     if(tks.getScore()==null){
@@ -547,15 +563,15 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
                     }
                     mp.put("currentValue",tks.getScore());
                     mp.put("score",tks.getScore());
-                    mp.put("maxScore",tks.getScore());
+                    mp.put("maxScore",100);
                     mp.put("progress",(int)Math.round((double)filterTcsListScore.size()/filterTcsList.size()*100));
                 }
                 else {
                     mp.put("status", null);
                     mp.put("statusText", null);
                     mp.put("currentValue",null);
-                    mp.put("score",null);
-                    mp.put("maxScore",null);
+                    mp.put("score",0);
+                    mp.put("maxScore",100);
                     mp.put("progress",null);
                 }
                 mp.put("weight",100);
@@ -690,9 +706,7 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
         return CompletableFuture.supplyAsync(()->{
             Http.MultipartFormData<play.libs.Files.TemporaryFile> multipartFormData = request.body().asMultipartFormData();
             List<Http.MultipartFormData.FilePart<play.libs.Files.TemporaryFile>> files = multipartFormData.getFiles();
-            log.info("=====File Size======");
-            log.info(String.valueOf(files.size()));
-            log.info("=====File Size======");
+
             String description = multipartFormData.asFormUrlEncoded().containsKey("description")?multipartFormData.asFormUrlEncoded().get("description")[0]:null;
             long contentId = multipartFormData.asFormUrlEncoded().containsKey("contentId")?Long.parseLong(multipartFormData.asFormUrlEncoded().get("contentId")[0]):0;
             long userId = multipartFormData.asFormUrlEncoded().containsKey("userId")?Long.parseLong(multipartFormData.asFormUrlEncoded().get("userId")[0]):0;
@@ -841,7 +855,6 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
      */
     public CompletionStage<Result> uploadFileAdd(Http.Request request){
         return CompletableFuture.supplyAsync(()->{
-            log.info(request.body().toString());
             Http.MultipartFormData<play.libs.Files.TemporaryFile> multipartFormData = request.body().asMultipartFormData();
             if(multipartFormData==null) return okCustomJson(CODE40001,"MultipartForm解析出错");
             Http.MultipartFormData.FilePart<play.libs.Files.TemporaryFile> filePart = multipartFormData.getFile("file");
@@ -898,14 +911,6 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
                     return okCustomJson(CODE40002,"添加TeacherFile出错:"+e);
                 }
                 tcs.setFileId(teacherFile.getId());
-                if(tes!=null){
-                    tes.setRobotScore(this.generateRandomDouble(0.5,1.5));
-                    try{
-                        tes.update();
-                    } catch (Exception e) {
-                        return okCustomJson(CODE40002,"更新tes出错:"+e);
-                    }
-                }
                 try{
                     tcs.update();
                 } catch (Exception e) {
@@ -1031,14 +1036,6 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
                     }catch (Exception e){
                         return okCustomJson(CODE40002,"删除TeacherContentScore出错");
                     }
-                    if(tes!=null){
-                        tes.setRobotScore(null);
-                        try{
-                            tes.update();
-                        } catch (Exception e) {
-                            return okCustomJson(CODE40002,"更新tes出错:"+e);
-                        }
-                    }
                     transaction.commit();
                 }else{
                     teacherFile.setFilePath(replaceFilePath);
@@ -1151,9 +1148,9 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
 
     //撤销审核
     /**
-     * @api {POST} /v1/front/tk/audit/withDraw/ 04 撤销审核
+     * @api {POST} /v1/front/tk/audit/withDraw/ 04 撤销审核(变更)
      * @apiName withDrawAudit
-     * @apiGroup New
+     * @apiGroup Change
      *
      * @apiDescription 撤销审核
      *
@@ -1162,7 +1159,7 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
      *
      * @apiParamExample {json} 请求示例:
      * {
-     *     "elementId":1,
+     *     "indicatorId":1,
      *     "userId":1
      * }
      *
@@ -1188,25 +1185,31 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
         JsonNode jsonNode = request.body().asJson();
         return CompletableFuture.supplyAsync(()->{
             if(jsonNode==null) return okCustomJson(CODE40001,"参数错误");
-            long elementId=jsonNode.findPath("elementId").asLong();
+            long indicatorId=jsonNode.findPath("indicatorId").asLong();
             long userId=jsonNode.findPath("userId").asLong();
 
-            if(elementId<=0) return okCustomJson(CODE40001,"没有elementId");
+            if(indicatorId<=0) return okCustomJson(CODE40001,"没有indicatorId");
             if(userId<=0) return okCustomJson(CODE40001,"没有userId");
 
-            TeacherElementScore tes = TeacherElementScore.find.query().where().eq("user_id",userId).eq("element_id", elementId).setMaxRows(1).findOne();
-            if(tes!=null){
-                TeacherTask tt = TeacherTask.find.query().where().eq("user_id",userId).eq("tes_id", tes.getId()).setMaxRows(1).findOne();
-                if(tt==null) return okCustomJson(CODE40001,"该要素没有任务");
-                if(tt.getStatus().equals("已完成")) return okCustomJson(CODE40004,"该要素已评测完毕，无法撤回");
-                Transaction transaction = DB.beginTransaction();
-                try{
-                    tt.delete();
-                    transaction.commit();
-                }catch (Exception e){
-                    transaction.rollback();
-                    return okCustomJson(CODE40002,"删除TeacherTask失败");
-                }
+            TeacherIndicatorScore tis = TeacherIndicatorScore.find.query().where()
+                    .eq("user_id",userId)
+                    .eq("indicator_id", indicatorId)
+                    .setMaxRows(1).findOne();
+            if(tis==null) return okCustomJson(CODE40001,"该用户没有指标");
+
+            TeacherTask tt = TeacherTask.find.query().where()
+                    .eq("user_id",userId)
+                    .eq("tis_id", tis.getId())
+                    .setMaxRows(1).findOne();
+            if(tt==null) return okCustomJson(CODE40001,"该指标没有任务");
+            if(tt.getStatus().equals("已完成")) return okCustomJson(CODE40004,"该指标已评测完毕，无法撤回");
+            Transaction transaction = DB.beginTransaction();
+            try{
+                tt.delete();
+                transaction.commit();
+            }catch (Exception e){
+                transaction.rollback();
+                return okCustomJson(CODE40002,"删除TeacherTask失败");
             }
             return okCustomJson(CODE200,"删除成功");
         });
@@ -1319,6 +1322,62 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
         });
     }
 
+    /**
+     * @api {POST} /v1/front/teacher/post/ 01 提交审核(更换)
+     * @apiName teacherPost
+     * @apiGroup Change
+     *
+     * @apiDescription 提交审核(原接口 /v1/tk/post/)
+     *
+     *
+     * @apiParamExample {json} 请求示例:
+     * {
+     *     "userId":1,//发起人ID
+     *     "LeaderIds":"1,2,3",//发给的领导ID
+     *     "indicatorId":2
+     * }
+     *
+     * @apiSuccess (Error 40001) {int} code 40001
+     * @apiSuccess (Error 40001) {String} reason 所有空的信息
+     *
+     * @apiSuccess (Success 200){int} code 200
+     * @apiSuccess (Success 200) {String} reason 提交成功
+     */
+    public CompletionStage<Result> teacherPost(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+            if(jsonNode==null) return okCustomJson(CODE40001,"参数错误");
+            String LeaderIds=jsonNode.findPath("LeaderIds").asText();
+            long userId=jsonNode.findPath("userId").asLong();
+            long indicatorId=jsonNode.findPath("indicatorId").asLong();
+
+            if(ValidationUtil.isEmpty(LeaderIds)) return okCustomJson(CODE40001,"LeaderIds为空");
+            if(userId<=0) return okCustomJson(CODE40001,"userId为空");
+            if(indicatorId<=0) return okCustomJson(CODE40001,"indicatorId为空");
+
+            TeacherIndicatorScore tis = TeacherIndicatorScore.find.query().where()
+                    .eq("user_id", userId)
+                    .eq("element_id", indicatorId)
+                    .setMaxRows(1).findOne();
+            if(tis==null) return okCustomJson(CODE40001,"该教师没有评分指标");
+
+            TeacherTask tt = TeacherTask.find.query().where().eq("tis_id",tis.getId()).setMaxRows(1).findOne();
+            if(tt!=null) return okCustomJson(CODE40003,"该教师已有上报任务");
+
+            TeacherTask teacherTask = new TeacherTask();
+            teacherTask.setUserId(userId);
+            teacherTask.setParentIds(LeaderIds);
+            teacherTask.setStatus("待完成");
+            teacherTask.setTisId(tis.getId());
+            try(Transaction transaction = DB.beginTransaction()){
+                teacherTask.save();
+                transaction.commit();
+            } catch (Exception e) {
+                return okCustomJson(CODE40002,"添加审核任务出错:"+e);
+            }
+            return okCustomJson(CODE200,"提交成功");
+        });
+    }
 
     //工具
     private double generateRandomDouble(double min, double max) {

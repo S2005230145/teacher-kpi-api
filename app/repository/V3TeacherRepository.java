@@ -196,7 +196,6 @@ public class V3TeacherRepository {
 
         //教师id下发
         ids.forEach(id->{
-
             //kpi下发
             TeacherKPIScore teacherKPIScore = new TeacherKPIScore();
             teacherKPIScore.setUserId(id);
@@ -218,9 +217,8 @@ public class V3TeacherRepository {
                 teacherElementScore.setElementId(element.getId());
                 teacherElementScore.setIndicatorId(element.getIndicatorId());
                 if(element.getType()==1){
-                    teacherElementScore.setRobotScore(this.generateRandomDouble(0,element.getScore()));
-                }else{
-                    teacherElementScore.setRobotScore(null);
+                    teacherElementScore.setRobotScore(element.getScore());
+                    teacherElementScore.setScore(element.getScore());
                 }
                 addTeacherElementScoreList.add(teacherElementScore);
             });

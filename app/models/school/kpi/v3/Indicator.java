@@ -6,6 +6,7 @@ import io.ebean.Model;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import myannotation.DoubleDeserializer;
 import myannotation.EscapeHtmlAuthoritySerializer;
 import myannotation.StringToLongDeserializer;
 
@@ -37,6 +38,10 @@ public class Indicator extends Model {
     @Column(name = "sub_name")
     @JsonDeserialize(using = EscapeHtmlAuthoritySerializer.class)
     public String subName;
+
+    @Column(name = "score")
+    @JsonDeserialize(using = DoubleDeserializer.class)
+    public Double score;
 
     @Transient
     List<Element> elementList;

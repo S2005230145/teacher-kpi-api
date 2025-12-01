@@ -8,6 +8,7 @@ import io.ebean.Model;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import myannotation.DoubleDeserializer;
 import myannotation.EscapeHtmlAuthoritySerializer;
 import myannotation.EscapeHtmlSerializer;
 import myannotation.StringToLongDeserializer;
@@ -37,6 +38,10 @@ public class KPI extends Model {
     @Column(name = "end_time")
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
     public Date endTime;
+
+    @Column(name = "score")
+    @JsonDeserialize(using = DoubleDeserializer.class)
+    public Double score;
 
     @Transient
     List<Indicator> indicatorList= new ArrayList<>();

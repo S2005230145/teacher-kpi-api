@@ -47,6 +47,10 @@ public class TeacherContentScore extends Model {
     @JsonDeserialize(using = DoubleDeserializer.class)
     public Double score;
 
+    @Column(name = "final_score")
+    @JsonDeserialize(using = DoubleDeserializer.class)
+    public Double finalScore;
+
     @Column(name = "file_id")
     @JsonDeserialize(using = StringToLongDeserializer.class)
     public Long fileId;

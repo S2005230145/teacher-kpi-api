@@ -43,15 +43,15 @@ public class TeacherTask extends Model {
     @JsonDeserialize(using = EscapeHtmlAuthoritySerializer.class)
     public String status;
 
-    @Column(name = "tes_id")
+    @Column(name = "tis_id")
     @JsonDeserialize(using = StringToLongDeserializer.class)
-    public Long tesId;
+    public Long tisId;
 
     @Transient
-    TeacherElementScore teacherElementScore;
+    TeacherIndicatorScore teacherIndicatorScore;
 
     @Transient
-    Element element;
+    Indicator indicator;
 
     // JPA查询器（可选，与原代码保持一致）
     public static Finder<Long, TeacherTask> find =

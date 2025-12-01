@@ -233,6 +233,7 @@ create table tk_v3_content (
   score                         double,
   top_score                     double,
   bottom_score                  double,
+  type                          integer,
   constraint pk_tk_v3_content primary key (id)
 );
 
@@ -1093,6 +1094,7 @@ create table tk_v3_teacher_content_score (
   element_id                    bigint,
   time                          integer,
   score                         double,
+  final_score                   double,
   file_id                       bigint,
   constraint pk_tk_v3_teacher_content_score primary key (id)
 );
@@ -1124,6 +1126,7 @@ create table tk_v3_teacher_indicator_score (
   indicator_id                  bigint,
   kpi_id                        bigint,
   score                         double,
+  final_score                   double,
   constraint pk_tk_v3_teacher_indicator_score primary key (id)
 );
 
@@ -1132,6 +1135,7 @@ create table tk_v3_teacher_kpi_score (
   user_id                       bigint,
   kpi_id                        bigint,
   score                         double,
+  final_score                   double,
   constraint pk_tk_v3_teacher_kpi_score primary key (id)
 );
 
@@ -1162,7 +1166,7 @@ create table tk_v3_teacher_task (
   user_id                       bigint,
   parent_ids                    varchar(255),
   status                        varchar(255),
-  tes_id                        bigint,
+  tis_id                        bigint,
   constraint pk_tk_v3_teacher_task primary key (id)
 );
 

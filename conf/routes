@@ -86,7 +86,6 @@ POST         /v1/tk/teacher/kpi/list/                                           
 POST         /v1/tk/dispatch/                                                    controllers.school.teacher.kpi.V3TeacherController.dispatch(request:Request)
 POST         /v1/tk/dispatch/list/                                               controllers.school.teacher.kpi.V3TeacherController.getDispatchList(request:Request)
 POST         /v1/tk/grade/                                                       controllers.school.teacher.kpi.V3TeacherController.grade(request:Request)
-POST         /v1/tk/grade/new/                                                   controllers.school.teacher.kpi.V3TeacherController.newGrade(request:Request)
 POST         /v1/tk/export/is/format/                                            controllers.school.teacher.kpi.V3TeacherController.isFormat(request:Request)
 POST         /v1/tk/export/                                                      controllers.school.teacher.kpi.V3TeacherController.export(request:Request)
 POST         /v1/tk/getElementList/                                              controllers.school.teacher.kpi.V3TeacherController.getElementList(request:Request)
@@ -124,6 +123,12 @@ POST         /v1/tk/type/json/list/                                             
 POST         /v1/tk/type/json/delete/                                            controllers.school.teacher.kpi.V3TeacherController.deleteTypeJson(request:Request)
 POST         /v1/tk/type/json/update/                                            controllers.school.teacher.kpi.V3TeacherController.updateTypeJson(request:Request)
 
+POST         /v1/tk/grade/new/                                                   controllers.school.teacher.kpi.V3TeacherController.newGrade(request:Request)
+
+#==========文件==========
+POST         /v1/tk/file/list/                                                   controllers.school.teacher.kpi.FileController.getFileList(request:Request)
+POST         /v1/tk/file/add/                                                    controllers.school.teacher.kpi.FileController.addFile(request:Request)
+#==========文件==========
 
 POST         /v1/tk/test/                                                        controllers.TestController.test()
 #==========显示 小程序==========
@@ -146,6 +151,12 @@ POST         /v1/front/tk/school/list/                                          
 POST         /v1/front/tk/audit/withDraw/                                        controllers.school.teacher.kpi.V3TeacherFrontController.withDrawAudit(request:Request)
 POST         /v1/front/tk/file/delete/test/                                      controllers.school.teacher.kpi.V3TeacherFrontController.deleteFileTest(request:Request)
 POST         /v1/front/tk/file/delete/                                           controllers.school.teacher.kpi.V3TeacherFrontController.deleteFile(request:Request)
+
+#变动
+#POST         /v1/front/teacher/submit/                                           controllers.school.teacher.kpi.V3TeacherFrontController.teacherSubmit(request:Request)
+POST         /v1/front/teacher/post/                                             controllers.school.teacher.kpi.V3TeacherFrontController.teacherPost(request:Request)
+
+POST         /v1/tk/dispatch/new/                                                controllers.school.teacher.kpi.V3TeacherController.newDispatch(request:Request)
 
 GET          /v1/tk/department/list/                                             controllers.department.DepartmentController.getAllDepartment()
 POST         /v1/tk/department/add/                                              controllers.department.DepartmentController.addDepartment(request:Request)

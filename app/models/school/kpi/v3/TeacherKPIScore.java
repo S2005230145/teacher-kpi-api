@@ -33,6 +33,11 @@ public class TeacherKPIScore extends Model {
     @JsonDeserialize(using = DoubleDeserializer.class)
     public Double score;
 
+    //该指标的最终分
+    @Column(name = "final_score")
+    @JsonDeserialize(using = DoubleDeserializer.class)
+    public Double finalScore;
+
     // JPA查询器（可选，与原代码保持一致）
     public static Finder<Long, TeacherKPIScore> find =
             new Finder<>(TeacherKPIScore.class);

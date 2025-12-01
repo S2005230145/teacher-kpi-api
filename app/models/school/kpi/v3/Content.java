@@ -58,6 +58,11 @@ public class Content extends Model {
     @JsonDeserialize(using = DoubleDeserializer.class)
     public Double bottomScore;
 
+    //是否需要材料
+    @Column(name = "type")
+    @JsonDeserialize(using = IntegerDeserializer.class)
+    public Integer type;
+
     // JPA查询器（可选，与原代码保持一致）
     public static Finder<Long, Content> find =
             new Finder<>(Content.class);

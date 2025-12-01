@@ -20,6 +20,7 @@ import play.libs.Json;
 import play.mvc.BodyParser;
 import play.mvc.Http;
 import play.mvc.Result;
+import play.shaded.ahc.io.netty.handler.codec.serialization.ObjectEncoder;
 import repository.V3TeacherRepository;
 import service.FileParseService;
 import utils.AssessmentPDF;
@@ -2065,7 +2066,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
     }
 
     /**
-     * @api {POST} /v1/tk/post/  14 提交审核
+     * @api {POST} /v1/tk/post/  14 提交审核(弃用)
      * @apiName postAudit
      * @apiGroup Teacher
      *
@@ -2099,51 +2100,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
 
             if(LeaderIds==null) return ok("LeaderIds为空");
             if(userId==null) return ok("userId为空");
-
-
-            if(elementId!=null&&elementId>0){
-                TeacherElementScore tes = TeacherElementScore.find.query().where().eq("user_id", userId).eq("element_id", elementId).setMaxRows(1).findOne();
-                if(tes==null) return okCustomJson(CODE40001,"该教师没有评分要素");
-                TeacherTask tt = TeacherTask.find.query().where().eq("tes_id",tes.getId()).setMaxRows(1).findOne();
-                if(tt!=null) return okCustomJson(CODE40003,"该教师已有上报任务");
-                TeacherTask teacherTask = new TeacherTask();
-                List<String> errMsg=new ArrayList<>();
-                boolean status=true;
-                teacherTask.setUserId(userId);
-                teacherTask.setParentIds(LeaderIds);
-                teacherTask.setStatus("待完成");
-                teacherTask.setTesId(tes.getId());
-                try(Transaction transaction = DB.beginTransaction()){
-                    teacherTask.save();
-                    transaction.commit();
-                } catch (Exception e) {
-                    status=false;
-                    errMsg.add("添加审核任务出错: "+e);
-                }
-                return okCustomNode(status,errMsg);
-            }
-            else{
-                List<TeacherElementScore> teacherElementScoreList = TeacherElementScore.find.query().where().eq("user_id",userId).findList();
-                List<TeacherTask> addTeacherTaskList=new ArrayList<>();
-                List<String> errMsg=new ArrayList<>();
-                boolean status=true;
-                teacherElementScoreList.forEach(tes->{
-                    TeacherTask teacherTask=new TeacherTask();
-                    teacherTask.setUserId(userId);
-                    teacherTask.setParentIds(LeaderIds);
-                    teacherTask.setStatus("待完成");
-                    teacherTask.setTesId(tes.getId());
-                    addTeacherTaskList.add(teacherTask);
-                });
-                try(Transaction transaction = DB.beginTransaction()){
-                    DB.saveAll(addTeacherTaskList);
-                    transaction.commit();
-                } catch (Exception e) {
-                    status=false;
-                    errMsg.add("添加审核任务出错: "+e);
-                }
-                return okCustomNode(status,errMsg);
-            }
+            return okCustomJson(CODE40005,"已弃用");
         });
     }
 
@@ -2190,7 +2147,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
     }
 
     /**
-     * @api {POST} /v1/tk/get/leader/task/  16 获取上级的任务
+     * @api {POST} /v1/tk/get/leader/task/  16 获取上级的任务(更新)
      * @apiName getToDoTask
      * @apiGroup Teacher
      *
@@ -2266,29 +2223,29 @@ public class V3TeacherController extends BaseAdminSecurityController {
             List<User> AllUserList = User.find.query().where()
                     .findList();
 
-            //评分任务对应的教师评分要素Id
-            List<Long> tesIds = leaderTeacherTaskList.stream().map(TeacherTask::getTesId).toList();
+            //评分任务对应的教师评分指标Id
+            List<Long> tisIds = leaderTeacherTaskList.stream().map(TeacherTask::getTisId).toList();
             //评分任务Id
             List<Long> ttIds = leaderTeacherTaskList.stream().map(TeacherTask::getUserId).toList();
-            List<TeacherElementScore> teslist = TeacherElementScore.find.query().where()
-                    .in("id", tesIds)
+            List<TeacherIndicatorScore> tislist = TeacherIndicatorScore.find.query().where()
+                    .in("id", tisIds)
                     .findList();
             List<User> userList = AllUserList.stream()
                     .filter(v1->ttIds.contains(v1.getId())).toList();
 
-            //对应的要素Id
-            List<Long> elementIds = teslist.stream().map(TeacherElementScore::getElementId).toList();
-            List<Element> elementList=Element.find.query().where()
-                    .in("id",elementIds)
+            //对应的指标Id
+            List<Long> indicatorIds = tislist.stream().map(TeacherIndicatorScore::getIndicatorId).toList();
+            List<Indicator> indicatorList=Indicator.find.query().where()
+                    .in("id",indicatorIds)
                     .findList();
 
 
             leaderTeacherTaskList.forEach(tt->{
-                TeacherElementScore teacherElementScore = teslist.stream()
-                        .filter(tes -> Objects.equals(tt.getTesId(), tes.getId()))
+                TeacherIndicatorScore teacherIndicatorScore = tislist.stream()
+                        .filter(tis -> Objects.equals(tt.getTisId(), tis.getId()))
                         .findFirst()
                         .orElse(null);
-                tt.setTeacherElementScore(teacherElementScore);
+                tt.setTeacherIndicatorScore(teacherIndicatorScore);
 
                 String userName = Objects.requireNonNull(userList.stream().
                         filter(user -> Objects.equals(tt.getUserId(), user.getId()))
@@ -2297,12 +2254,12 @@ public class V3TeacherController extends BaseAdminSecurityController {
                         .getUserName();
                 tt.setUserName(userName);
 
-                if(teacherElementScore!=null){
-                    Element element = elementList.stream()
-                            .filter(v1 -> Objects.equals(v1.getId(), teacherElementScore.getElementId()))
+                if(teacherIndicatorScore!=null){
+                    Indicator indicator = indicatorList.stream()
+                            .filter(v1 -> Objects.equals(v1.getId(), teacherIndicatorScore.getIndicatorId()))
                             .findFirst()
                             .orElse(null);
-                    tt.setElement(element);
+                    tt.setIndicator(indicator);
                 }
                 List<String> leaderUserNameList = AllUserList.stream().filter(v1 -> tt.getParentIds().contains(String.valueOf(v1.getId()))).map(User::getUserName).toList();
                 tt.setParentName(String.join(",", leaderUserNameList));
@@ -2321,21 +2278,24 @@ public class V3TeacherController extends BaseAdminSecurityController {
      * @apiName addLeaderScore
      * @apiGroup Teacher
      *
-     * @apiDescription 用于最终评分
+     * @apiDescription 用于最终评分(对需要材料的进行评测)
      *
      * @apiParam {Long} id 任务ID
-     * @apiParam {Long} tesId 要素ID
+     * @apiParam {JsonArray} data 数组
+     * @apiParam {Long} contentId 内容ID
      * @apiParam {Double} score 分数
      * @apiParamExample {json} 请求示例:
      * {
      *      "id":1,//任务ID
-     *      "data":{
-     *          "tesId":1,//该教师的评测要素ID
-     *          "score":12.0//最终得分
-     *      }
+     *      "userId":1,
+     *      "data":[{
+     *          "contentId":1,
+     *          "score":12.0,
+     *          "isPass":true
+     *       }]
      * }
      * @apiSuccess (Success 200){int} code 200
-     * @apiSuccess (Success 200){msg} reason []
+     * @apiSuccess (Success 200){msg} reason 评分成功
      *
      * @apiSuccess (Error 500){int} code 500
      * @apiSuccess (Error 500){msg} reason 错误信息
@@ -2347,12 +2307,13 @@ public class V3TeacherController extends BaseAdminSecurityController {
         JsonNode jsonNode = request.body().asJson();
         return CompletableFuture.supplyAsync(()->{
             Long id=(jsonNode.findPath("id") instanceof MissingNode ?null:jsonNode.findPath("id").asLong());
-            Map<String,Object> dataMap=objectMapper.convertValue(jsonNode.findPath("data"), new TypeReference<>() {});
+            Long userId=(jsonNode.findPath("userId") instanceof MissingNode ?null:jsonNode.findPath("userId").asLong());
+            List<Map<String,Object>> dataMapList=objectMapper.convertValue(jsonNode.findPath("data"), new TypeReference<>() {});
 
             if(id==null) return ok("id为空");
-            if(dataMap==null) return ok("data为空");
+            if(userId==null) return ok("userId为空");
+            if(dataMapList.isEmpty()) return ok("data为空");
 
-            List<String> errorMsg=new ArrayList<>();
             Transaction transaction=DB.beginTransaction();
 
             TeacherTask teacherTask = TeacherTask.find.query().where()
@@ -2364,54 +2325,70 @@ public class V3TeacherController extends BaseAdminSecurityController {
             try{
                 teacherTask.update();
             }catch (Exception e){
-                errorMsg.add("更新任务出错: "+e);
                 transaction.rollback();
             }
 
-            TeacherElementScore tes = TeacherElementScore.find.query().where()
-                    .eq("id", teacherTask.getTesId())
-                    .setMaxRows(1)
-                    .findOne();
-            if(tes==null) return okCustomJson(40001,"该教师没有该要素");
-            if(tes.getScore()==null) tes.setScore(0.0);
-            tes.setFinalScore(Double.valueOf(dataMap.get("score").toString()));
+            List<Long> contentIds = dataMapList.stream()
+                    .filter(Objects::nonNull)
+                    .map(mp -> mp.get("contentId"))
+                    .map(obj -> (long) obj)
+                    .toList();
+            List<TeacherContentScore> tcsContent = TeacherContentScore.find.query().where()
+                                                    .eq("user_id",userId)
+                                                    .in("content_id",contentIds)
+                                                    .findList();
+            List<Content> contentList=Content.find.query().where().in("id",contentIds).findList();
+            List<TeacherContentScore> updateTeacherContentScoreList=new ArrayList<>();
+            dataMapList.forEach(dataMap->{
+                TeacherContentScore tcs = tcsContent.stream()
+                        .filter(v1 -> v1.getContentId() == (long) dataMap.get("contentId"))
+                        .findFirst().orElse(null);
+                Content content = contentList.stream()
+                        .filter(v1 -> v1.getId() == (long) dataMap.get("contentId"))
+                        .findFirst().orElse(null);
+                if(tcs!=null&&content!=null){
+                    if(dataMap.get("score")!=null){
+                        double score = (double) dataMap.get("score");
+                        if(score>=content.getTopScore()){
+                            tcs.setFinalScore(content.getTopScore());
+                        }else if(score<=content.getBottomScore()){
+                            tcs.setFinalScore(content.getBottomScore());
+                        }else{
+                            tcs.setFinalScore(score);
+                        }
+                    }else{
+                        if(dataMap.get("isPass")!=null&&(boolean)dataMap.get("isPass")){
+                            double score = tcs.getTime()*content.getScore();
+                            if(score>=content.getTopScore()){
+                                tcs.setFinalScore(content.getTopScore());
+                            }else if(score<=content.getBottomScore()){
+                                tcs.setFinalScore(content.getBottomScore());
+                            }else{
+                                tcs.setFinalScore(score);
+                            }
+                        }else{
+                            tcs.setFinalScore(0.0);
+                        }
+                    }
+                }
+                updateTeacherContentScoreList.add(tcs);
+            });
             try{
-                tes.update();
+                DB.updateAll(updateTeacherContentScoreList);
             }catch (Exception e){
-                errorMsg.add("更新最终得分出错: "+e);
-                transaction.rollback();
+                return okCustomJson(CODE40002,"更新内容评分失败: "+e);
             }
 
-            TeacherIndicatorScore tis = TeacherIndicatorScore.find.query().where()
-                    .eq("indicator_id", tes.getIndicatorId())
-                    .setMaxRows(1)
-                    .findOne();
-            if(tis==null) return okCustomJson(40001,"该教师没有该指标");
-            if(tis.getScore()==null) tis.setScore(0.0);
-            tis.setScore(tis.getScore()-tes.getScore()+tes.getFinalScore());
-            try{
-                tis.update();
-            }catch (Exception e){
-                errorMsg.add("更新指标得分出错: "+e);
-                transaction.rollback();
-            }
+            List<Long> elementIds = tcsContent.stream().map(TeacherContentScore::getElementId).toList();
+            List<TeacherElementScore> tesList = TeacherElementScore.find.query().where()
+                    .eq("user_id",userId)
+                    .in("element_id",elementIds)
+                    .findList();
+            tesList.forEach(tes->{
 
-            TeacherKPIScore tks = TeacherKPIScore.find.query().where()
-                    .eq("kpi_id",tis.getKpiId())
-                    .setMaxRows(1)
-                    .findOne();
-            if(tks==null) return okCustomJson(40001,"该教师没有该KPI");
-            if(tks.getScore()==null) tks.setScore(0.0);
-            tks.setScore(tks.getScore()-tes.getScore()+tes.getFinalScore());
-            try{
-                tks.update();
-                transaction.commit();
-            }catch (Exception e){
-                errorMsg.add("更新KPI得分出错: "+e);
-                transaction.rollback();
-            }
+            });
 
-            return okCustomNode(true,errorMsg);
+            return okCustomJson(CODE200,"评分成功");
         });
     }
 
@@ -2893,11 +2870,6 @@ public class V3TeacherController extends BaseAdminSecurityController {
     }
 
 
-
-
-
-
-
     //获取所有该kpiId里未下发的教师
     public CompletionStage<Result> getTeacherListNotDispatch(Http.Request request){
         JsonNode jsonNode = request.body().asJson();
@@ -3171,7 +3143,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
                     .setMaxRows(1).findOne();
             if(tt==null) return okCustomJson(CODE40001,"没有该任务");
 
-            long tesId = tt.getTesId();
+            long tesId = tt.getTisId();
             TeacherElementScore tes = TeacherElementScore.find.query().where()
                     .eq("user_id",userId)
                     .eq("id", tesId)
@@ -3300,12 +3272,13 @@ public class V3TeacherController extends BaseAdminSecurityController {
             return okCustomJson(CODE200,"更新成功");
         });
     }
+
+    //修！！！
     //新评分
     /***
      * {
      *     "userId":1,//用户ID
-     *     "kpiId":1,
-     *     "tcs":[//教师评分对应的内容
+     *     "tcs":[//教师评分对应的内容(带材料的评分的上传)
      *         {
      *             "contentId":1,//内容ID
      *             "time":1,//次数 (除了count外其他都是 1)
@@ -3314,15 +3287,13 @@ public class V3TeacherController extends BaseAdminSecurityController {
      *                 "name":"完成",
      *                 "score":30
      *             }
-     *         },
-     *         {
+     *         },{
      *             "contentId":4,
      *             "time":2,
      *             "type":"count"
      *             "var":{
      *             }
-     *         },
-     *         {
+     *         },{
      *             "contentId":49,
      *             "time":1,
      *             "type":"select",
@@ -3339,6 +3310,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
         return CompletableFuture.supplyAsync(()->{
 
             Long userId= jsonNode.findPath("userId") instanceof MissingNode ? null : jsonNode.findPath("userId").asLong();
+
             List<Map<String,Object>> teacherContentScores= objectMapper.convertValue(jsonNode.findPath("tcs"), new TypeReference<>() {});
 
             if(userId==null) return ok("没有userId");
@@ -3370,7 +3342,10 @@ public class V3TeacherController extends BaseAdminSecurityController {
                 Content content = contentList.stream().filter(v1 -> v1.getId() == contentId).findFirst().orElse(null);
 
                 if(tcs!=null&&content!=null){
-                    if(type.contains("exclude")){
+                    if(content.getType()==1){//需要附件
+                        tcs.setScore(0.0);
+                        tcs.setTime(time);
+                    }else if(type.contains("exclude")){
                         if(score>0.0){
                             tcs.setScore(mxValue);
                         }else{
@@ -3380,18 +3355,10 @@ public class V3TeacherController extends BaseAdminSecurityController {
                     }
                     else if(type.contains("select")){
                         tcs.setScore(score);
-                        tcs.setTime(time);
+                        tcs.setTime(1);
                     }
                     else{
-                        Element element = elementList.stream()
-                                .filter(v1 -> Objects.equals(v1.getId(), content.getElementId()))
-                                .findFirst().orElse(null);
                         double countScore=time*content.getScore();
-                        if(element!=null){
-                            if(countScore>element.getScore()){
-                                countScore=element.getScore();
-                            }
-                        }
                         tcs.setScore(countScore);
                         tcs.setTime(time);
                     }
@@ -3412,12 +3379,23 @@ public class V3TeacherController extends BaseAdminSecurityController {
                 transaction.rollback();
                 return okCustomJson(CODE40002,"内容分数更新失败");
             }
-            Set<Long> elementIds = contentList.stream().map(models.school.kpi.v3.Content::getElementId).collect(Collectors.toSet());
-            List<TeacherElementScore> teacherElementScoreList = TeacherElementScore.find.query().where().eq("user_id", userId).in("element_id",elementIds).findList();
-            List<TeacherElementScore> filterTeacherElementScoreList = teacherElementScoreList.stream().filter(v1 -> elementIds.contains(v1.getElementId())).toList();
+            Set<Long> elementIds = contentList.stream()
+                    .map(models.school.kpi.v3.Content::getElementId)
+                    .collect(Collectors.toSet());
+            List<TeacherElementScore> teacherElementScoreList = TeacherElementScore.find.query().where()
+                    .eq("user_id", userId)
+                    .in("element_id",elementIds)
+                    .findList();
+            List<TeacherElementScore> filterTeacherElementScoreList = teacherElementScoreList.stream()
+                    .filter(v1 -> elementIds.contains(v1.getElementId()))
+                    .toList();
             filterTeacherElementScoreList.forEach(tes->{
-                tes.setScore(updateTeacherContentScoreList.stream().filter(v1-> Objects.equals(v1.getElementId(), tes.getElementId())).map(TeacherContentScore::getScore).mapToDouble(Double::doubleValue).sum());
-
+                double sum = updateTeacherContentScoreList.stream()
+                        .filter(v1 -> Objects.equals(v1.getElementId(), tes.getElementId()))
+                        .map(TeacherContentScore::getScore)
+                        .mapToDouble(Double::doubleValue)
+                        .sum();
+                tes.setScore(sum);
             });
             try{
                 DB.updateAll(filterTeacherElementScoreList);
@@ -3426,34 +3404,47 @@ public class V3TeacherController extends BaseAdminSecurityController {
                 return okCustomJson(CODE40002,"要素分数更新失败");
             }
 
-            Set<Long> indicatorIds = elementList.stream().map(Element::getIndicatorId).collect(Collectors.toSet());
-            List<TeacherIndicatorScore> teacherIndicatorScoreList=TeacherIndicatorScore.find.query().where().eq("user_id", userId).in("indicator_id",indicatorIds).findList();
-            List<TeacherIndicatorScore> filterTeacherIndicatorScoreList = teacherIndicatorScoreList.stream().filter(v1 -> indicatorIds.contains(v1.getIndicatorId())).toList();
+            Set<Long> indicatorIds = elementList.stream()
+                    .map(Element::getIndicatorId)
+                    .collect(Collectors.toSet());
+            List<TeacherIndicatorScore> teacherIndicatorScoreList=TeacherIndicatorScore.find.query().where()
+                    .eq("user_id", userId)
+                    .in("indicator_id",indicatorIds)
+                    .findList();
+            List<TeacherIndicatorScore> filterTeacherIndicatorScoreList = teacherIndicatorScoreList.stream()
+                    .filter(v1 -> indicatorIds.contains(v1.getIndicatorId()))
+                    .toList();
             List<TeacherElementScore> list1 = teacherElementScoreList.stream().filter(v1 ->indicatorIds.contains(v1.getIndicatorId())).toList();
             filterTeacherIndicatorScoreList.forEach(tis->{
                 //上级评分
-                double finalSum=list1.stream().filter(v1 -> v1.getFinalScore() != null && Objects.equals(v1.getIndicatorId(), tis.getIndicatorId())).map(TeacherElementScore::getFinalScore).mapToDouble(Double::doubleValue).sum();
+                double finalSum=list1.stream()
+                        .filter(v1 -> v1.getFinalScore() != null && Objects.equals(v1.getIndicatorId(), tis.getIndicatorId()))
+                        .map(TeacherElementScore::getFinalScore)
+                        .mapToDouble(Double::doubleValue)
+                        .sum();
                 //教师评分
-                double sum = list1.stream().filter(v1 -> v1.getFinalScore()==null && v1.getScore() != null && Objects.equals(v1.getIndicatorId(), tis.getIndicatorId())).map(TeacherElementScore::getScore).mapToDouble(Double::doubleValue).sum();
-                //机器评分
-                double robotSum =list1.stream().filter(v1->v1.getFinalScore()==null && v1.getScore()==null &&v1.getRobotScore()!=null&& Objects.equals(v1.getIndicatorId(), tis.getIndicatorId())).map(TeacherElementScore::getRobotScore).mapToDouble(Double::doubleValue).sum();
-
-                double tmpSum=0.0;
-                if(sum>=Math.abs(mxValue)||sum<=-Math.abs(mxValue)){
-                    tmpSum=sum;
-                    sum=sum-((int)sum/mxValue)*mxValue;
-                    if(sum==0.0){
-                        sum=tmpSum;
-                    }
-                }
-                if(finalSum>=Math.abs(mxValue)||finalSum<=-Math.abs(mxValue)){
-                    tmpSum=finalSum;
-                    finalSum=finalSum-((int)finalSum/mxValue)*mxValue;
-                    if(finalSum==0.0){
-                        finalSum=tmpSum;
-                    }
-                }
-                tis.setScore(robotSum+sum+finalSum);
+                double sum = list1.stream()
+                        .filter(v1 -> v1.getScore() != null && Objects.equals(v1.getIndicatorId(), tis.getIndicatorId()))
+                        .map(TeacherElementScore::getScore)
+                        .mapToDouble(Double::doubleValue)
+                        .sum();
+//                double tmpSum=0.0;
+//                if(sum>=Math.abs(mxValue)||sum<=-Math.abs(mxValue)){
+//                    tmpSum=sum;
+//                    sum=sum-((int)sum/mxValue)*mxValue;
+//                    if(sum==0.0){
+//                        sum=tmpSum;
+//                    }
+//                }
+//                if(finalSum>=Math.abs(mxValue)||finalSum<=-Math.abs(mxValue)){
+//                    tmpSum=finalSum;
+//                    finalSum=finalSum-((int)finalSum/mxValue)*mxValue;
+//                    if(finalSum==0.0){
+//                        finalSum=tmpSum;
+//                    }
+//                }
+                tis.setScore(sum);
+                tis.setFinalScore(finalSum);
             });
             try{
                 DB.updateAll(filterTeacherIndicatorScoreList);
@@ -3462,11 +3453,26 @@ public class V3TeacherController extends BaseAdminSecurityController {
                 return okCustomJson(CODE40002,"指标更新失败");
             }
 
-            List<Long> list = teacherIndicatorScoreList.stream().map(TeacherIndicatorScore::getKpiId).toList();
-            TeacherKPIScore tks = TeacherKPIScore.find.query().where().eq("user_id", userId).in("kpi_id", list).setMaxRows(1).findOne();
+            List<Long> list = teacherIndicatorScoreList.stream()
+                    .map(TeacherIndicatorScore::getKpiId)
+                    .toList();
+            TeacherKPIScore tks = TeacherKPIScore.find.query().where()
+                    .eq("user_id", userId)
+                    .in("kpi_id", list)
+                    .setMaxRows(1).findOne();
             if(tks!=null){
-                double sum = teacherIndicatorScoreList.stream().map(TeacherIndicatorScore::getScore).filter(v1-> Objects.nonNull(v1) && v1 < mxValue && v1 > -mxValue).mapToDouble(Double::doubleValue).sum();
+                double sum = teacherIndicatorScoreList.stream()
+                        .map(TeacherIndicatorScore::getScore)
+                        .filter(v1-> Objects.nonNull(v1) && v1 < mxValue && v1 > -mxValue)
+                        .mapToDouble(Double::doubleValue)
+                        .sum();
+                double finalSum = teacherIndicatorScoreList.stream()
+                        .map(TeacherIndicatorScore::getFinalScore)
+                        .filter(v1-> Objects.nonNull(v1) && v1 < mxValue && v1 > -mxValue)
+                        .mapToDouble(Double::doubleValue)
+                        .sum();
                 tks.setScore(sum);
+                tks.setFinalScore(finalSum);
                 try{
                     tks.update();
                     transaction.commit();
@@ -3480,6 +3486,144 @@ public class V3TeacherController extends BaseAdminSecurityController {
             return okCustomJson(CODE200,"评分成功");
         });
     }
+
+    //新下发 POST /v1/tk/dispatch/new/
+    public CompletionStage<Result> newDispatch(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+            //教师ids
+            List<Long> ids = jsonNode.findPath("ids") instanceof MissingNode ? null : Arrays.stream(jsonNode.findPath("ids").asText().split(",")).map(String::trim).map(Long::valueOf).collect(Collectors.toList());
+            //kpiId
+            Long kpiId= jsonNode.findPath("kpiId") instanceof MissingNode ? null : jsonNode.findPath("kpiId").asLong();
+
+            if(ids==null) return ok("ids未给出");
+            if(kpiId==null) return ok("kpiId未给出");
+
+            List<User> userList = User.find.query().where().in("id",ids).findList();
+            userList.forEach(user->{
+                user.setDispatchIds(user.getDispatchIds()+"+"+kpiId+"+");
+            });
+            try(Transaction transaction=User.find.db().beginTransaction()){
+                DB.updateAll(userList);
+                transaction.commit();
+            }catch (Exception e){
+                return okCustomJson(CODE40002,"更新状态失败,出错:"+e);
+            }
+
+            List<Role> allRole = Role.find.all();
+            List<User> allUser = User.find.all();
+            allUser.forEach(user->{
+                user.setRole(allRole.stream().filter(v1-> Objects.equals(v1.getId(), user.getRoleId())).findFirst().orElse(null));
+            });
+            String parentIds = allUser.stream()
+                    .filter(v1 -> v1.getRole().getNickName().contains("管理员") || v1.getRole().getNickName().contains("领导"))
+                    .map(v1 -> v1.getId().toString())
+                    .collect(Collectors.joining(","));
+
+            List<TeacherKPIScore> addTeacherKPIScoreList = new ArrayList<>();
+
+            List<Indicator> indicatorList = Indicator.find.query().where().in("kpi_id", kpiId).findList();
+            List<TeacherIndicatorScore> addTeacherIndicatorScoreList=new ArrayList<>();
+            List<Long> indicatorIds = indicatorList.stream().map(Indicator::getId).toList();
+
+            List<Element> elementList = Element.find.query().where().in("indicator_id", indicatorIds).findList();
+            List<TeacherElementScore> addTeacherElementScoreList=new ArrayList<>();
+            List<Long> elementIds = elementList.stream().map(Element::getId).toList();
+
+            List<Content> contentList = Content.find.query().where().in("element_id", elementIds).findList();
+            List<TeacherContentScore> addTeacherContentScoreList=new ArrayList<>();
+
+            ids.forEach(userId->{
+                TeacherKPIScore tks = new TeacherKPIScore();
+                tks.setUserId(userId);
+                tks.setKpiId(kpiId);
+                tks.setScore(100.0);
+                addTeacherKPIScoreList.add(tks);
+                indicatorList.forEach(indicator->{
+                    TeacherIndicatorScore tis = new TeacherIndicatorScore();
+                    tis.setUserId(userId);
+                    tis.setIndicatorId(indicator.getId());
+                    tis.setKpiId(kpiId);
+                    tis.setScore(indicator.getScore());
+                    addTeacherIndicatorScoreList.add(tis);
+                    elementList.forEach(element->{
+                        TeacherElementScore tes = new TeacherElementScore();
+                        tes.setUserId(userId);
+                        tes.setElementId(element.getId());
+                        tes.setIndicatorId(indicator.getId());
+                        tes.setScore(element.getScore());
+                        if(element.getType()==1){//上级评分
+                            tes.setFinalScore(element.getScore());
+                        }
+                        addTeacherElementScoreList.add(tes);
+                        contentList.forEach(content->{
+                            TeacherContentScore tcs = new TeacherContentScore();
+                            tcs.setUserId(userId);
+                            tcs.setContentId(content.getId());
+                            tcs.setElementId(element.getId());
+                            if(content.getType()==1){//需要材料
+                                tcs.setTime(1);
+                                tcs.setScore(0.0);
+                            }else{
+                                tcs.setTime(1);
+                                tcs.setScore(content.getScore()>=0?content.getScore():0);
+                            }
+                            addTeacherContentScoreList.add(tcs);
+                        });
+                    });
+                });
+            });
+
+
+
+            Transaction transaction = DB.beginTransaction();
+            try{
+                DB.saveAll(addTeacherKPIScoreList);
+            } catch (Exception e) {
+                return okCustomJson(CODE40002,"下发KPI出错:"+e);
+            }
+            try{
+                DB.saveAll(addTeacherIndicatorScoreList);
+            } catch (Exception e) {
+                return okCustomJson(CODE40002,"下发指标出错:"+e);
+            }
+            try{
+                DB.saveAll(addTeacherElementScoreList);
+            } catch (Exception e) {
+                return okCustomJson(CODE40002,"下发要素出错:"+e);
+            }
+            try{
+                DB.saveAll(addTeacherContentScoreList);
+            } catch (Exception e) {
+                return okCustomJson(CODE40002,"下发内容出错:"+e);
+            }
+            List<TeacherTask> addTeacherTaskList=new ArrayList<>();
+            List<Element> elementListByType = elementList.stream().filter(v1 -> v1.getType() == 1).toList();
+            Set<Long> indicatorIdsByType = elementListByType.stream().map(Element::getIndicatorId).collect(Collectors.toSet());
+            ids.forEach(userId->{
+                indicatorIdsByType.forEach(indicatorId->{
+                    TeacherTask teacherTask = new TeacherTask();
+                    teacherTask.setUserId(userId);
+                    teacherTask.setParentIds(parentIds);
+                    teacherTask.setStatus("待完成");
+                    TeacherIndicatorScore teacherIndicatorScore = addTeacherIndicatorScoreList.stream().filter(v1 -> Objects.equals(v1.getIndicatorId(), indicatorId)).findFirst().orElse(null);
+                    if(teacherIndicatorScore!=null){
+                        teacherTask.setTisId(teacherIndicatorScore.getId());
+                    }
+                    addTeacherTaskList.add(teacherTask);
+                });
+            });
+            try{
+                DB.saveAll(addTeacherTaskList);
+            } catch (Exception e) {
+                return okCustomJson(CODE40002,"下发上级任务出错:"+e);
+            }
+            transaction.commit();
+            return okCustomJson(CODE200,"成功");
+        });
+    }
+
+    //新提交审核
 
     //删除任务
     public CompletionStage<Result> deleteTask(Http.Request request){
