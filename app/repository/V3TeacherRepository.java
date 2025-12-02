@@ -6,6 +6,8 @@ import io.ebean.PagedList;
 import io.ebean.Transaction;
 import jakarta.inject.Singleton;
 import models.school.kpi.v3.*;
+import models.user.Role;
+import models.user.User;
 import utils.Pair;
 
 import java.text.DecimalFormat;
@@ -78,44 +80,6 @@ public class V3TeacherRepository {
             transaction.rollback();
         }
 
-//        List<Pair<String, List<Element>>> elementListParam=this.getElementList(indicatorParamList);
-//        addIndicatorList.forEach(indicatorParam-> {
-//            List<Element> list = Objects.requireNonNull(elementListParam.stream().filter(element -> Objects.equals(element.first(), indicatorParam.getIndicatorName())).findFirst().orElse(null)).second();
-//            list.forEach(elementParam -> {
-//                Element element=new Element();
-//                element.setIndicatorId(indicatorParam.getId());
-//                element.setElement(elementParam.getElement());
-//                element.setCriteria(elementParam.getCriteria());
-//                element.setType(0);
-//                addElementList.add(element);
-//            });
-//        });
-//
-//        try{
-//            DB.saveAll(addElementList);
-//        } catch (Exception e) {
-//            errorMsg.add("插入评价要素出错: "+e);
-//            transaction.rollback();
-//        }
-//
-//        List<Pair<String,List<Content>>> contentList=this.getContentList(indicatorParamList);
-//        addElementList.forEach(elementParam->{
-//            Pair<String, List<Content>> stringListPair = Objects.requireNonNull(contentList.stream().filter(v1 -> Objects.equals(v1.first(), elementParam.getElement())).findFirst().orElse(null));
-//            stringListPair.second().forEach(contentParam -> {
-//                Content content=new Content();
-//                content.setElementId(elementParam.getId());
-//                content.setContent(contentParam.getContent());
-//                addContentList.add(content);
-//            });
-//        });
-//        try{
-//            DB.saveAll(addContentList);
-//            transaction.commit();
-//        } catch (Exception e) {
-//            errorMsg.add("插入评价内容出错: "+e);
-//            transaction.rollback();
-//        }
-
         return new Pair<>(errorMsg.stream().filter(value -> !value.contains("warning")).toList().isEmpty(),errorMsg);
     }
 
@@ -184,7 +148,7 @@ public class V3TeacherRepository {
 
         KPI kpi = KPI.find.query().where().eq("id",kpiId).setMaxRows(1).findOne();
         //=================
-        List<Indicator> list = this.getList(Indicator.find.query().where().eq("kpiId", kpiId), 1, 1000).first().getList();
+        List<Indicator> list = Indicator.find.query().where().eq("kpi_id", kpiId).findList();
         kpi.setIndicatorList(list);
         //=================
         List<Long> indicatorIds = Objects.requireNonNull(kpi).getIndicatorList().stream().map(Indicator::getId).toList();
@@ -200,13 +164,15 @@ public class V3TeacherRepository {
             TeacherKPIScore teacherKPIScore = new TeacherKPIScore();
             teacherKPIScore.setUserId(id);
             teacherKPIScore.setKpiId(kpiId);
+            teacherKPIScore.setScore(100.0);
             addTeacherKPIScoreList.add(teacherKPIScore);
             //indicator下发
-            indicatorIds.forEach(indicatorId -> {
+            list.forEach(indicator -> {
                 TeacherIndicatorScore tis = new TeacherIndicatorScore();
                 tis.setUserId(id);
-                tis.setIndicatorId(indicatorId);
+                tis.setIndicatorId(indicator.getId());
                 tis.setKpiId(kpiId);
+                tis.setScore(indicator.getScore());
                 addTeacherIndicatorScoreList.add(tis);
             });
             //element下发
@@ -228,35 +194,135 @@ public class V3TeacherRepository {
                 teacherContentScore.setUserId(id);
                 teacherContentScore.setElementId(content.getElementId());
                 teacherContentScore.setContentId(content.getId());
+                if(content.getType()==1){//需要材料
+                    teacherContentScore.setTime(0);
+                    teacherContentScore.setScore(0.0);
+                }else{
+                    teacherContentScore.setTime(1);
+                    teacherContentScore.setScore(content.getScore()>=0?content.getScore():0.0);
+                    teacherContentScore.setFinalScore(content.getScore()>=0?content.getScore():0.0);
+                }
                 addTeacherContentScoreList.add(teacherContentScore);
             });
         });
         try{
-            DB.saveAll(addTeacherKPIScoreList);
-        }catch (Exception e){
-            errorMsg.add("下发KPI出错: "+e);
-            transaction.rollback();
-        }
-        try{
-            DB.saveAll(addTeacherIndicatorScoreList);
-        }catch (Exception e){
-            errorMsg.add("下发Indicator出错: "+e);
-            transaction.rollback();
-        }
-        try{
-            DB.saveAll(addTeacherElementScoreList);
-        }catch (Exception e){
-            errorMsg.add("下发要素出错: "+e);
-            transaction.rollback();
-        }
-        try{
             DB.saveAll(addTeacherContentScoreList);
-            transaction.commit();
-        }catch (Exception e){
+        }
+        catch (Exception e){
             errorMsg.add("下发内容出错: "+e);
             transaction.rollback();
         }
 
+        //将需要材料的content提出
+        List<Content> contentScoreListByType1 = contentList.stream()
+                .filter(v1 -> v1.getType() == 1)
+                .toList();
+        addTeacherElementScoreList.forEach(tes->{
+            Element element = elementList.stream()
+                    .filter(v1 -> Objects.equals(v1.getId(), tes.getElementId()))
+                    .findFirst().orElse(null);
+            if(element!=null){
+                //先求相关元素需要材料的分数总和
+                double score = contentScoreListByType1.stream()
+                        .filter(v1 -> v1.getScore()!=null&&v1.getScore()>=0&&Objects.equals(v1.getElementId(), tes.getElementId()))
+                        .map(Content::getScore)
+                        .mapToDouble(Double::valueOf)
+                        .sum();
+                //然后减去
+                tes.setFinalScore(element.getScore()-score);
+            }
+        });
+        try{
+            DB.saveAll(addTeacherElementScoreList);
+        }
+        catch (Exception e){
+            errorMsg.add("下发要素出错: "+e);
+            transaction.rollback();
+        }
+
+        //过滤出需要上级评分的要素
+        List<Element> elementScoreListByType1 = elementList.stream()
+                .filter(v1 -> v1.getType() == 1)
+                .toList();
+        addTeacherIndicatorScoreList.forEach(tis->{
+            Indicator indicator = list.stream()
+                    .filter(v1 -> Objects.equals(v1.getId(), tis.getIndicatorId()))
+                    .findFirst().orElse(null);
+            if(indicator!=null){
+                //先求相关元素上级评分分数总和
+                double score = elementScoreListByType1.stream()
+                        .filter(v1 -> v1.getScore()!=null&&v1.getScore()>=0&&Objects.equals(v1.getIndicatorId(), tis.getIndicatorId()))
+                        .map(Element::getScore)
+                        .mapToDouble(Double::valueOf)
+                        .sum();
+                //然后减去
+                tis.setFinalScore(indicator.getScore()-score);
+            }
+        });
+
+        try{
+            DB.saveAll(addTeacherIndicatorScoreList);
+        }
+        catch (Exception e){
+            errorMsg.add("下发Indicator出错: "+e);
+            transaction.rollback();
+        }
+
+        //求KPI分数
+        double sum = list.stream().filter(v1 -> v1.getScore() != null && v1.getScore() > -5000 && v1.getScore() < 5000)
+                .map(Indicator::getScore)
+                .mapToDouble(Double::valueOf)
+                .sum();
+        addTeacherKPIScoreList.forEach(tks->{
+            tks.setFinalScore(sum);
+        });
+
+        try{
+            DB.saveAll(addTeacherKPIScoreList);
+        }
+        catch (Exception e){
+            errorMsg.add("下发KPI出错: "+e);
+            transaction.rollback();
+        }
+
+        List<Role> allRole = Role.find.all();
+        List<User> allUser = User.find.all();
+        allUser.forEach(user->{
+            user.setRole(allRole.stream().filter(v1-> Objects.equals(v1.getId(), user.getRoleId())).findFirst().orElse(null));
+        });
+        String parentIds = allUser.stream()
+                .filter(v1 -> v1.getRole().getNickName().contains("管理员") || v1.getRole().getNickName().contains("领导"))
+                .map(v1 -> v1.getId().toString())
+                .collect(Collectors.joining(","));
+        List<TeacherTask> addTeacherTaskList=new ArrayList<>();
+        //上级评分任务下发
+        List<Element> elementListByType = elementList.stream()
+                .filter(v1 -> v1.getType() == 1)
+                .toList();
+        Set<Long> indicatorIdsByType = elementListByType.stream()
+                .map(Element::getIndicatorId)
+                .collect(Collectors.toSet());
+        ids.forEach(userId->{
+            indicatorIdsByType.forEach(indicatorId->{
+                TeacherTask teacherTask = new TeacherTask();
+                teacherTask.setUserId(userId);
+                teacherTask.setParentIds(parentIds);
+                teacherTask.setStatus("待完成");
+                addTeacherIndicatorScoreList.stream()
+                        .filter(v1 -> Objects.equals(v1.getIndicatorId(), indicatorId))
+                        .findFirst().ifPresent(teacherIndicatorScore -> teacherTask.setTisId(teacherIndicatorScore.getId()));
+                addTeacherTaskList.add(teacherTask);
+            });
+        });
+
+        try{
+            DB.saveAll(addTeacherTaskList);
+        }
+        catch (Exception e) {
+            transaction.rollback();
+            errorMsg.add("下发上级任务出错:"+e);
+        }
+        transaction.commit();
         return new Pair<>(errorMsg.stream().filter(value -> !value.contains("warning")).toList().isEmpty(),errorMsg);
     }
 

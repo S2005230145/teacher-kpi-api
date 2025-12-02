@@ -401,6 +401,7 @@ create table tk_v3_indicator (
   kpi_id                        bigint,
   indicator_name                varchar(255),
   sub_name                      varchar(255),
+  score                         double,
   constraint pk_tk_v3_indicator primary key (id)
 );
 
@@ -409,6 +410,7 @@ create table tk_v3_kpi (
   title                         varchar(255),
   create_time                   datetime(6),
   end_time                      datetime(6),
+  score                         double,
   constraint pk_tk_v3_kpi primary key (id)
 );
 
