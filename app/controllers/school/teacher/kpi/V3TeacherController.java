@@ -42,6 +42,7 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -2011,20 +2012,40 @@ public class V3TeacherController extends BaseAdminSecurityController {
             if(LeaderIds==null) return okCustomJson(CODE40001,"缺少LeaderIds");
             if(userId==null) return okCustomJson(CODE40001,"缺少userId");
 
-            List<TeacherContentScore> teacherContentScores= objectMapper.convertValue(jsonNode.findPath("tcs"), new TypeReference<>() {});
-            //1.先计算出不要文件的分数
+            List<TeacherContentScore> tcs= objectMapper.convertValue(jsonNode.findPath("tcs"), new TypeReference<>() {});
+
+            //1.先计算没有文件的分数
+
+            //没有文件的list
             List<Long> contentIds= Content.find.query().where().eq("type",0)
-                    .in("id",teacherContentScores.stream().map(TeacherContentScore::getContentId).toList())
+                    .in("id",tcs.stream().map(TeacherContentScore::getContentId).toList())
                     .findList().stream().map(Content::getId).toList();
             //得到不需要文件list
-            List<TeacherContentScore> NoFileteacherContentScoreList = teacherContentScores.stream()
-                    .filter(teacherContentScore -> contentIds.contains(teacherContentScore.getContentId())).toList();
+            List<TeacherContentScore> NoFileteacherContentScoreList = TeacherContentScore.find.query()
+            .where().in("content_id",contentIds).findList();
 
-            //更新teacherContentScore表分数
-            NoFileteacherContentScoreList.parallelStream().forEach(teacherContentScore -> {
-                teacherContentScore.setScore(teacherContentScore.getScore()*teacherContentScore.getTime());
+            for(TeacherContentScore teacherContentScore: NoFileteacherContentScoreList){
+                teacherContentScore.setScore(
+                        tcs.stream()
+                        .filter(value -> value.getContentId().equals(teacherContentScore.getContentId()))
+                        .map(
+                                value -> value.getScore()*value.getTime()
+                        )
+                        .findFirst()
+                        .orElse(null)
+                );
+
+                teacherContentScore.setTime(
+                        tcs.stream()
+                        .filter(value -> value.getContentId().equals(teacherContentScore.getContentId()))
+                        .map(
+                                value -> value.getTime()
+                        )
+                        .findFirst()
+                        .orElse(null)
+                );
                 teacherContentScore.update();
-            });
+            }
 
             //查询出elementId,向上查询
             Long elementId = Objects.requireNonNull(Content.find.query().where().eq("id", contentIds.get(0)).findOne()).getElementId();
