@@ -274,7 +274,10 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
                     content.put("description",contentTmp.getDescription());
                     TeacherContentScore tcsTmp = Objects.requireNonNull(list.stream().filter(v1 -> Objects.equals(v1.getContentId(), contentTmp.getId())).findFirst().orElse(null));
                     content.put("time", tcsTmp.getTime());
-                    content.put("score", tcsTmp.getScore());
+                    content.put("isNeedUploadFile",contentTmp.getType()==1);
+                    content.put("score", contentTmp.getScore());
+                    content.put("realScore",tcsTmp.getScore());
+                    content.put("finalScore",tcsTmp.getFinalScore());
                     KPIScoreType kpiScoreType = kpiScoreTypeList.stream().filter(v1 -> Objects.equals(v1.getId(), contentTmp.getTypeId())).findFirst().orElse(null);
                     content.put("type",kpiScoreType);
                     if(kpiScoreType!=null){
