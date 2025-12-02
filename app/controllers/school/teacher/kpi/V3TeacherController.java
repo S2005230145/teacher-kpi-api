@@ -2008,6 +2008,9 @@ public class V3TeacherController extends BaseAdminSecurityController {
             Long userId=(jsonNode.findPath("userId") instanceof MissingNode ?null:jsonNode.findPath("userId").asLong());
             Long indicatorId=(jsonNode.findPath("indicatorId") instanceof MissingNode ?null:jsonNode.findPath("indicatorId").asLong());
 
+            if(LeaderIds==null) return okCustomJson(CODE40001,"缺少LeaderIds");
+            if(userId==null) return okCustomJson(CODE40001,"缺少userId");
+
             List<TeacherContentScore> teacherContentScores= objectMapper.convertValue(jsonNode.findPath("tcs"), new TypeReference<>() {});
             //1.先计算出不要文件的分数
             List<Long> contentIds= Content.find.query().where().eq("type",0)
