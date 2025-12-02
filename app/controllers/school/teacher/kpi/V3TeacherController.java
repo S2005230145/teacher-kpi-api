@@ -1632,7 +1632,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
                 DB.updateAll(userList);
                 transaction.commit();
             }catch (Exception e){
-                return okCustomJson(5000,"更新状态失败,出错:"+e);
+                return okCustomJson(CODE40002,"更新状态失败,出错:"+e);
             }
 
             Pair<Boolean, List<String>> booleanListPair = v3TeacherRepository.dispatchAll(ids, kpiId);
@@ -2051,19 +2051,21 @@ public class V3TeacherController extends BaseAdminSecurityController {
                     .findList();
             List<Long> tksListIds = tksList.stream().map(TeacherKPIScore::getKpiId).toList();
 
+            log.info("{}",tksList);
             try{
                 DB.deleteAll(tksList);
             }catch (Exception e){
                 transaction.rollback();
                 return okCustomJson(CODE40002,"删除KPI出错: "+e);
             }
-
             //获取该教师的指标
             List<TeacherIndicatorScore> tisList = TeacherIndicatorScore.find.query().where()
                     .eq("user_id",userId)
                     .in("kpi_id", tksListIds)
                     .findList();
             List<Long> tisListIds = tisList.stream().map(TeacherIndicatorScore::getIndicatorId).toList();
+
+            log.info("{}",tisList);
             try{
                 DB.deleteAll(tisList);
             }catch (Exception e){
@@ -2075,6 +2077,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
                     .eq("user_id", userId)
                     .in("tis_id", tisList.stream().map(TeacherIndicatorScore::getId).toList())
                     .findList();
+            log.info("{}",ttList);
             try{
                 DB.deleteAll(ttList);
             }catch (Exception e){
@@ -2088,6 +2091,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
                     .in("indicator_id", tisListIds)
                     .findList();
             List<Long> tesListIds = tesList.stream().map(TeacherElementScore::getElementId).toList();
+            log.info("{}",tesList);
             try{
                 DB.deleteAll(tesList);
             }catch (Exception e){
@@ -2100,6 +2104,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
                     .eq("user_id",userId)
                     .in("element_id", tesListIds)
                     .findList();
+            log.info("{}",tcsList);
             try{
                 DB.deleteAll(tcsList);
             }catch (Exception e){
@@ -2115,6 +2120,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
                 fixDispatchIds[0] = fixDispatchIds[0].replace("+"+kpiId+"+","");
             });
             user.setDispatchIds(fixDispatchIds[0]);
+            log.info("{}",user);
             try{
                 user.update();
             }catch (Exception e){
@@ -2262,7 +2268,6 @@ public class V3TeacherController extends BaseAdminSecurityController {
                     .in("id",indicatorIds)
                     .findList();
 
-
             leaderTeacherTaskList.forEach(tt->{
                 TeacherIndicatorScore teacherIndicatorScore = tislist.stream()
                         .filter(tis -> Objects.equals(tt.getTisId(), tis.getId()))
@@ -2282,6 +2287,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
                             .filter(v1 -> Objects.equals(v1.getId(), teacherIndicatorScore.getIndicatorId()))
                             .findFirst()
                             .orElse(null);
+
                     tt.setIndicator(indicator);
                 }
                 List<String> leaderUserNameList = AllUserList.stream().filter(v1 -> tt.getParentIds().contains(String.valueOf(v1.getId()))).map(User::getUserName).toList();
@@ -2297,7 +2303,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
     }
 
     /**
-     * @api {POST} /v1/tk/add/leader/score/  17 上级评分
+     * @api {POST} /v1/tk/add/leader/score/  17 ***上级评分
      * @apiName addLeaderScore
      * @apiGroup Teacher
      *
@@ -2313,8 +2319,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
      *      "userId":1,
      *      "data":[{
      *          "contentId":1,
-     *          "score":12.0,
-     *          "isPass":true
+     *          "score":12.0
      *       }]
      * }
      * @apiSuccess (Success 200){int} code 200
@@ -2329,89 +2334,171 @@ public class V3TeacherController extends BaseAdminSecurityController {
     public CompletionStage<Result> addLeaderScore(Http.Request request){
         JsonNode jsonNode = request.body().asJson();
         return CompletableFuture.supplyAsync(()->{
-            Long id=(jsonNode.findPath("id") instanceof MissingNode ?null:jsonNode.findPath("id").asLong());
-            Long userId=(jsonNode.findPath("userId") instanceof MissingNode ?null:jsonNode.findPath("userId").asLong());
+            if(jsonNode==null) return okCustomJson(CODE40001,"参数错误");
+            long id=jsonNode.findPath("id").asLong();
+            long userId=jsonNode.findPath("userId").asLong();
             List<Map<String,Object>> dataMapList=objectMapper.convertValue(jsonNode.findPath("data"), new TypeReference<>() {});
 
-            if(id==null) return ok("id为空");
-            if(userId==null) return ok("userId为空");
-            if(dataMapList.isEmpty()) return ok("data为空");
+            if(id<=0) return okCustomJson(CODE40001,"id为空");
+            if(userId<=0) return okCustomJson(CODE40001,"userId为空");
+            if(dataMapList.isEmpty()) return okCustomJson(CODE40001,"data为空");
 
             Transaction transaction=DB.beginTransaction();
 
             TeacherTask teacherTask = TeacherTask.find.query().where()
                     .eq("id",id)
-                    .setMaxRows(1)
-                    .findOne();
-            if(teacherTask==null) return okCustomJson(40001,"没有该任务");
+                    .setMaxRows(1).findOne();
+            if(teacherTask==null) return okCustomJson(CODE40001,"没有该任务");
             teacherTask.setStatus("已完成");
             try{
                 teacherTask.update();
-            }catch (Exception e){
+            }
+            catch (Exception e){
                 transaction.rollback();
             }
 
             List<Long> contentIds = dataMapList.stream()
                     .filter(Objects::nonNull)
                     .map(mp -> mp.get("contentId"))
-                    .map(obj -> (long) obj)
+                    .map(obj -> Long.valueOf(obj.toString()))
                     .toList();
             List<TeacherContentScore> tcsContent = TeacherContentScore.find.query().where()
                                                     .eq("user_id",userId)
                                                     .in("content_id",contentIds)
                                                     .findList();
-            List<Content> contentList=Content.find.query().where().in("id",contentIds).findList();
+            List<Content> contentList=Content.find.query().where()
+                    .in("id",contentIds)
+                    .findList();
+            //材料内容集合
             List<TeacherContentScore> updateTeacherContentScoreList=new ArrayList<>();
             dataMapList.forEach(dataMap->{
                 TeacherContentScore tcs = tcsContent.stream()
-                        .filter(v1 -> v1.getContentId() == (long) dataMap.get("contentId"))
+                        .filter(v1 -> Objects.equals(v1.getContentId(), Long.valueOf(dataMap.get("contentId").toString())))
                         .findFirst().orElse(null);
                 Content content = contentList.stream()
-                        .filter(v1 -> v1.getId() == (long) dataMap.get("contentId"))
+                        .filter(v1 -> Objects.equals(v1.getId(), Long.valueOf(dataMap.get("contentId").toString())))
                         .findFirst().orElse(null);
                 if(tcs!=null&&content!=null){
                     if(dataMap.get("score")!=null){
                         double score = (double) dataMap.get("score");
-                        if(score>=content.getTopScore()){
+                        if(content.getTopScore()!=null&&score>=content.getTopScore()){
                             tcs.setFinalScore(content.getTopScore());
-                        }else if(score<=content.getBottomScore()){
+                        }else if(content.getBottomScore()!=null&&score<=content.getBottomScore()){
                             tcs.setFinalScore(content.getBottomScore());
                         }else{
                             tcs.setFinalScore(score);
                         }
                     }else{
-                        if(dataMap.get("isPass")!=null&&(boolean)dataMap.get("isPass")){
-                            double score = tcs.getTime()*content.getScore();
-                            if(score>=content.getTopScore()){
-                                tcs.setFinalScore(content.getTopScore());
-                            }else if(score<=content.getBottomScore()){
-                                tcs.setFinalScore(content.getBottomScore());
-                            }else{
-                                tcs.setFinalScore(score);
-                            }
-                        }else{
-                            tcs.setFinalScore(0.0);
-                        }
+                        tcs.setFinalScore(tcs.getScore());
                     }
                 }
                 updateTeacherContentScoreList.add(tcs);
             });
             try{
                 DB.updateAll(updateTeacherContentScoreList);
-            }catch (Exception e){
+            }
+            catch (Exception e){
                 return okCustomJson(CODE40002,"更新内容评分失败: "+e);
             }
-
-            List<Long> elementIds = tcsContent.stream().map(TeacherContentScore::getElementId).toList();
+            //向上分数更新
+            //要素层
+            List<Long> elementIds = updateTeacherContentScoreList.stream()
+                    .map(TeacherContentScore::getElementId)
+                    .toList();
             List<TeacherElementScore> tesList = TeacherElementScore.find.query().where()
                     .eq("user_id",userId)
                     .in("element_id",elementIds)
                     .findList();
+            List<Element> elementList = Element.find.query().where()
+                    .in("id", elementIds).findList();
             tesList.forEach(tes->{
-
+                double value = updateTeacherContentScoreList.stream()
+                        .filter(v1 -> Objects.equals(v1.getElementId(), tes.getElementId()))
+                        .map(TeacherContentScore::getFinalScore)
+                        .mapToDouble(Double::valueOf)
+                        .sum();
+                Element element = elementList.stream()
+                        .filter(v1 -> Objects.equals(v1.getId(), tes.getElementId()))
+                        .findFirst().orElse(null);
+                if(element!=null&&value>=element.getScore()){
+                    value=element.getScore();
+                }
+                tes.setFinalScore(value);
             });
+            try{
+                DB.updateAll(tesList);
+            }
+            catch (Exception e){
+                return okCustomJson(CODE40002,"更新要素评分失败: "+e);
+            }
 
-            return okCustomJson(CODE200,"评分成功");
+            //指标层
+            List<Long> indicatorIds = tesList.stream()
+                    .map(TeacherElementScore::getIndicatorId)
+                    .toList();
+            List<TeacherIndicatorScore> tisList = TeacherIndicatorScore.find.query().where()
+                    .eq("user_id",userId)
+                    .in("indicator_id",indicatorIds)
+                    .findList();
+            List<Indicator> indicatorList = Indicator.find.query().where()
+                    .in("id", indicatorIds).findList();
+            List<TeacherElementScore> alltesList = TeacherElementScore.find.query().where()
+                    .eq("user_id",userId)
+                    .in("indicator_id",indicatorIds)
+                    .findList();
+            tisList.forEach(tis->{
+                //相关材料的指标分数
+                double value= alltesList.stream()
+                        .map(TeacherElementScore::getFinalScore)
+                        .mapToDouble(Double::valueOf)
+                        .sum();
+                Indicator indicator = indicatorList.stream()
+                        .filter(v1 -> Objects.equals(v1.getId(), tis.getIndicatorId()))
+                        .findFirst().orElse(null);
+                if(indicator!=null&&value>=indicator.getScore()){
+                    value=indicator.getScore();
+                }
+                tis.setFinalScore(value);
+            });
+            try{
+                DB.updateAll(tisList);
+            }
+            catch (Exception e){
+                return okCustomJson(CODE40002,"更新指标评分失败: "+e);
+            }
+
+            //KPI层
+            List<Long> kpiIds = tisList.stream()
+                    .map(TeacherIndicatorScore::getKpiId)
+                    .toList();
+            List<TeacherKPIScore> tksList = TeacherKPIScore.find.query().where()
+                    .eq("user_id",userId)
+                    .in("kpi_id",kpiIds)
+                    .findList();
+            List<TeacherIndicatorScore> alltisList = TeacherIndicatorScore.find.query().where()
+                    .eq("user_id",userId)
+                    .in("kpi_id",kpiIds)
+                    .findList();
+            tksList.forEach(tks->{
+                //相关材料的要素分数
+                double value= alltisList.stream()
+                        .filter(v1 -> Objects.equals(v1.getKpiId(), tks.getKpiId()))
+                        .map(TeacherIndicatorScore::getFinalScore)
+                        .mapToDouble(Double::valueOf)
+                        .sum();
+                if(value%5000>=100){
+                    value=100.0;
+                }
+                tks.setFinalScore(value%5000);
+            });
+            try{
+                DB.updateAll(tksList);
+            }
+            catch (Exception e){
+                return okCustomJson(CODE40002,"更新KPI评分失败: "+e);
+            }
+            transaction.commit();
+            return okCustomJson(CODE200,"上级评分成功");
         });
     }
 

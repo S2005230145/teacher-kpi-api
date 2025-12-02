@@ -120,11 +120,6 @@ public class V3TeacherRepository {
         PagedList<Element> pagedList = expressionList.setFirstRow(current-1).setMaxRows(size).findPagedList();
         List<String> msg=new ArrayList<>();
 
-//        List<Long> list = pagedList.getList().stream().map(Element::getId).toList();
-//        List<Content> contentList = Content.find.query().where().in("element_id",list).findList();
-//        pagedList.getList().forEach(ele -> {
-//            ele.setContentList(contentList.stream().filter(v1-> Objects.equals(v1.getElementId(), ele.getId())).toList());
-//        });
 
         return new Pair<>(pagedList,msg);
     }
@@ -182,9 +177,10 @@ public class V3TeacherRepository {
                 teacherElementScore.setKpiId(kpiId);
                 teacherElementScore.setElementId(element.getId());
                 teacherElementScore.setIndicatorId(element.getIndicatorId());
-                if(element.getType()==1){
+                teacherElementScore.setScore(element.getScore());
+                if(element.getType()==1){//上级
                     teacherElementScore.setRobotScore(element.getScore());
-                    teacherElementScore.setScore(element.getScore());
+                    teacherElementScore.setFinalScore(element.getScore());
                 }
                 addTeacherElementScoreList.add(teacherElementScore);
             });
@@ -196,11 +192,10 @@ public class V3TeacherRepository {
                 teacherContentScore.setContentId(content.getId());
                 if(content.getType()==1){//需要材料
                     teacherContentScore.setTime(0);
-                    teacherContentScore.setScore(0.0);
+                    teacherContentScore.setScore(null);
                 }else{
                     teacherContentScore.setTime(1);
-                    teacherContentScore.setScore(content.getScore()>=0?content.getScore():0.0);
-                    teacherContentScore.setFinalScore(content.getScore()>=0?content.getScore():0.0);
+                    teacherContentScore.setScore(content.getScore());
                 }
                 addTeacherContentScoreList.add(teacherContentScore);
             });
@@ -213,22 +208,31 @@ public class V3TeacherRepository {
             transaction.rollback();
         }
 
+        //去材料
         //将需要材料的content提出
-        List<Content> contentScoreListByType1 = contentList.stream()
+        Set<Long> contentIds = contentList.stream()
                 .filter(v1 -> v1.getType() == 1)
+                .toList()
+                .stream()
+                .map(Content::getId)
+                .collect(Collectors.toSet());
+        List<TeacherContentScore> tcsList = addTeacherContentScoreList.stream()
+                .filter(v1 -> contentIds.contains(v1.getContentId()))
                 .toList();
         addTeacherElementScoreList.forEach(tes->{
             Element element = elementList.stream()
                     .filter(v1 -> Objects.equals(v1.getId(), tes.getElementId()))
                     .findFirst().orElse(null);
             if(element!=null){
-                //先求相关元素需要材料的分数总和
-                double score = contentScoreListByType1.stream()
+                //先求相关元素对应的材料的分数总和
+                double score = tcsList.stream()
                         .filter(v1 -> v1.getScore()!=null&&v1.getScore()>=0&&Objects.equals(v1.getElementId(), tes.getElementId()))
-                        .map(Content::getScore)
+                        .map(TeacherContentScore::getScore)
                         .mapToDouble(Double::valueOf)
                         .sum();
                 //然后减去
+                tes.setRobotScore(element.getScore()-score);
+                tes.setScore(element.getScore()-score);
                 tes.setFinalScore(element.getScore()-score);
             }
         });
@@ -256,7 +260,8 @@ public class V3TeacherRepository {
                         .mapToDouble(Double::valueOf)
                         .sum();
                 //然后减去
-                tis.setFinalScore(indicator.getScore()-score);
+                tis.setScore(indicator.getScore()-score);
+                tis.setFinalScore(indicator.getScore());
             }
         });
 
@@ -269,11 +274,13 @@ public class V3TeacherRepository {
         }
 
         //求KPI分数
-        double sum = list.stream().filter(v1 -> v1.getScore() != null && v1.getScore() > -5000 && v1.getScore() < 5000)
-                .map(Indicator::getScore)
+        double sum = addTeacherIndicatorScoreList.stream()
+                .filter(v1->v1.getScore()!=null&&v1.getScore()<5000&&v1.getScore()>-5000)
+                .map(TeacherIndicatorScore::getScore)
                 .mapToDouble(Double::valueOf)
                 .sum();
         addTeacherKPIScoreList.forEach(tks->{
+            tks.setScore(sum);
             tks.setFinalScore(sum);
         });
 
