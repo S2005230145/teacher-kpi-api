@@ -1981,7 +1981,13 @@ public class V3TeacherController extends BaseAdminSecurityController {
      *     "tcs":[
      *          {
      *              "contentId":1,
+     *              "count":1
      *              "score":10.0
+     *          },
+     *          {
+     *                   "contentId":1,
+     *                   "count":1
+     *                   "score":10.0
      *          }
      *     ]
      * }
@@ -2000,11 +2006,35 @@ public class V3TeacherController extends BaseAdminSecurityController {
         return CompletableFuture.supplyAsync(()->{
             String LeaderIds=(jsonNode.findPath("LeaderIds") instanceof MissingNode ?null: jsonNode.findPath("LeaderIds").asText());
             Long userId=(jsonNode.findPath("userId") instanceof MissingNode ?null:jsonNode.findPath("userId").asLong());
-            Long elementId=(jsonNode.findPath("elementId") instanceof MissingNode ?null:jsonNode.findPath("elementId").asLong());
+            Long indicatorId=(jsonNode.findPath("indicatorId") instanceof MissingNode ?null:jsonNode.findPath("indicatorId").asLong());
 
-            if(LeaderIds==null) return ok("LeaderIds为空");
-            if(userId==null) return ok("userId为空");
-            return okCustomJson(CODE40005,"已弃用");
+            List<TeacherContentScore> teacherContentScores= objectMapper.convertValue(jsonNode.findPath("tcs"), new TypeReference<>() {});
+            //1.先计算出不要文件的分数
+            List<Long> contentIds= Content.find.query().where().eq("type",0)
+                    .in("id",teacherContentScores.stream().map(TeacherContentScore::getContentId).toList())
+                    .findList().stream().map(Content::getId).toList();
+            //得到不需要文件list
+            List<TeacherContentScore> NoFileteacherContentScoreList = teacherContentScores.stream()
+                    .filter(teacherContentScore -> contentIds.contains(teacherContentScore.getContentId())).toList();
+
+            //更新teacherContentScore表分数
+            NoFileteacherContentScoreList.parallelStream().forEach(teacherContentScore -> {
+                teacherContentScore.setScore(teacherContentScore.getScore()*teacherContentScore.getTime());
+                teacherContentScore.update();
+            });
+
+            //查询出elementId,向上查询
+            Long elementId = Objects.requireNonNull(Content.find.query().where().eq("id", contentIds.get(0)).findOne()).getElementId();
+
+            //插入任务
+            TeacherTask task = new TeacherTask();
+            task.setUserId(userId);
+            task.setParentIds(LeaderIds);
+            task.setStatus("待完成");
+            task.setTisId(elementId);
+            task.save();
+
+            return okCustomJson(CODE200,"提交审核成功");
         });
     }
 
