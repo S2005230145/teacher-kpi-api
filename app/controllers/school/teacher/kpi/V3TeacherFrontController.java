@@ -259,7 +259,11 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
                     tt = teacherTaskList.stream().filter(v1 -> Objects.equals(v1.getTisId(), tis.getId())).findFirst().orElse(null);
                     tab.put("finalScore",teacherElementScore.getFinalScore());
                 }
-                tab.put("isLeaderGrade", element.getType() == 1);
+                boolean isCompletedGrade = list.stream()
+                        .filter(v1 -> Objects.equals(v1.getElementId(), element.getId()))
+                        .map(TeacherContentScore::getFinalScore)
+                        .anyMatch(Objects::nonNull);
+                tab.put("isLeaderGrade", element.getType() == 1 && !isCompletedGrade);
                 tab.put("completed", tt != null && tt.getStatus().equals("已完成"));
                 tabs.add(tab);
                 List<Map<String, Object>> contents1=new ArrayList<>();
@@ -1319,63 +1323,6 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
                 return okCustomJson(CODE40002,"删除TeacherFile出错");
             }
             return okCustomJson(CODE200,"删除成功");
-        });
-    }
-
-    /**
-     * @api {POST} /v1/front/teacher/post/ 01 提交审核(更换)
-     * @apiName teacherPost
-     * @apiGroup Change
-     *
-     * @apiDescription 提交审核(原接口 /v1/tk/post/)
-     *
-     *
-     * @apiParamExample {json} 请求示例:
-     * {
-     *     "userId":1,//发起人ID
-     *     "LeaderIds":"1,2,3",//发给的领导ID
-     *     "indicatorId":2
-     * }
-     *
-     * @apiSuccess (Error 40001) {int} code 40001
-     * @apiSuccess (Error 40001) {String} reason 所有空的信息
-     *
-     * @apiSuccess (Success 200){int} code 200
-     * @apiSuccess (Success 200) {String} reason 提交成功
-     */
-    public CompletionStage<Result> teacherPost(Http.Request request){
-        JsonNode jsonNode = request.body().asJson();
-        return CompletableFuture.supplyAsync(()->{
-            if(jsonNode==null) return okCustomJson(CODE40001,"参数错误");
-            String LeaderIds=jsonNode.findPath("LeaderIds").asText();
-            long userId=jsonNode.findPath("userId").asLong();
-            long indicatorId=jsonNode.findPath("indicatorId").asLong();
-
-            if(ValidationUtil.isEmpty(LeaderIds)) return okCustomJson(CODE40001,"LeaderIds为空");
-            if(userId<=0) return okCustomJson(CODE40001,"userId为空");
-            if(indicatorId<=0) return okCustomJson(CODE40001,"indicatorId为空");
-
-            TeacherIndicatorScore tis = TeacherIndicatorScore.find.query().where()
-                    .eq("user_id", userId)
-                    .eq("element_id", indicatorId)
-                    .setMaxRows(1).findOne();
-            if(tis==null) return okCustomJson(CODE40001,"该教师没有评分指标");
-
-            TeacherTask tt = TeacherTask.find.query().where().eq("tis_id",tis.getId()).setMaxRows(1).findOne();
-            if(tt!=null) return okCustomJson(CODE40003,"该教师已有上报任务");
-
-            TeacherTask teacherTask = new TeacherTask();
-            teacherTask.setUserId(userId);
-            teacherTask.setParentIds(LeaderIds);
-            teacherTask.setStatus("待完成");
-            teacherTask.setTisId(tis.getId());
-            try(Transaction transaction = DB.beginTransaction()){
-                teacherTask.save();
-                transaction.commit();
-            } catch (Exception e) {
-                return okCustomJson(CODE40002,"添加审核任务出错:"+e);
-            }
-            return okCustomJson(CODE200,"提交成功");
         });
     }
 

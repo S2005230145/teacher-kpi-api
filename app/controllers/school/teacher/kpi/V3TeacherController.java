@@ -2456,7 +2456,11 @@ public class V3TeacherController extends BaseAdminSecurityController {
                 if(element!=null&&value>=element.getScore()){
                     value=element.getScore();
                 }
-                tes.setFinalScore(value);
+                if(value<=0){
+                    tes.setFinalScore(tes.getScore()+value);
+                }else{
+                    tes.setFinalScore(value);
+                }
             });
             try{
                 DB.updateAll(tesList);
@@ -2519,10 +2523,11 @@ public class V3TeacherController extends BaseAdminSecurityController {
                         .map(TeacherIndicatorScore::getFinalScore)
                         .mapToDouble(Double::valueOf)
                         .sum();
-                if(value%5000>=100){
+                value=value%5000;
+                if(value>=100){
                     value=100.0;
                 }
-                tks.setFinalScore(value%5000);
+                tks.setFinalScore(Double.valueOf(String.format("%.2f", value)));
             });
             try{
                 DB.updateAll(tksList);
@@ -3294,6 +3299,79 @@ public class V3TeacherController extends BaseAdminSecurityController {
     }
 
 
+    //通过IndicatorId获取Elements   POST      /v1/tk/element/list/by/indicator/id/
+    public CompletionStage<Result> getElementsByIndicatorId(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+            if(jsonNode==null) return okCustomJson(CODE40001,"参数错误");
+            long indicatorId = jsonNode.findPath("indicatorId").asLong();
+            long userId = jsonNode.findPath("userId").asLong();
+
+            if(indicatorId<=0) return okCustomJson(CODE40001,"没有指标Id");
+            if(userId<=0) return okCustomJson(CODE40001,"没有用户Id");
+            List<Element> elementList = Element.find.query().where()
+                    .eq("indicator_id", indicatorId)
+                    .findList();
+
+            List<TeacherElementScore> tesList = TeacherElementScore.find.query().where()
+                    .eq("user_id", userId)
+                    .eq("indicator_id", indicatorId)
+                    .findList();
+            List<Long> elementIds = tesList.stream().map(TeacherElementScore::getElementId).toList();
+            List<TeacherContentScore> tcsList = TeacherContentScore.find.query().where()
+                    .eq("user_id", userId)
+                    .eq("element_id", elementIds)
+                    .findList();
+            List<Long> fileIds = tcsList.stream().map(TeacherContentScore::getFileId).toList();
+            List<TeacherFile> tfList = TeacherFile.find.query().where()
+                    .in("id", fileIds)
+                    .findList();
+            List<Content> contentList = Content.find.query().where()
+                    .eq("user_id", userId)
+                    .eq("element_id", elementIds)
+                    .findList();
+
+            List<Map<String,Object>> mpList=new ArrayList<>();
+            tesList.forEach(tes->{
+                Element element = elementList.stream()
+                        .filter(v1 -> Objects.equals(v1.getId(), tes.getElementId()))
+                        .findFirst().orElse(null);
+                List<TeacherContentScore> tcsListByElementId = tcsList.stream()
+                        .filter(v1 -> Objects.equals(v1.getElementId(), tes.getElementId()))
+                        .toList();
+
+                if(element!=null){
+                    Map<String,Object> mp=new HashMap<>();
+                    mp.put("elementName",element.getElement());
+                    mp.put("maxScore",element.getScore());
+                    mp.put("teacherElementScore",tes.getScore());
+                    List<Map<String,Object>> contentMapList = new ArrayList<>();
+                    tcsListByElementId.forEach(tcs->{
+                        Content content = contentList.stream()
+                                .filter(v1 -> Objects.equals(v1.getId(), tcs.getContentId()))
+                                .findFirst()
+                                .orElse(null);
+                        TeacherFile tf = tfList.stream()
+                                .filter(v1 -> Objects.equals(v1.getId(), tcs.getFileId()))
+                                .findFirst().orElse(null);
+                        Map<String,Object> contentMp=new HashMap<>();
+                        contentMp.put("teacherContentScore",tcs.getScore());
+                        contentMp.put("content",content!=null?content.getContent():null);
+                        contentMp.put("description",tf.getDescription());
+                        contentMp.put("path",tf.getFilePath());
+                        contentMapList.add(contentMp);
+                    });
+                    mp.put("contentList",contentMapList);
+                    mpList.add(mp);
+                }
+            });
+
+            ObjectNode node = Json.newObject();
+            node.put(CODE, CODE200);
+            node.set("list",Json.toJson(mpList));
+            return ok(node);
+        });
+    }
 
 
     /**

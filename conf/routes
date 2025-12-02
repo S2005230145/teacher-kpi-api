@@ -116,6 +116,8 @@ POST         /v1/tk/teacher/delete/                                             
 POST         /v1/tk/teacher/file/                                                controllers.school.teacher.kpi.V3TeacherController.getTeacherFile(request:Request)
 POST         /v1/tk/teacher/task/delete/                                         controllers.school.teacher.kpi.V3TeacherController.deleteTask(request:Request)
 
+POST         /v1/tk/element/list/by/indicator/id/                                controllers.school.teacher.kpi.V3TeacherController.getElementsByIndicatorId(request:Request)
+
 #test
 POST         /v1/tk/type/json/add/                                               controllers.school.teacher.kpi.V3TeacherController.addTypeJson(request:Request)
 POST         /v1/tk/type/json/list/                                              controllers.school.teacher.kpi.V3TeacherController.getTypeJsonList(request:Request)
@@ -151,7 +153,6 @@ POST         /v1/front/tk/file/delete/                                          
 
 #变动
 #POST         /v1/front/teacher/submit/                                           controllers.school.teacher.kpi.V3TeacherFrontController.teacherSubmit(request:Request)
-POST         /v1/front/teacher/post/                                             controllers.school.teacher.kpi.V3TeacherFrontController.teacherPost(request:Request)
 
 GET          /v1/tk/department/list/                                             controllers.department.DepartmentController.getAllDepartment()
 POST         /v1/tk/department/add/                                              controllers.department.DepartmentController.addDepartment(request:Request)
