@@ -2214,7 +2214,8 @@ public class V3TeacherController extends BaseAdminSecurityController {
                         .eq("user_id", userId)
                         .eq("indicator_id", indicatorId)
                         .setMaxRows(1).findOne()).getId();
-
+                TeacherTask tt = TeacherTask.find.query().where().eq("tis_id", tisId).setMaxRows(1).findOne();
+                if(tt!=null) return okCustomJson(CODE40003,"任务已存在，仅改预期分数");
                 //插入任务
                 TeacherTask task = new TeacherTask();
                 task.setUserId(userId);
@@ -2228,9 +2229,8 @@ public class V3TeacherController extends BaseAdminSecurityController {
                     return okCustomJson(CODE40002, "更新TeacherTask出错:" + e);
                 }
             }
-                    return okCustomJson(CODE200, "提交审核成功");
-        }
-        );
+            return okCustomJson(CODE200, "提交审核成功");
+        });
     }
 
     /**

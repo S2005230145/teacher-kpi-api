@@ -247,24 +247,19 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
             List<Long> fileIds = list.stream().map(TeacherContentScore::getFileId).filter(Objects::nonNull).toList();
             List<Long> tesIds = tesList.stream().map(TeacherElementScore::getId).toList();
             List<TeacherFile> teacherFileList=TeacherFile.find.query().where().in("id",fileIds).findList();
-            List<TeacherTask> teacherTaskList=TeacherTask.find.query().where().eq("user_id", userId).eq("tis_id",tis.getId()).findList();
+            TeacherTask teacherTask=TeacherTask.find.query().where().eq("user_id", userId).eq("tis_id",tis.getId()).setMaxRows(1).findOne();
             elementList.forEach(element->{
                 Map<String, Object> tab = new HashMap<>();
                 tab.put("id",element.getId());
                 tab.put("name",element.getElement());
                 TeacherElementScore teacherElementScore = tesList.stream().filter(v1 -> Objects.equals(v1.getElementId(), element.getId())).findFirst().orElse(null);
                 tab.put("robotScore",teacherElementScore!=null?teacherElementScore.getRobotScore():null);
-                TeacherTask tt=null;
-                if(teacherElementScore!=null){
-                    tt = teacherTaskList.stream().filter(v1 -> Objects.equals(v1.getTisId(), tis.getId())).findFirst().orElse(null);
-                    tab.put("finalScore",teacherElementScore.getFinalScore());
-                }
                 boolean isCompletedGrade = list.stream()
                         .filter(v1 -> Objects.equals(v1.getElementId(), element.getId()))
                         .map(TeacherContentScore::getFinalScore)
                         .anyMatch(Objects::nonNull);
                 tab.put("isLeaderGrade", element.getType() == 1 && !isCompletedGrade);
-                tab.put("completed", tt != null && tt.getStatus().equals("已完成"));
+                tab.put("completed", teacherTask != null?teacherTask.getStatus().equals("已完成"):null);
                 tabs.add(tab);
                 List<Map<String, Object>> contents1=new ArrayList<>();
                 contentList.stream().filter(v1-> Objects.equals(v1.getElementId(), element.getId())).toList().forEach(contentTmp->{
