@@ -901,7 +901,37 @@ public class V3TeacherController extends BaseAdminSecurityController {
         });
     }
 
-
+    /**
+     * @api {POST} /v1/tk/indicator/with/element/list/  01 获取indicator和与其相关的element
+     * @apiName getIndicatorWithElement
+     * @apiGroup Anew
+     *
+     * @apiDescription 更新内容
+     * @apiParam {Long} id 指标ID
+     * @apiParam {String} indicatorName 指标名称
+     * @apiParam {String} subName 指标附属名称
+     * @apiParam {Long} kpiId 对应的kpiId
+     *
+     * @apiParamExample {json} 请求示例:
+     * {
+     *    "page":1,
+     *    //条件
+     *    "id":1,
+     *    "indicatorName": "",
+     *    "subName":"",
+     *    "kpiId":""
+     * }
+     *
+     * @apiSuccess (Success 200) {int} code 200
+     * @apiSuccess (Success 200) {JsonArray} list 数据
+     * @apiSuccess (Success 200) {int} pages 页面数
+     *
+     * @apiSuccess (Error 40001) {int} code 40001
+     * @apiSuccess (Error 40001) {String} reason 所有缺失信息
+     *
+     * @apiSuccess (Error 40002) {int} code 40002
+     * @apiSuccess (Error 40002) {String} reason 所有出错信息
+     */
     public CompletionStage<Result> getIndicatorWithElement(Http.Request request){
         JsonNode jsonNode = request.body().asJson();
         return CompletableFuture.supplyAsync(()->{
@@ -912,24 +942,26 @@ public class V3TeacherController extends BaseAdminSecurityController {
             final int queryPage = page - 1;
             //条件
             long id = jsonNode.findPath("id").asLong();
-            long indicatorId = jsonNode.findPath("indicatorId").asLong();
-            String elementName = jsonNode.findPath("element").asText();
-            String criteria = jsonNode.findPath("criteria").asText();
-            int type = jsonNode.findPath("type").asInt();
+            String indicatorName = jsonNode.findPath("indicatorName").asText();
+            String subName = jsonNode.findPath("subName").asText();
+            long kpiId= jsonNode.findPath("kpiId").asLong();
 
-            ExpressionList<Element> expressionList = Element.find.query().where();
+            ExpressionList<Indicator> expressionList = Indicator.find.query().where();
             if(id>0) expressionList.eq("id",id);
-            if(indicatorId>0) expressionList.eq("indicator_id",indicatorId);
-            if(!ValidationUtil.isEmpty(elementName)) expressionList.icontains("element",elementName);
-            if(!ValidationUtil.isEmpty(criteria)) expressionList.icontains("criteria",criteria);
-            if(type>=0) expressionList.eq("type",type);
+            if(!ValidationUtil.isEmpty(indicatorName)) expressionList.icontains("indicator_name",indicatorName);
+            if(!ValidationUtil.isEmpty(subName)) expressionList.icontains("sub_name",subName);
+            if(kpiId>0) expressionList.eq("kpi_id",kpiId);
 
-            PagedList<Element> pagedList = expressionList
+            PagedList<Indicator> pagedList = expressionList
                     .orderBy().desc("id")
                     .setFirstRow(queryPage * BusinessConstant.PAGE_SIZE_10)
                     .setMaxRows(BusinessConstant.PAGE_SIZE_10)
                     .findPagedList();
-            List<Element> list = pagedList.getList();
+            List<Element> elementList = Element.find.all();
+            pagedList.getList().forEach(indicator -> {
+                indicator.setElementList(elementList.stream().filter(v1-> Objects.equals(v1.getIndicatorId(), indicator.getId())).toList());
+            });
+            List<Indicator> list = pagedList.getList();
             int pages = pagedList.getTotalPageCount();
 
             ObjectNode node = Json.newObject();
@@ -939,6 +971,38 @@ public class V3TeacherController extends BaseAdminSecurityController {
             return ok(node);
         });
     }
+
+    /**
+     * @api {POST} /v1/tk/element/with/content/list/  02 获取element和与其相关的content
+     * @apiName getElementWithContent
+     * @apiGroup Anew
+     *
+     * @apiDescription 更新内容
+     * @apiParam {Long} id 要素ID
+     * @apiParam {String} indicatorName 指标名称
+     * @apiParam {String} subName 指标附属名称
+     * @apiParam {Long} kpiId 对应的kpiId
+     *
+     * @apiParamExample {json} 请求示例:
+     * {
+     *    "page":1,
+     *    //条件
+     *    "id":1,
+     *    "element": "",
+     *    "criteria":"",
+     *    "type":""
+     * }
+     *
+     * @apiSuccess (Success 200) {int} code 200
+     * @apiSuccess (Success 200) {JsonArray} list 数据
+     * @apiSuccess (Success 200) {int} pages 页面数
+     *
+     * @apiSuccess (Error 40001) {int} code 40001
+     * @apiSuccess (Error 40001) {String} reason 所有缺失信息
+     *
+     * @apiSuccess (Error 40002) {int} code 40002
+     * @apiSuccess (Error 40002) {String} reason 所有出错信息
+     */
     public CompletionStage<Result> getElementWithContent(Http.Request request){
         JsonNode jsonNode = request.body().asJson();
         return CompletableFuture.supplyAsync(()->{
@@ -949,14 +1013,12 @@ public class V3TeacherController extends BaseAdminSecurityController {
             final int queryPage = page - 1;
             //条件
             long id = jsonNode.findPath("id").asLong();
-            long indicatorId = jsonNode.findPath("indicatorId").asLong();
             String elementName = jsonNode.findPath("element").asText();
             String criteria = jsonNode.findPath("criteria").asText();
             int type = jsonNode.findPath("type").asInt();
 
             ExpressionList<Element> expressionList = Element.find.query().where();
             if(id>0) expressionList.eq("id",id);
-            if(indicatorId>0) expressionList.eq("indicator_id",indicatorId);
             if(!ValidationUtil.isEmpty(elementName)) expressionList.icontains("element",elementName);
             if(!ValidationUtil.isEmpty(criteria)) expressionList.icontains("criteria",criteria);
             if(type>=0) expressionList.eq("type",type);
@@ -966,7 +1028,12 @@ public class V3TeacherController extends BaseAdminSecurityController {
                     .setFirstRow(queryPage * BusinessConstant.PAGE_SIZE_10)
                     .setMaxRows(BusinessConstant.PAGE_SIZE_10)
                     .findPagedList();
+            List<Content> contentList = Content.find.all();
+
             List<Element> list = pagedList.getList();
+            list.forEach(element->{
+                element.setContentList(contentList.stream().filter(v1-> Objects.equals(v1.getElementId(), element.getId())).toList() );
+            });
             int pages = pagedList.getTotalPageCount();
 
             ObjectNode node = Json.newObject();
@@ -2334,7 +2401,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
     }
 
     /**
-     * @api {POST} /v1/tk/get/leader/task/  16 获取上级的任务(更新)
+     * @api {POST} /v1/tk/get/leader/task/  16 ***获取上级的任务
      * @apiName getToDoTask
      * @apiGroup Teacher
      *
