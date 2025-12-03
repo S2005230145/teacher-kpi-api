@@ -3565,6 +3565,9 @@ public class V3TeacherController extends BaseAdminSecurityController {
                                     .findFirst().orElse(null);
                             Map<String,Object> contentMp=new HashMap<>();
                             contentMp.put("teacherContentScore",tcs.getScore());
+                            contentMp.put("contentId",content!=null?content.getId():null);
+                            contentMp.put("score",tcs.getScore());
+                            contentMp.put("finalScore",tcs.getFinalScore());
                             contentMp.put("maxScore",content!=null?content.getScore():null);
                             contentMp.put("content",content!=null?content.getContent():null);
                             if(tf!=null){
@@ -3596,6 +3599,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
                                 contentMp.put("contentId",content.getId());
                                 contentMp.put("score",tcs.getScore());
                                 contentMp.put("finalScore",tcs.getFinalScore());
+                                contentMp.put("maxScore",content!=null?content.getScore():null);
                                 contentMp.put("content",content.getContent());
                                 if(tf!=null){
                                     contentMp.put("description",tf.getDescription());
