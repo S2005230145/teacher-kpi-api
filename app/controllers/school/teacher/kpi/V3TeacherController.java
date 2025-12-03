@@ -130,6 +130,8 @@ public class V3TeacherController extends BaseAdminSecurityController {
         });
     }
 
+
+
     /**
      * @api {POST} /v1/tk/kpi/list/  01 查询kpi
      * @apiName getKpi
@@ -899,6 +901,81 @@ public class V3TeacherController extends BaseAdminSecurityController {
         });
     }
 
+
+    public CompletionStage<Result> getIndicatorWithElement(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+            if(jsonNode==null) return okCustomJson(CODE40001,"参数出错");
+
+            int page=jsonNode.findPath("page").asInt();
+            if (page < 1) page = 1;
+            final int queryPage = page - 1;
+            //条件
+            long id = jsonNode.findPath("id").asLong();
+            long indicatorId = jsonNode.findPath("indicatorId").asLong();
+            String elementName = jsonNode.findPath("element").asText();
+            String criteria = jsonNode.findPath("criteria").asText();
+            int type = jsonNode.findPath("type").asInt();
+
+            ExpressionList<Element> expressionList = Element.find.query().where();
+            if(id>0) expressionList.eq("id",id);
+            if(indicatorId>0) expressionList.eq("indicator_id",indicatorId);
+            if(!ValidationUtil.isEmpty(elementName)) expressionList.icontains("element",elementName);
+            if(!ValidationUtil.isEmpty(criteria)) expressionList.icontains("criteria",criteria);
+            if(type>=0) expressionList.eq("type",type);
+
+            PagedList<Element> pagedList = expressionList
+                    .orderBy().desc("id")
+                    .setFirstRow(queryPage * BusinessConstant.PAGE_SIZE_10)
+                    .setMaxRows(BusinessConstant.PAGE_SIZE_10)
+                    .findPagedList();
+            List<Element> list = pagedList.getList();
+            int pages = pagedList.getTotalPageCount();
+
+            ObjectNode node = Json.newObject();
+            node.put(CODE, CODE200);
+            node.set("list",Json.toJson(list));
+            node.put("pages",pages);
+            return ok(node);
+        });
+    }
+    public CompletionStage<Result> getElementWithContent(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+            if(jsonNode==null) return okCustomJson(CODE40001,"参数出错");
+
+            int page=jsonNode.findPath("page").asInt();
+            if (page < 1) page = 1;
+            final int queryPage = page - 1;
+            //条件
+            long id = jsonNode.findPath("id").asLong();
+            long indicatorId = jsonNode.findPath("indicatorId").asLong();
+            String elementName = jsonNode.findPath("element").asText();
+            String criteria = jsonNode.findPath("criteria").asText();
+            int type = jsonNode.findPath("type").asInt();
+
+            ExpressionList<Element> expressionList = Element.find.query().where();
+            if(id>0) expressionList.eq("id",id);
+            if(indicatorId>0) expressionList.eq("indicator_id",indicatorId);
+            if(!ValidationUtil.isEmpty(elementName)) expressionList.icontains("element",elementName);
+            if(!ValidationUtil.isEmpty(criteria)) expressionList.icontains("criteria",criteria);
+            if(type>=0) expressionList.eq("type",type);
+
+            PagedList<Element> pagedList = expressionList
+                    .orderBy().desc("id")
+                    .setFirstRow(queryPage * BusinessConstant.PAGE_SIZE_10)
+                    .setMaxRows(BusinessConstant.PAGE_SIZE_10)
+                    .findPagedList();
+            List<Element> list = pagedList.getList();
+            int pages = pagedList.getTotalPageCount();
+
+            ObjectNode node = Json.newObject();
+            node.put(CODE, CODE200);
+            node.set("list",Json.toJson(list));
+            node.put("pages",pages);
+            return ok(node);
+        });
+    }
 
     /**
      * @api {POST} /v1/tk/regular/add/  02 kpi指标及其对应内容添加
@@ -2341,7 +2418,9 @@ public class V3TeacherController extends BaseAdminSecurityController {
                     .filter(v1->ttIds.contains(v1.getId())).toList();
 
             //对应的指标Id
-            List<Long> indicatorIds = tislist.stream().map(TeacherIndicatorScore::getIndicatorId).toList();
+            List<Long> indicatorIds = tislist.stream()
+                    .map(TeacherIndicatorScore::getIndicatorId)
+                    .toList();
             List<Indicator> indicatorList=Indicator.find.query().where()
                     .in("id",indicatorIds)
                     .findList();
@@ -3351,9 +3430,11 @@ public class V3TeacherController extends BaseAdminSecurityController {
             if(jsonNode==null) return okCustomJson(CODE40001,"参数错误");
             long indicatorId = jsonNode.findPath("indicatorId").asLong();
             long userId = jsonNode.findPath("userId").asLong();
+            int status = jsonNode.findPath("status").asInt();
 
             if(indicatorId<=0) return okCustomJson(CODE40001,"没有指标Id");
             if(userId<=0) return okCustomJson(CODE40001,"没有用户Id");
+            if(status<=0) return okCustomJson(CODE40001,"没有status");
             List<Element> elementList = Element.find.query().where()
                     .eq("indicator_id", indicatorId)
                     .findList();
@@ -3365,15 +3446,14 @@ public class V3TeacherController extends BaseAdminSecurityController {
             List<Long> elementIds = tesList.stream().map(TeacherElementScore::getElementId).toList();
             List<TeacherContentScore> tcsList = TeacherContentScore.find.query().where()
                     .eq("user_id", userId)
-                    .eq("element_id", elementIds)
+                    .in("element_id", elementIds)
                     .findList();
-            List<Long> fileIds = tcsList.stream().map(TeacherContentScore::getFileId).toList();
+            List<Long> fileIds = tcsList.stream().map(TeacherContentScore::getFileId).filter(Objects::nonNull).toList();
             List<TeacherFile> tfList = TeacherFile.find.query().where()
                     .in("id", fileIds)
                     .findList();
             List<Content> contentList = Content.find.query().where()
-                    .eq("user_id", userId)
-                    .eq("element_id", elementIds)
+                    .in("element_id", elementIds)
                     .findList();
 
             List<Map<String,Object>> mpList=new ArrayList<>();
@@ -3385,29 +3465,76 @@ public class V3TeacherController extends BaseAdminSecurityController {
                         .filter(v1 -> Objects.equals(v1.getElementId(), tes.getElementId()))
                         .toList();
 
+                //上级评分将所有内容显示出来，非上级显示需要材料
                 if(element!=null){
-                    Map<String,Object> mp=new HashMap<>();
-                    mp.put("elementName",element.getElement());
-                    mp.put("maxScore",element.getScore());
-                    mp.put("teacherElementScore",tes.getScore());
-                    List<Map<String,Object>> contentMapList = new ArrayList<>();
-                    tcsListByElementId.forEach(tcs->{
-                        Content content = contentList.stream()
-                                .filter(v1 -> Objects.equals(v1.getId(), tcs.getContentId()))
-                                .findFirst()
-                                .orElse(null);
-                        TeacherFile tf = tfList.stream()
-                                .filter(v1 -> Objects.equals(v1.getId(), tcs.getFileId()))
-                                .findFirst().orElse(null);
-                        Map<String,Object> contentMp=new HashMap<>();
-                        contentMp.put("teacherContentScore",tcs.getScore());
-                        contentMp.put("content",content!=null?content.getContent():null);
-                        contentMp.put("description",tf.getDescription());
-                        contentMp.put("path",tf.getFilePath());
-                        contentMapList.add(contentMp);
-                    });
-                    mp.put("contentList",contentMapList);
-                    mpList.add(mp);
+                    //上级
+                    if(status==1||status==3){
+                        Map<String,Object> mp=new HashMap<>();
+                        mp.put("elementName",element.getElement());
+                        mp.put("maxScore",element.getScore());
+                        mp.put("teacherElementScore",tes.getScore());
+                        List<Map<String,Object>> contentMapList = new ArrayList<>();
+                        tcsListByElementId.forEach(tcs->{
+                            Content content = contentList.stream()
+                                    .filter(v1 -> Objects.equals(v1.getId(), tcs.getContentId()))
+                                    .findFirst()
+                                    .orElse(null);
+                            TeacherFile tf = tfList.stream()
+                                    .filter(v1 -> Objects.equals(v1.getId(), tcs.getFileId()))
+                                    .findFirst().orElse(null);
+                            Map<String,Object> contentMp=new HashMap<>();
+                            contentMp.put("teacherContentScore",tcs.getScore());
+                            contentMp.put("content",content!=null?content.getContent():null);
+                            if(tf!=null){
+                                contentMp.put("description",tf.getDescription());
+                                contentMp.put("path",tf.getFilePath());
+                            }else{
+                                contentMp.put("description",null);
+                                contentMp.put("path",null);
+                            }
+
+                            contentMapList.add(contentMp);
+                        });
+                        mp.put("contentList",contentMapList);
+                        mpList.add(mp);
+                    }
+                    else if(status==2){//材料
+                        List<Map<String,Object>> contentMapList = new ArrayList<>();
+                        tcsListByElementId.forEach(tcs->{
+                            Content content = contentList.stream()
+                                    .filter(v1 -> Objects.equals(v1.getId(), tcs.getContentId()))
+                                    .findFirst()
+                                    .orElse(null);
+                            if(content!=null&&content.getType()==1){
+                                TeacherFile tf = tfList.stream()
+                                        .filter(v1 -> Objects.equals(v1.getId(), tcs.getFileId()))
+                                        .findFirst().orElse(null);
+                                Map<String,Object> contentMp=new HashMap<>();
+                                contentMp.put("teacherContentScore",tcs.getScore());
+                                contentMp.put("contentId",content.getId());
+                                contentMp.put("score",tcs.getScore());
+                                contentMp.put("finalScore",tcs.getFinalScore());
+                                contentMp.put("content",content.getContent());
+                                if(tf!=null){
+                                    contentMp.put("description",tf.getDescription());
+                                    contentMp.put("path",tf.getFilePath());
+                                }else{
+                                    contentMp.put("description",null);
+                                    contentMp.put("path",null);
+                                }
+                                contentMapList.add(contentMp);
+                            }
+                        });
+
+                        if(!contentMapList.isEmpty()){
+                            Map<String,Object> mp=new HashMap<>();
+                            mp.put("elementName",element.getElement());
+                            mp.put("maxScore",element.getScore());
+                            mp.put("teacherElementScore",tes.getScore());
+                            mp.put("contentList",contentMapList);
+                            mpList.add(mp);
+                        }
+                    }
                 }
             });
 

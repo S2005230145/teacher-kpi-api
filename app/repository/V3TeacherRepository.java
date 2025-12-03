@@ -314,7 +314,7 @@ public class V3TeacherRepository {
                 TeacherTask teacherTask = new TeacherTask();
                 teacherTask.setUserId(userId);
                 teacherTask.setParentIds(parentIds);
-                teacherTask.setStatus("待完成");
+                teacherTask.setStatus("待确认");
                 addTeacherIndicatorScoreList.stream()
                         .filter(v1 -> Objects.equals(v1.getIndicatorId(), indicatorId))
                         .findFirst().ifPresent(teacherIndicatorScore -> teacherTask.setTisId(teacherIndicatorScore.getId()));
