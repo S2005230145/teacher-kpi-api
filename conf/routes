@@ -116,7 +116,6 @@ POST         /v1/tk/teacher/delete/                                             
 POST         /v1/tk/teacher/file/                                                controllers.school.teacher.kpi.V3TeacherController.getTeacherFile(request:Request)
 POST         /v1/tk/teacher/task/delete/                                         controllers.school.teacher.kpi.V3TeacherController.deleteTask(request:Request)
 
-
 POST         /v1/tk/indicator/with/element/list/                                 controllers.school.teacher.kpi.V3TeacherController.getIndicatorWithElement(request:Request)
 POST         /v1/tk/element/with/content/list/                                   controllers.school.teacher.kpi.V3TeacherController.getElementWithContent(request:Request)
 
