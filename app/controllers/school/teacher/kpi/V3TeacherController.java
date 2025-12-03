@@ -17,6 +17,7 @@ import models.school.kpi.v3.*;
 import models.table.ParseResult;
 import models.user.Role;
 import models.user.User;
+import org.apache.poi.ss.formula.functions.T;
 import play.libs.Json;
 import play.mvc.BodyParser;
 import play.mvc.Http;
@@ -129,7 +130,6 @@ public class V3TeacherController extends BaseAdminSecurityController {
             return okCustomJson(CODE200,"添加成功");
         });
     }
-
 
 
     /**
@@ -901,12 +901,14 @@ public class V3TeacherController extends BaseAdminSecurityController {
         });
     }
 
+
+
     /**
      * @api {POST} /v1/tk/indicator/with/element/list/  01 获取indicator和与其相关的element
      * @apiName getIndicatorWithElement
      * @apiGroup Anew
      *
-     * @apiDescription 更新内容
+     * @apiDescription 管理台显示简化
      * @apiParam {Long} id 指标ID
      * @apiParam {String} indicatorName 指标名称
      * @apiParam {String} subName 指标附属名称
@@ -977,7 +979,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
      * @apiName getElementWithContent
      * @apiGroup Anew
      *
-     * @apiDescription 更新内容
+     * @apiDescription 管理台显示简化
      * @apiParam {Long} id 要素ID
      * @apiParam {String} indicatorName 指标名称
      * @apiParam {String} subName 指标附属名称
@@ -1045,9 +1047,9 @@ public class V3TeacherController extends BaseAdminSecurityController {
     }
 
     /**
-     * @api {POST} /v1/tk/regular/add/  02 kpi指标及其对应内容添加
+     * @api {POST} /v1/tk/regular/add/  01 kpi指标及其对应内容添加(旧)
      * @apiName add
-     * @apiGroup Teacher
+     * @apiGroup OldTeacher
      *
      * @apiDescription 批量创建指标及相关要素
      *
@@ -1097,7 +1099,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
     }
 
     /**
-     * @api {POST} /v1/tk/singleKpi/add/  03 添加单个kpi指标及其对应内容添加
+     * @api {POST} /v1/tk/singleKpi/add/  02 添加单个kpi指标及其对应内容添加
      * @apiName addSingleKpi
      * @apiGroup Teacher
      *
@@ -1985,14 +1987,23 @@ public class V3TeacherController extends BaseAdminSecurityController {
                     .eq("kpi_id",kpiId)
                     .findList();
             List<Long> indicatorIds = tisList.stream().map(TeacherIndicatorScore::getIndicatorId).toList();
+            List<Long> tisIds = tisList.stream().map(TeacherIndicatorScore::getId).toList();
 
             List<TeacherElementScore> tesList = TeacherElementScore.find.query().where()
                     .eq("user_id",userId)
                     .in("indicator_id",indicatorIds)
                     .findList();
 
-            List<TeacherElementScore> tesListHasFinalScore = tesList.stream().filter(v1 -> v1.getFinalScore() != null).toList();
-            if(tesList.size()>tesListHasFinalScore.size()){
+            List<TeacherElementScore> tesListHasFinalScore = tesList.stream()
+                    .filter(v1 -> v1.getFinalScore() != null)
+                    .toList();
+
+            List<TeacherTask> ttList = TeacherTask.find.query().where()
+                    .eq("user_id",userId)
+                    .in("tis_id", tisIds)
+                    .findList();
+
+            if(tesList.size()>tesListHasFinalScore.size()&&!ttList.isEmpty()){
                 //最终分数未评完
                 ObjectNode node = Json.newObject();
                 node.put("code", CODE200);
@@ -2534,7 +2545,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
      * @apiName addLeaderScore
      * @apiGroup Teacher
      *
-     * @apiDescription 用于最终评分(对需要材料的进行评测)
+     * @apiDescription 用于最终评分(对需要材料的以及上级确认的进行评测)
      *
      * @apiParam {Long} id 任务ID
      * @apiParam {JsonArray} data 数组
@@ -3554,6 +3565,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
                                     .findFirst().orElse(null);
                             Map<String,Object> contentMp=new HashMap<>();
                             contentMp.put("teacherContentScore",tcs.getScore());
+                            contentMp.put("maxScore",content!=null?content.getScore():null);
                             contentMp.put("content",content!=null?content.getContent():null);
                             if(tf!=null){
                                 contentMp.put("description",tf.getDescription());

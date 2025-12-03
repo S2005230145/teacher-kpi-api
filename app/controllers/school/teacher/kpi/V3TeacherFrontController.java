@@ -81,12 +81,15 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
                     .eq("user_id", userId)
                     .in("indicator_id",tisIds)
                     .findList();
+            List<TeacherTask> ttList = TeacherTask.find.query().where().eq("user_id",userId).in("tis_id",tisList.stream().map(TeacherIndicatorScore::getId).toList()).findList();
+            List<Element> elementList = Element.find.query().where().in("indicator_id", tisIds).findList();
             List<Long> tesIds = tesList.stream().map(TeacherElementScore::getElementId).toList();
 
             List<TeacherContentScore> tcsList= TeacherContentScore.find.query().where()
                     .eq("user_id", userId)
                     .in("element_id",tesIds)
                     .findList();
+
 
             //获取所有KPI
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
@@ -102,6 +105,23 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
                             .filter(v1 -> Objects.equals(v1.getIndicatorId(), indicator.getId()))
                             .map(TeacherElementScore::getElementId)
                             .toList();
+                    List<Element> elementFilterList = elementList.stream()
+                            .filter(v1 -> Objects.equals(v1.getIndicatorId(), indicator.getId()))
+                            .toList();
+                    boolean b = elementFilterList.stream().anyMatch(v1 -> v1.getType() == 1);
+                    if(tis!=null){
+                        TeacherTask teacherTask = ttList.stream()
+                                .filter(v1 -> Objects.equals(v1.getTisId(), tis.getId()))
+                                .findFirst().orElse(null);
+                        if(teacherTask!=null){
+                            mp.put("isExistLeaderGrade",b && teacherTask.getStatus().contains("完成"));
+                        }else{
+                            mp.put("isExistLeaderGrade",false);
+                        }
+                    }else{
+                        mp.put("isExistLeaderGrade",false);
+                    }
+
                     List<TeacherContentScore> tcsListByInner = tcsList.stream()
                             .filter(v1 -> tesIdByInner.contains(v1.getElementId()))
                             .toList();
@@ -260,6 +280,7 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
                         .anyMatch(Objects::nonNull);
                 tab.put("isLeaderGrade", element.getType() == 1 && !isCompletedGrade);
                 tab.put("completed", teacherTask != null?teacherTask.getStatus().equals("已完成"):null);
+                tab.put("finalScore",teacherElementScore!=null?teacherElementScore.getFinalScore():null);
                 tabs.add(tab);
                 List<Map<String, Object>> contents1=new ArrayList<>();
                 contentList.stream().filter(v1-> Objects.equals(v1.getElementId(), element.getId())).toList().forEach(contentTmp->{
