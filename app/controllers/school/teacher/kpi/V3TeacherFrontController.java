@@ -133,6 +133,7 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
                             .filter(v1 -> tesIdByInner.contains(v1.getElementId()))
                             .toList();
                     mp.put("score",tis!=null?tis.getScore():null);
+                    mp.put("finalScore",tis!=null?tis.getFinalScore():null);
                     double precent= (double)tcsListByInner.stream()
                             .filter(v1->v1.getScore()!=null).toList().size()/tcsListByInner.size();
                     int progress = (int) Math.round(precent * 100);
