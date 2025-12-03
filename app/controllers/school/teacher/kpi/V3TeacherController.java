@@ -2007,56 +2007,80 @@ public class V3TeacherController extends BaseAdminSecurityController {
         return CompletableFuture.supplyAsync(()->{
             String LeaderIds=(jsonNode.findPath("LeaderIds") instanceof MissingNode ?null: jsonNode.findPath("LeaderIds").asText());
             Long userId=(jsonNode.findPath("userId") instanceof MissingNode ?null:jsonNode.findPath("userId").asLong());
-            Long indicatorId=(jsonNode.findPath("indicatorId") instanceof MissingNode ?null:jsonNode.findPath("indicatorId").asLong());
 
             if(LeaderIds==null) return okCustomJson(CODE40001,"缺少LeaderIds");
             if(userId==null) return okCustomJson(CODE40001,"缺少userId");
 
             List<TeacherContentScore> tcs= objectMapper.convertValue(jsonNode.findPath("tcs"), new TypeReference<>() {});
 
-            //1.先计算没有文件的分数
+            //文件的list
+            List<Content> contentList = Content.find.query().where()
+                    .eq("type", 1)
+                    .in("id", tcs.stream().map(TeacherContentScore::getContentId).toList())
+                    .findList();
+            List<Long> contentIds= contentList.stream().map(Content::getId).toList();
+            //需要文件list
+            List<TeacherContentScore> NeedFileteacherContentScoreList = TeacherContentScore.find.query().where()
+                    .eq("user_id",userId)
+                    .in("content_id",contentIds).
+                    findList();
 
-            //没有文件的list
-            List<Long> contentIds= Content.find.query().where().eq("type",0)
-                    .in("id",tcs.stream().map(TeacherContentScore::getContentId).toList())
-                    .findList().stream().map(Content::getId).toList();
-            //得到不需要文件list
-            List<TeacherContentScore> NoFileteacherContentScoreList = TeacherContentScore.find.query()
-            .where().in("content_id",contentIds).findList();
-
-            for(TeacherContentScore teacherContentScore: NoFileteacherContentScoreList){
-                teacherContentScore.setScore(
-                        tcs.stream()
+            //更新队列
+            List<TeacherContentScore> updateTeacherContentScoreList=new ArrayList<>();
+            for(TeacherContentScore teacherContentScore: NeedFileteacherContentScoreList){
+                Content content = contentList.stream()
+                        .filter(v1 -> Objects.equals(v1.getId(), teacherContentScore.getContentId()))
+                        .findFirst().orElse(null);
+                TeacherContentScore teacherContentScore1 = tcs.stream()
                         .filter(value -> value.getContentId().equals(teacherContentScore.getContentId()))
-                        .map(
-                                value -> value.getScore()*value.getTime()
-                        )
-                        .findFirst()
-                        .orElse(null)
-                );
+                        .findFirst().orElse(null);
+                if(content!=null&&teacherContentScore1!=null&&teacherContentScore1.getScore()!=null){
+                    teacherContentScore.setScore(teacherContentScore1.getTime()*content.getScore());
+                }
 
                 teacherContentScore.setTime(
                         tcs.stream()
                         .filter(value -> value.getContentId().equals(teacherContentScore.getContentId()))
                         .map(
-                                value -> value.getTime()
+                                TeacherContentScore::getTime
                         )
                         .findFirst()
-                        .orElse(null)
+                        .orElse(1)
                 );
-                teacherContentScore.update();
+                updateTeacherContentScoreList.add(teacherContentScore);
+            }
+            try(Transaction transaction = TeacherContentScore.find.db().beginTransaction()){
+                DB.updateAll(updateTeacherContentScoreList);
+                transaction.commit();
+            } catch (Exception e) {
+                return okCustomJson(CODE40002,"更新TeacherContentScore出错:"+e);
             }
 
             //查询出elementId,向上查询
-            Long elementId = Objects.requireNonNull(Content.find.query().where().eq("id", contentIds.get(0)).findOne()).getElementId();
+            Long elementId = Objects.requireNonNull(Content.find.query().where()
+                    .eq("id", contentIds.get(0)).findOne())
+                    .getElementId();
+            Long indicatorId = Objects.requireNonNull(Element.find.query().where()
+                    .eq("id", elementId)
+                    .findOne())
+                    .getIndicatorId();
+            Long tisId = Objects.requireNonNull(TeacherIndicatorScore.find.query().where()
+                    .eq("user_id", userId)
+                    .eq("indicator_id", indicatorId)
+                    .setMaxRows(1).findOne()).getId();
 
             //插入任务
             TeacherTask task = new TeacherTask();
             task.setUserId(userId);
             task.setParentIds(LeaderIds);
             task.setStatus("待完成");
-            task.setTisId(elementId);
-            task.save();
+            task.setTisId(tisId);
+            try(Transaction transaction = TeacherTask.find.db().beginTransaction()){
+                task.save();
+                transaction.commit();
+            } catch (Exception e) {
+                return okCustomJson(CODE40002,"更新TeacherTask出错:"+e);
+            }
 
             return okCustomJson(CODE200,"提交审核成功");
         });
