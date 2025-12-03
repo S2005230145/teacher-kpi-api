@@ -115,11 +115,18 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
                                 .findFirst().orElse(null);
                         if(teacherTask!=null){
                             mp.put("isExistLeaderGrade",b && teacherTask.getStatus().contains("确认"));
+                            if(teacherTask.getStatus().equals("已完成")){
+                                mp.put("isAuditCompleted",true);
+                            }else{
+                                mp.put("isAuditCompleted",false);
+                            }
                         }else{
                             mp.put("isExistLeaderGrade",false);
+                            mp.put("isAuditCompleted",false);
                         }
                     }else{
                         mp.put("isExistLeaderGrade",false);
+                        mp.put("isAuditCompleted",false);
                     }
 
                     List<TeacherContentScore> tcsListByInner = tcsList.stream()

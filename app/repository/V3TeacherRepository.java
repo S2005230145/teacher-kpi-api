@@ -262,7 +262,12 @@ public class V3TeacherRepository {
                         .mapToDouble(Double::valueOf)
                         .sum();
                 //然后减去
-                tis.setScore(indicator.getScore()-score);
+                if(indicator.getScore()>=5000||indicator.getScore()<=-5000){
+                    tis.setScore(indicator.getScore());
+                }else{
+                    tis.setScore(indicator.getScore()-score);
+                }
+
                 tis.setFinalScore(indicator.getScore());
             }
         });
