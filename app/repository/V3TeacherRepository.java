@@ -193,9 +193,11 @@ public class V3TeacherRepository {
                 if(content.getType()==1){//需要材料
                     teacherContentScore.setTime(0);
                     teacherContentScore.setScore(null);
+                    teacherContentScore.setFinalScore(0.0);
                 }else{
                     teacherContentScore.setTime(1);
                     teacherContentScore.setScore(content.getScore());
+                    teacherContentScore.setFinalScore(content.getScore()>=0?content.getScore():0.0);
                 }
                 addTeacherContentScoreList.add(teacherContentScore);
             });

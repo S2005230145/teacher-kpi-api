@@ -114,7 +114,7 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
                                 .filter(v1 -> Objects.equals(v1.getTisId(), tis.getId()))
                                 .findFirst().orElse(null);
                         if(teacherTask!=null){
-                            mp.put("isExistLeaderGrade",b && teacherTask.getStatus().contains("完成"));
+                            mp.put("isExistLeaderGrade",b && teacherTask.getStatus().contains("确认"));
                         }else{
                             mp.put("isExistLeaderGrade",false);
                         }
