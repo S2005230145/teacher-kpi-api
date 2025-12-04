@@ -130,6 +130,7 @@ POST         /v1/tk/type/json/update/                                           
 #==========文件==========
 POST         /v1/tk/file/list/                                                   controllers.school.teacher.kpi.FileController.getFileList(request:Request)
 POST         /v1/tk/file/add/                                                    controllers.school.teacher.kpi.FileController.addFile(request:Request)
+POST         /v1/tk/file/delete/                                                 controllers.school.teacher.kpi.FileController.deleteFile(request:Request)
 #==========文件==========
 
 POST         /v1/tk/test/                                                        controllers.TestController.test()

@@ -105,6 +105,27 @@ public class FileController extends BaseAdminSecurityController {
         });
     }
 
+    public CompletionStage<Result> deleteFile(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+            if(jsonNode==null) return okCustomJson(CODE40001,"参数错误");
+            if (osName.contains("win")) {
+                path=config.getString("fileUpload.windows");
+            }else {
+                path=config.getString("fileUpload.linux");
+            }
+            String filePath=jsonNode.findPath("filePath").asText();
+
+            File file=new File(path,filePath);
+            boolean delete = file.delete();
+            if(delete){
+                return okCustomJson(CODE200,"删除成功");
+            }else{
+                return okCustomJson(CODE200,"删除失败");
+            }
+        });
+    }
+
     //工具
     private void setFilePermissions777(Path filePath) {
         try {

@@ -1910,53 +1910,6 @@ public class V3TeacherController extends BaseAdminSecurityController {
                     fos.write(pdfBytes);
                 }
 
-                if(format){
-                    Transaction transaction = DB.beginTransaction();
-                    TeacherKPIScore kpi = TeacherKPIScore.find.query().where().eq("user_id",userId).eq("kpi_id",kpiId).setMaxRows(1).findOne();
-                    if(kpi!=null){
-                        List<TeacherIndicatorScore> indicatorList = TeacherIndicatorScore.find.query().where().eq("user_id",userId).eq("kpi_id",kpi.getKpiId()).findList();
-                        List<Long> indicatorIds = indicatorList.stream().map(TeacherIndicatorScore::getIndicatorId).toList();
-                        List<TeacherElementScore> elementList = TeacherElementScore.find.query().where().eq("user_id",userId).in("indicator_id",indicatorIds).findList();
-                        List<Long> elementIds = elementList.stream().map(TeacherElementScore::getElementId).toList();
-                        List<TeacherContentScore> contentList = TeacherContentScore.find.query().where().eq("user_id", userId).in("element_id", elementIds).findList();
-                        List<TeacherTask> teacherTaskList = TeacherTask.find.query().where().eq("user_id", userId).eq("tes_id", elementList.stream().map(TeacherElementScore::getId).toList()).findList();
-                        List<Long> fileIds = contentList.stream().map(TeacherContentScore::getFileId).toList();
-                        List<TeacherFile> teacherFileList = TeacherFile.find.query().where().in("id", fileIds).findList();
-                        String path = null;
-                        if (osName.contains("win")) {
-                            path=config.getString("fileUpload.windows");
-                        }
-                        else {
-                            path=config.getString("fileUpload.linux");
-                        }
-                        List<TeacherFile> deleteTeacherFileList=new ArrayList<>();
-                        String finalPath = path;
-                        teacherFileList.forEach(teacherFile -> {
-                                if(teacherFile!=null){
-                                    for (String filePath : teacherFile.getFilePath().split(",")) {
-                                        File oldDestination = new File(finalPath, filePath);
-                                        boolean delete = oldDestination.delete();
-                                        if(delete){
-                                            deleteTeacherFileList.add(teacherFile);
-                                        }
-                                    }
-                                }
-                        });
-                        try{
-                            kpi.delete();
-                            DB.deleteAll(indicatorList);
-                            DB.deleteAll(elementList);
-                            DB.deleteAll(contentList);
-                            DB.deleteAll(teacherTaskList);
-                            DB.deleteAll(deleteTeacherFileList);
-                            transaction.commit();
-                        }catch (Exception e){
-                            System.out.println("出错："+e);
-                            transaction.rollback();
-                        }
-                    }
-                }
-
                 return ok(file)
                         .withHeader("content-disposition", "attachment; filename=\"" + filename + "\"")
                         .as( "application/pdf");
@@ -2581,18 +2534,16 @@ public class V3TeacherController extends BaseAdminSecurityController {
             if(userId<=0) return okCustomJson(CODE40001,"userId为空");
             if(dataMapList.isEmpty()) return okCustomJson(CODE40001,"data为空");
 
-            Transaction transaction=DB.beginTransaction();
-
             TeacherTask teacherTask = TeacherTask.find.query().where()
                     .eq("id",id)
                     .setMaxRows(1).findOne();
             if(teacherTask==null) return okCustomJson(CODE40001,"没有该任务");
             teacherTask.setStatus("已完成");
-            try{
+            try(Transaction transaction = TeacherTask.find.db().beginTransaction()){
                 teacherTask.update();
-            }
-            catch (Exception e){
-                transaction.rollback();
+                transaction.commit();
+            }catch (Exception e){
+                return okCustomJson(CODE40002,"更新任务状态失败: "+e);
             }
 
             List<Long> contentIds = dataMapList.stream()
@@ -2618,7 +2569,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
                         .findFirst().orElse(null);
                 if(tcs!=null&&content!=null){
                     if(dataMap.get("score")!=null){
-                        double score = (double) dataMap.get("score");
+                        double score =Double.parseDouble(dataMap.get("score").toString());
                         if(content.getTopScore()!=null&&score>=content.getTopScore()){
                             tcs.setFinalScore(content.getTopScore());
                         }else if(content.getBottomScore()!=null&&score<=content.getBottomScore()){
@@ -2632,10 +2583,10 @@ public class V3TeacherController extends BaseAdminSecurityController {
                 }
                 updateTeacherContentScoreList.add(tcs);
             });
-            try{
+            try(Transaction transaction = TeacherContentScore.find.db().beginTransaction()){
                 DB.updateAll(updateTeacherContentScoreList);
-            }
-            catch (Exception e){
+                transaction.commit();
+            }catch (Exception e){
                 return okCustomJson(CODE40002,"更新内容评分失败: "+e);
             }
             //向上分数更新
@@ -2667,8 +2618,9 @@ public class V3TeacherController extends BaseAdminSecurityController {
                     tes.setFinalScore(value);
                 }
             });
-            try{
+            try(Transaction transaction = TeacherElementScore.find.db().beginTransaction()){
                 DB.updateAll(tesList);
+                transaction.commit();
             }
             catch (Exception e){
                 return okCustomJson(CODE40002,"更新要素评分失败: "+e);
@@ -2702,8 +2654,9 @@ public class V3TeacherController extends BaseAdminSecurityController {
                 }
                 tis.setFinalScore(value);
             });
-            try{
+            try(Transaction transaction = TeacherIndicatorScore.find.db().beginTransaction()){
                 DB.updateAll(tisList);
+                transaction.commit();
             }
             catch (Exception e){
                 return okCustomJson(CODE40002,"更新指标评分失败: "+e);
@@ -2734,13 +2687,13 @@ public class V3TeacherController extends BaseAdminSecurityController {
                 }
                 tks.setFinalScore(Double.valueOf(String.format("%.2f", value)));
             });
-            try{
+            try(Transaction transaction = TeacherKPIScore.find.db().beginTransaction()){
                 DB.updateAll(tksList);
+                transaction.commit();
             }
             catch (Exception e){
                 return okCustomJson(CODE40002,"更新KPI评分失败: "+e);
             }
-            transaction.commit();
             return okCustomJson(CODE200,"上级评分成功");
         });
     }
