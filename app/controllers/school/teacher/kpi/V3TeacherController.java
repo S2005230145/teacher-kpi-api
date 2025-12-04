@@ -874,7 +874,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
             Double score = (jsonNode.findPath("score").asText().isEmpty() ?0.0:jsonNode.findPath("score").asDouble());
             Double topScore =(jsonNode.findPath("topScore").asText().isEmpty()||jsonNode.findPath("topScore").asText().equals("null") ?null:jsonNode.findPath("topScore").asDouble());
             Double bottomScore =(jsonNode.findPath("bottomScore").asText().isEmpty()||jsonNode.findPath("topScore").asText().equals("null") ?null:jsonNode.findPath("bottomScore").asDouble());
-
+            int type= jsonNode.findPath("type").asInt();
 
             if(id<=0) return okCustomJson(CODE40001,"没有id");
 
@@ -885,6 +885,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
             if(!ValidationUtil.isEmpty(contentName)) content.setContent(contentName);
             if(!ValidationUtil.isEmpty(description)) content.setDescription(description);
             if(typeId>0) content.setTypeId(typeId);
+            if(type>0) content.setType(type);
             content.setScore(score);
             content.setTopScore(topScore);
             content.setBottomScore(bottomScore);
