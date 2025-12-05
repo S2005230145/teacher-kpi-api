@@ -40,6 +40,11 @@ public class FileController extends BaseAdminSecurityController {
             }
 
             String folderPath=jsonNode.findPath("folderPath").asText();
+            int start=jsonNode.findPath("start").asInt();
+            int size=jsonNode.findPath("size").asInt();
+
+            if(start<0) start=1;
+            if(size<=0) size=1;
 
             File folder=new File(path,folderPath);
             if (!folder.exists() || !folder.isDirectory()) {
@@ -67,7 +72,10 @@ public class FileController extends BaseAdminSecurityController {
 
             ObjectNode result = Json.newObject();
             result.put(CODE,CODE200);
-            result.set("list",Json.toJson(mpList));
+            int startIndex= Math.min(((start - 1) * size), mpList.size());
+            int endIndex=(Math.min(startIndex + size, mpList.size()));
+            result.put("pages",mpList.size()/size+(mpList.size()%size==0?0:1));
+            result.set("list",Json.toJson(mpList.subList(startIndex,endIndex)));
             result.put("totalSpace",folder.getTotalSpace()+ " bytes");
             result.put("usableSpace",folder.getUsableSpace()+ " bytes");
             result.put("freeSpace",folder.getFreeSpace()+ " bytes");
@@ -77,31 +85,46 @@ public class FileController extends BaseAdminSecurityController {
 
     //添加文件
     public CompletionStage<Result> addFile(Http.Request request){
-        JsonNode jsonNode = request.body().asJson();
         return CompletableFuture.supplyAsync(()->{
-            if(jsonNode==null) return okCustomJson(CODE40001,"参数错误");
+            Http.MultipartFormData<play.libs.Files.TemporaryFile> multipartFormData = request.body().asMultipartFormData();
+            List<Http.MultipartFormData.FilePart<Files.TemporaryFile>> files = multipartFormData.getFiles();
+            String folderPath = multipartFormData.asFormUrlEncoded().containsKey("folderPath")?multipartFormData.asFormUrlEncoded().get("folderPath")[0]:null;
+            if(folderPath==null) return okCustomJson(CODE40001,"没有文件路径");
             if (osName.contains("win")) {
                 path=config.getString("fileUpload.windows");
             }else {
                 path=config.getString("fileUpload.linux");
             }
-
-            Http.MultipartFormData<play.libs.Files.TemporaryFile> multipartFormData = request.body().asMultipartFormData();
-            List<Http.MultipartFormData.FilePart<Files.TemporaryFile>> files = multipartFormData.getFiles();
-            String folderPath = multipartFormData.asFormUrlEncoded().containsKey("folderPath")?multipartFormData.asFormUrlEncoded().get("folderPath")[0]:null;
-            if(folderPath==null) return okCustomJson(CODE40001,"没有文件路径");
-
             File folder=new File(path,folderPath);
             if (!folder.exists()) {
                 return okCustomJson(CODE40001,"该目录不存在");
             }
+
+            List<Map<String,Object>> mpList=new ArrayList<>();
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
             files.forEach(file->{
                 File destination = new File(folder, file.getFilename());
                 file.getRef().copyTo(destination.toPath(), false);
                 this.setFilePermissions777(destination.toPath());
+                Map<String,Object> mp=new HashMap<>();
+                mp.put("fileName",destination.getName());
+                mp.put("parentFileName",destination.getParentFile().toString());
+                mp.put("isDirectory",destination.isDirectory());
+                mp.put("isFile",destination.isFile());
+                mp.put("canRead",destination.canRead());
+                mp.put("canWrite:",destination.canWrite());
+                mp.put("canExecute",destination.canExecute());
+                mp.put("isHidden",destination.isHidden());
+                mp.put("lastModified",sdf.format(new Date(destination.lastModified())));
+                mp.put("size",destination.length()+ " bytes");
+                mpList.add(mp);
             });
 
-            return okCustomJson(CODE200,"文件上传成功");
+            ObjectNode result = Json.newObject();
+            result.put(CODE,CODE200);
+            result.set("list",Json.toJson(mpList));
+            result.put("reason","文件上传成功");
+            return ok(result);
         });
     }
 

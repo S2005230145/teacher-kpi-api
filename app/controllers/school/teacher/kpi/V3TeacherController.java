@@ -34,6 +34,7 @@ import utils.parse.WordTableTitleExtractor;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -197,6 +198,121 @@ public class V3TeacherController extends BaseAdminSecurityController {
             node.put(CODE, CODE200);
             node.set("list",Json.toJson(list));
             node.put("pages",pages);
+            return ok(node);
+        });
+    }
+
+    /**
+     * @api {POST} /v1/tk/kpi/with/other/list/  03 kpi下信息的连锁查询
+     * @apiName allKpi
+     * @apiGroup Anew
+     *
+     * @apiDescription 获取KPI以及详细的信息
+     *
+     * @apiParam {int} page 页数
+     * @apiParam {Long} kpiId kpiId
+     * @apiParam {String} indicatorName 指标名
+     * @apiParam {String} elementName 要素名
+     * @apiParam {String} contentName 内容名
+     *
+     * @apiParamExample {json} 请求示例:
+     * {
+     *    "page":"",//页数
+     *    "kpiId":1
+     *    //条件
+     *    "indicatorName":"",
+     *    "elementName":"",
+     *    "contentName":"",
+     * }
+     *
+     * @apiSuccess (Success 200) {int} code 200
+     * @apiSuccess (Success 200) {JsonArray} list 数据
+     * @apiSuccess (Success 200) {int} indicatorPages 指标页数
+     * @apiSuccess (Success 200) {int} elementPages 页数(若要素存在)
+     * @apiSuccess (Success 200) {int} contentPages 内容页数(若内容存在)
+     *
+     * @apiSuccess (Error 40001) {int} code 40001
+     * @apiSuccess (Error 40001) {String} reason 所有缺失信息
+     *
+     * @apiSuccess (Error 40002) {int} code 40002
+     * @apiSuccess (Error 40002) {String} reason 所有出错信息
+     */
+    public CompletionStage<Result> allKpi(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+            if(jsonNode==null) return okCustomJson(CODE40001,"参数出错");
+
+            int page=jsonNode.findPath("page").asInt();
+            int kpiId=jsonNode.findPath("kpiId").asInt();
+            String indicatorName=jsonNode.findPath("indicatorName").asText();
+            String elementName=jsonNode.findPath("elementName").asText();
+            String contentName=jsonNode.findPath("contentName").asText();
+            if(kpiId<=0) return okCustomJson(CODE40001,"没有KpiId");
+            if (page < 1) page = 1;
+            final int queryPage = page - 1;
+
+            ObjectNode node = Json.newObject();
+            node.put(CODE, CODE200);
+
+            //indicatorList
+            ExpressionList<Indicator> indicatorExpressionList = Indicator.find.query().where();
+
+            if(!ValidationUtil.isEmpty(indicatorName)) indicatorExpressionList.icontains("indicator_name",indicatorName);
+
+            PagedList<Indicator> pagedList = indicatorExpressionList
+                    .orderBy().desc("id")
+                    .setFirstRow(queryPage * BusinessConstant.PAGE_SIZE_10)
+                    .setMaxRows(BusinessConstant.PAGE_SIZE_10)
+                    .findPagedList();
+            List<Indicator> list = pagedList.getList();
+            List<Element> elementList = List.of();
+            List<Content> contentList = List.of();
+            int kpiPages = pagedList.getTotalPageCount();
+
+            if(!list.isEmpty()){
+                //elementList
+                ExpressionList<Element> elementExpressionList = Element.find.query().where();
+                if(!ValidationUtil.isEmpty(elementName)) elementExpressionList.icontains("element",elementName);
+                PagedList<Element> pagedList1 = elementExpressionList
+                        .orderBy().desc("id")
+                        .setFirstRow(queryPage * BusinessConstant.PAGE_SIZE_10)
+                        .setMaxRows(BusinessConstant.PAGE_SIZE_10)
+                        .findPagedList();
+                elementList = pagedList1.getList();
+                int elementPages = pagedList1.getTotalPageCount();
+                node.put("elementPages",elementPages);
+                if(!elementList.isEmpty()){
+                    //contentList
+                    ExpressionList<Content> contentExpressionList = Content.find.query().where();
+                    if(!ValidationUtil.isEmpty(contentName)) contentExpressionList.icontains("content",contentName);
+                    PagedList<Content> pagedList2 = contentExpressionList
+                            .orderBy().desc("id")
+                            .setFirstRow(queryPage * BusinessConstant.PAGE_SIZE_10)
+                            .setMaxRows(BusinessConstant.PAGE_SIZE_10)
+                            .findPagedList();
+                    contentList = pagedList2.getList();
+                    int contentPages = pagedList2.getTotalPageCount();
+                    node.put("contentPages",contentPages);
+                }
+            }
+
+            List<Element> finalElementList = elementList;
+            List<Content> finalContentList = contentList;
+            list.forEach(indicator->{
+                List<Element> list1 = finalElementList.stream()
+                        .filter(v1 -> v1!=null&&Objects.equals(v1.getIndicatorId(), indicator.getId()))
+                        .toList();
+                list1.forEach(element -> {
+                    List<Content> list2 = finalContentList.stream()
+                            .filter(v1 -> v1!=null&&Objects.equals(v1.getElementId(), element.getId()))
+                            .toList();
+                    element.setContentList(list2);
+                });
+                indicator.setElementList(list1);
+            });
+
+            node.set("list",Json.toJson(list));
+            node.put("indicatorPages",kpiPages);
             return ok(node);
         });
     }
@@ -3762,8 +3878,8 @@ public class V3TeacherController extends BaseAdminSecurityController {
         try {
             Map<String, Object> map = new HashMap<>();
 
-            java.lang.reflect.Field nameField = obj.getClass().getDeclaredField("name");
-            java.lang.reflect.Field scoreField = obj.getClass().getDeclaredField("score");
+            Field nameField = obj.getClass().getDeclaredField("name");
+            Field scoreField = obj.getClass().getDeclaredField("score");
 
             nameField.setAccessible(true);
             scoreField.setAccessible(true);
