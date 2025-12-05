@@ -130,6 +130,11 @@ POST         /v1/tk/type/json/list/                                             
 POST         /v1/tk/type/json/delete/                                            controllers.school.teacher.kpi.V3TeacherController.deleteTypeJson(request:Request)
 POST         /v1/tk/type/json/update/                                            controllers.school.teacher.kpi.V3TeacherController.updateTypeJson(request:Request)
 
+POST         /v1/tk/standard/list/                                               controllers.school.teacher.kpi.V3TeacherController.getStandard(request:Request)
+POST         /v1/tk/standard/add/                                                controllers.school.teacher.kpi.V3TeacherController.addStandard(request:Request)
+POST         /v1/tk/standard/update/                                             controllers.school.teacher.kpi.V3TeacherController.updateStandard(request:Request)
+POST         /v1/tk/standard/delete/                                             controllers.school.teacher.kpi.V3TeacherController.deleteStandard(request:Request)
+POST         /v1/tk/standard/teacher/get/                                        controllers.school.teacher.kpi.V3TeacherController.teacherStandard(request:Request)
 #==========文件==========
 POST         /v1/tk/file/list/                                                   controllers.school.teacher.kpi.FileController.getFileList(request:Request)
 POST         /v1/tk/file/add/                                                    controllers.school.teacher.kpi.FileController.addFile(request:Request)

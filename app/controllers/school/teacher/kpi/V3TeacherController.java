@@ -17,12 +17,10 @@ import models.school.kpi.v3.*;
 import models.table.ParseResult;
 import models.user.Role;
 import models.user.User;
-import org.apache.poi.ss.formula.functions.T;
 import play.libs.Json;
 import play.mvc.BodyParser;
 import play.mvc.Http;
 import play.mvc.Result;
-import play.shaded.ahc.io.netty.handler.codec.serialization.ObjectEncoder;
 import repository.V3TeacherRepository;
 import service.FileParseService;
 import utils.AssessmentPDF;
@@ -43,8 +41,8 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Function;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -324,54 +322,48 @@ public class V3TeacherController extends BaseAdminSecurityController {
                     .setFirstRow(queryPage * BusinessConstant.PAGE_SIZE_10)
                     .setMaxRows(BusinessConstant.PAGE_SIZE_10)
                     .findPagedList();
-            List<Indicator> list = pagedList.getList();
-            List<Element> elementList = List.of();
-            List<Content> contentList = List.of();
+            List<Indicator> allIndicatorList=Indicator.find.all();
             int kpiPages = pagedList.getTotalPageCount();
 
-            if(!list.isEmpty()){
-                //elementList
-                ExpressionList<Element> elementExpressionList = Element.find.query().where();
-                if(!ValidationUtil.isEmpty(elementName)) elementExpressionList.icontains("element",elementName);
-                PagedList<Element> pagedList1 = elementExpressionList
-                        .orderBy().desc("id")
-                        .setFirstRow(queryPage * BusinessConstant.PAGE_SIZE_10)
-                        .setMaxRows(BusinessConstant.PAGE_SIZE_10)
-                        .findPagedList();
-                elementList = pagedList1.getList();
-                int elementPages = pagedList1.getTotalPageCount();
-                node.put("elementPages",elementPages);
-                if(!elementList.isEmpty()){
-                    //contentList
-                    ExpressionList<Content> contentExpressionList = Content.find.query().where();
-                    if(!ValidationUtil.isEmpty(contentName)) contentExpressionList.icontains("content",contentName);
-                    PagedList<Content> pagedList2 = contentExpressionList
-                            .orderBy().desc("id")
-                            .setFirstRow(queryPage * BusinessConstant.PAGE_SIZE_10)
-                            .setMaxRows(BusinessConstant.PAGE_SIZE_10)
-                            .findPagedList();
-                    contentList = pagedList2.getList();
-                    int contentPages = pagedList2.getTotalPageCount();
-                    node.put("contentPages",contentPages);
-                }
-            }
+            //elementList
+            ExpressionList<Element> elementExpressionList = Element.find.query().where();
+            if(!ValidationUtil.isEmpty(elementName)) elementExpressionList.icontains("element",elementName);
+            PagedList<Element> pagedList1 = elementExpressionList
+                    .orderBy().desc("id")
+                    .setFirstRow(queryPage * BusinessConstant.PAGE_SIZE_10)
+                    .setMaxRows(BusinessConstant.PAGE_SIZE_10)
+                    .findPagedList();
+            List<Element> allElementList=Element.find.all();
 
-            List<Element> finalElementList = elementList;
-            List<Content> finalContentList = contentList;
-            list.forEach(indicator->{
-                List<Element> list1 = finalElementList.stream()
-                        .filter(v1 -> v1!=null&&Objects.equals(v1.getIndicatorId(), indicator.getId()))
+            int elementPages = pagedList1.getTotalPageCount();
+            node.put("elementPages",elementPages);
+            //contentList
+            ExpressionList<Content> contentExpressionList = Content.find.query().where();
+            if(!ValidationUtil.isEmpty(contentName)) contentExpressionList.icontains("content",contentName);
+            PagedList<Content> pagedList2 = contentExpressionList
+                    .orderBy().desc("id")
+                    .setFirstRow(queryPage * BusinessConstant.PAGE_SIZE_10)
+                    .setMaxRows(BusinessConstant.PAGE_SIZE_10)
+                    .findPagedList();
+            List<Content> allContentList = Content.find.all();
+
+            int contentPages = pagedList2.getTotalPageCount();
+            node.put("contentPages",contentPages);
+
+            allIndicatorList.forEach(indicator->{
+                List<Element> list1 = allElementList.stream()
+                        .filter(v1 -> Objects.equals(v1.getIndicatorId(), indicator.getId()))
                         .toList();
                 list1.forEach(element -> {
-                    List<Content> list2 = finalContentList.stream()
-                            .filter(v1 -> v1!=null&&Objects.equals(v1.getElementId(), element.getId()))
+                    List<Content> list2 = allContentList.stream()
+                            .filter(v1 -> Objects.equals(v1.getElementId(), element.getId()))
                             .toList();
                     element.setContentList(list2);
                 });
                 indicator.setElementList(list1);
             });
 
-            node.set("list",Json.toJson(list));
+            node.set("list",Json.toJson(allIndicatorList));
             node.put("indicatorPages",kpiPages);
             return ok(node);
         });
@@ -3699,6 +3691,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
                             contentMp.put("score",tcs.getScore());
                             contentMp.put("finalScore",tcs.getFinalScore());
                             contentMp.put("maxScore",content!=null?content.getScore():null);
+                            contentMp.put("isNeedFile", content != null && content.getType() == 1);
                             contentMp.put("content",content!=null?content.getContent():null);
                             if(tf!=null){
                                 contentMp.put("description",tf.getDescription());
@@ -3729,7 +3722,8 @@ public class V3TeacherController extends BaseAdminSecurityController {
                                 contentMp.put("contentId",content.getId());
                                 contentMp.put("score",tcs.getScore());
                                 contentMp.put("finalScore",tcs.getFinalScore());
-                                contentMp.put("maxScore",content!=null?content.getScore():null);
+                                contentMp.put("maxScore", content.getScore());
+                                contentMp.put("isNeedFile",true);
                                 contentMp.put("content",content.getContent());
                                 if(tf!=null){
                                     contentMp.put("description",tf.getDescription());
@@ -3850,6 +3844,294 @@ public class V3TeacherController extends BaseAdminSecurityController {
         });
     }
 
+
+    /**
+     * @api {POST} /v1/tk/standard/list/  01 标准列表
+     * @apiName getStandard
+     * @apiGroup Standard
+     *
+     * @apiDescription 列表
+     *
+     * @apiParam {int} page 页面数
+     * @apiParamExample {json} 请求示例:
+     * {
+     *    "page":1
+     * }
+     * @apiSuccess (Success 200){int} code 200
+     * @apiSuccess (Success 200){int} pages 页数
+     * @apiSuccess (Success 200){JsonArray} list 数据
+     *
+     * @apiSuccess (Error 40001){int} code 40001
+     * @apiSuccess (Error 40001){msg} reason 所有缺失信息
+     *
+     * @apiSuccess (Error 40002){int} code 40002
+     * @apiSuccess (Error 40002){msg} reason 所有报错信息
+     */
+    public CompletionStage<Result> getStandard(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+            if(jsonNode==null) return okCustomJson(CODE40001,"参数错误");
+            int page=jsonNode.findPath("page").asInt();
+            if (page < 1) page = 1;
+            final int queryPage = page - 1;
+
+            PagedList<Standard> pagedList = Standard.find.query().where()
+                    .orderBy().desc("id")
+                    .setFirstRow(queryPage * BusinessConstant.PAGE_SIZE_10)
+                    .setMaxRows(BusinessConstant.PAGE_SIZE_10)
+                    .findPagedList();
+            List<Standard> list = pagedList.getList();
+            int pages = pagedList.getTotalPageCount();
+
+            ObjectNode node = Json.newObject();
+            node.put(CODE, CODE200);
+            node.set("list",Json.toJson(list));
+            node.put("pages",pages);
+            return ok(node);
+        });
+    }
+
+    /**
+     * @api {POST} /v1/tk/standard/add/  02 标准添加
+     * @apiName addStandard
+     * @apiGroup Standard
+     *
+     * @apiParam {String} name 标准名
+     * @apiParam {Double} leftLimitScore 左临界分
+     * @apiParam {String} leftOperator 左符号
+     * @apiParam {String} op 连接符
+     * @apiParam {Double} rightLimitScore 右临界分
+     * @apiParam {String} rightOperator 右符号
+     * @apiDescription 添加
+     *
+     * @apiParamExample {json} 请求示例:
+     * {
+     *    "name":"",
+     *    "leftLimitScore":
+     *    "leftOperator":
+     *    "op":
+     *    "rightLimitScore":
+     *    "rightOperator":
+     * }
+     * @apiSuccess (Success 200){int} code 200
+     * @apiSuccess (Success 200){int} reason 添加成功
+     *
+     * @apiSuccess (Error 40001){int} code 40001
+     * @apiSuccess (Error 40001){msg} reason 所有缺失信息
+     *
+     * @apiSuccess (Error 40002){int} code 40002
+     * @apiSuccess (Error 40002){msg} reason 所有报错信息
+     */
+    public CompletionStage<Result> addStandard(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+            if(jsonNode==null) return okCustomJson(CODE40001,"参数错误");
+            String name=jsonNode.findPath("name").asText();
+            Double leftLimitScore=jsonNode.findPath("leftLimitScore").asDouble();
+            String leftOperator=jsonNode.findPath("leftOperator").asText();
+            String op=jsonNode.findPath("page").asText();
+            Double rightLimitScore=jsonNode.findPath("page").asDouble();
+            String rightOperator=jsonNode.findPath("page").asText();
+
+            Standard standard = new Standard();
+            if(!ValidationUtil.isEmpty(name)) standard.setName(name);
+            if(!ValidationUtil.isEmpty(leftOperator)) standard.setLeftOperator(leftOperator);
+            if(!ValidationUtil.isEmpty(op)) standard.setOp(op);
+            if(!ValidationUtil.isEmpty(rightOperator)) standard.setRightOperator(rightOperator);
+            standard.setLeftLimitScore(leftLimitScore);
+            standard.setRightLimitScore(rightLimitScore);
+
+            try(Transaction transaction = Standard.find.db().beginTransaction()){
+                standard.save();
+                transaction.commit();
+            } catch (Exception e) {
+                return okCustomJson(CODE40002,"添加失败:"+e);
+            }
+
+            return okCustomJson(CODE200,"添加成功");
+        });
+    }
+
+    /**
+     * @api {POST} /v1/tk/standard/update/  03 标准更新
+     * @apiName updateStandard
+     * @apiGroup Standard
+     *
+     * @apiParam {Long} id 标准ID
+     * @apiParam {String} name 标准名
+     * @apiParam {Double} leftLimitScore 左临界分
+     * @apiParam {String} leftOperator 左符号
+     * @apiParam {String} op 连接符
+     * @apiParam {Double} rightLimitScore 右临界分
+     * @apiParam {String} rightOperator 右符号
+     * @apiDescription 更新
+     *
+     * @apiParamExample {json} 请求示例:
+     * {
+     *    "name":"",
+     *    "leftLimitScore":
+     *    "leftOperator":
+     *    "op":
+     *    "rightLimitScore":
+     *    "rightOperator":
+     * }
+     * @apiSuccess (Success 200){int} code 200
+     * @apiSuccess (Success 200){int} reason 更新成功
+     *
+     * @apiSuccess (Error 40001){int} code 40001
+     * @apiSuccess (Error 40001){msg} reason 所有缺失信息
+     *
+     * @apiSuccess (Error 40002){int} code 40002
+     * @apiSuccess (Error 40002){msg} reason 所有报错信息
+     */
+    public CompletionStage<Result> updateStandard(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+            if(jsonNode==null) return okCustomJson(CODE40001,"参数错误");
+            long id=jsonNode.findPath("id").asLong();
+            String name=jsonNode.findPath("name").asText();
+            Double leftLimitScore=jsonNode.findPath("leftLimitScore").asDouble();
+            String leftOperator=jsonNode.findPath("leftOperator").asText();
+            String op=jsonNode.findPath("page").asText();
+            Double rightLimitScore=jsonNode.findPath("page").asDouble();
+            String rightOperator=jsonNode.findPath("page").asText();
+
+            if(id<=0) return okCustomJson(CODE40001,"没有标准ID");
+
+            Standard standard = Standard.find.byId(id);
+            if(standard==null) return okCustomJson(CODE40001,"没有该标准");
+
+            if(!ValidationUtil.isEmpty(name)) standard.setName(name);
+            if(!ValidationUtil.isEmpty(leftOperator)) standard.setLeftOperator(leftOperator);
+            if(!ValidationUtil.isEmpty(op)) standard.setOp(op);
+            if(!ValidationUtil.isEmpty(rightOperator)) standard.setRightOperator(rightOperator);
+            standard.setLeftLimitScore(leftLimitScore);
+            standard.setRightLimitScore(rightLimitScore);
+
+            try(Transaction transaction = Standard.find.db().beginTransaction()){
+                standard.update();
+                transaction.commit();
+            } catch (Exception e) {
+                return okCustomJson(CODE40002,"更新失败:"+e);
+            }
+
+            return okCustomJson(CODE200,"更新成功");
+        });
+    }
+
+    /**
+     * @api {POST} /v1/tk/standard/delete/  04 标准删除
+     * @apiName deleteStandard
+     * @apiGroup Standard
+     *
+     * @apiParam {Long} id 标准ID
+     * @apiDescription 删除
+     *
+     * @apiParamExample {json} 请求示例:
+     * {
+     *    "id":""
+     * }
+     * @apiSuccess (Success 200){int} code 200
+     * @apiSuccess (Success 200){int} reason 删除成功
+     *
+     * @apiSuccess (Error 40001){int} code 40001
+     * @apiSuccess (Error 40001){msg} reason 所有缺失信息
+     *
+     * @apiSuccess (Error 40002){int} code 40002
+     * @apiSuccess (Error 40002){msg} reason 所有报错信息
+     */
+    public CompletionStage<Result> deleteStandard(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+            if(jsonNode==null) return okCustomJson(CODE40001,"参数错误");
+            long id=jsonNode.findPath("id").asLong();
+
+            if(id<=0) return okCustomJson(CODE40001,"没有标准ID");
+
+            Standard standard = Standard.find.byId(id);
+            if(standard==null) return okCustomJson(CODE40001,"没有该标准");
+
+            try(Transaction transaction = Standard.find.db().beginTransaction()){
+                standard.delete();
+                transaction.commit();
+            } catch (Exception e) {
+                return okCustomJson(CODE40002,"删除失败:"+e);
+            }
+
+            return okCustomJson(CODE200,"删除成功");
+        });
+    }
+
+    /**
+     * @api {POST} /v1/tk/standard/teacher/get/  05 教师标准评测
+     * @apiName teacherStandard
+     * @apiGroup Standard
+     *
+     * @apiParam {Long} userId 教师ID
+     * @apiParam {Long} kpiId kpiID
+     * @apiDescription 删除
+     *
+     * @apiParamExample {json} 请求示例:
+     * {
+     *    "userId":"",
+     *    "kpiId":""
+     * }
+     * @apiSuccess (Success 200){int} code 200
+     * @apiSuccess (Success 200){String} standards 标准名(优、良、合格)
+     *
+     * @apiSuccess (Error 40001){int} code 40001
+     * @apiSuccess (Error 40001){msg} reason 所有缺失信息
+     *
+     * @apiSuccess (Error 40002){int} code 40002
+     * @apiSuccess (Error 40002){msg} reason 所有报错信息
+     */
+    public CompletionStage<Result> teacherStandard(Http.Request request) {
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(() -> {
+            if (jsonNode == null) return okCustomJson(CODE40001, "参数错误");
+            long userId=jsonNode.findPath("userId").asLong();
+            long kpiId=jsonNode.findPath("kpiId").asLong();
+
+            if(userId<=0) return okCustomJson(CODE40001, "没有userId");
+            if(kpiId<=0) return okCustomJson(CODE40001, "没有kpiId");
+
+            TeacherKPIScore tks = TeacherKPIScore.find.query().where()
+                    .eq("user_id", userId)
+                    .eq("kpi_id", kpiId)
+                    .findOne();
+            if (tks == null) return okCustomJson(CODE40001, "没有该教师的KPI");
+
+            List<Standard> allStandard = Standard.find.all();
+            AtomicReference<String> standards= new AtomicReference<>("");
+            AtomicInteger mx= new AtomicInteger(-1);
+            allStandard.forEach(standard -> {
+                boolean left=false,right=false;
+                if(standard.getLeftOperator().contains(">=")||standard.getLeftOperator().contains("=>")){
+                    left=(tks.getFinalScore()>=standard.getLeftLimitScore());
+                }
+                else if(standard.getLeftOperator().contains("<=")||standard.getLeftOperator().contains("=<")){
+                    left=(tks.getFinalScore()<=standard.getLeftLimitScore());
+                }
+
+                if(standard.getRightOperator().contains(">=")||standard.getRightOperator().contains("=>")){
+                    right=(tks.getFinalScore()>=standard.getRightLimitScore());
+                }
+                else if(standard.getRightOperator().contains("<=")||standard.getRightOperator().contains("=<")){
+                    right=(tks.getFinalScore()<=standard.getRightLimitScore());
+                }
+
+                if(((standard.getOp().contains("and")&&(left&&right))||(standard.getOp().contains("or")&&(left||right)))&&(standard.getLevel()>= mx.get())){
+                    standards.set(standard.getName());
+                    mx.set(standard.getLevel());
+                }
+            });
+
+            ObjectNode node = Json.newObject();
+            node.put(CODE, CODE200);
+            node.put("standards", standards.get());
+            return ok(node);
+        });
+    }
     //==========================================
     //工具
     private void testPDF() throws IOException {

@@ -1056,6 +1056,13 @@ create table v1_sms_template (
   constraint pk_v1_sms_template primary key (id)
 );
 
+create table tk_v3_standard (
+  id                            bigint auto_increment not null,
+  left_limit_score              varchar(255),
+  name                          varchar(255),
+  constraint pk_tk_v3_standard primary key (id)
+);
+
 create table v1_system_carousel (
   id                            integer auto_increment not null,
   name                          varchar(255),
@@ -1161,6 +1168,12 @@ create table tk_v1_teacher_performance_assessment (
   evaluation_standard           varchar(255),
   score                         double,
   constraint pk_tk_v1_teacher_performance_assessment primary key (id)
+);
+
+create table tk_v3_teacher_standard (
+  id                            bigint auto_increment not null,
+  title                         varchar(255),
+  constraint pk_tk_v3_teacher_standard primary key (id)
 );
 
 create table tk_v3_teacher_task (
@@ -1445,6 +1458,8 @@ drop table if exists v1_sms_log;
 
 drop table if exists v1_sms_template;
 
+drop table if exists tk_v3_standard;
+
 drop table if exists v1_system_carousel;
 
 drop table if exists v1_system_link;
@@ -1462,6 +1477,8 @@ drop table if exists tk_v3_teacher_kpi_score;
 drop table if exists tk_teacher_performance_assessment;
 
 drop table if exists tk_v1_teacher_performance_assessment;
+
+drop table if exists tk_v3_teacher_standard;
 
 drop table if exists tk_v3_teacher_task;
 
