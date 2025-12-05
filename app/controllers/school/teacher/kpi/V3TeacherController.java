@@ -133,6 +133,8 @@ public class V3TeacherController extends BaseAdminSecurityController {
     }
 
 
+
+
     /**
      * @api {POST} /v1/tk/kpi/list/  01 查询kpi
      * @apiName getKpi
@@ -149,6 +151,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
      * @apiParamExample {json} 请求示例:
      * {
      *    "page":"",//页数
+     *    "size":10,
      *     //条件
      *    "id":"",
      *    "title": "",
@@ -172,7 +175,9 @@ public class V3TeacherController extends BaseAdminSecurityController {
             if(jsonNode==null) return okCustomJson(CODE40001,"参数出错");
 
             int page=jsonNode.findPath("page").asInt();
+            int size=jsonNode.findPath("size").asInt();
             if (page < 1) page = 1;
+            if (size < 0) size=10;
             final int queryPage = page - 1;
             //条件
             long id = jsonNode.findPath("id").asLong();
@@ -188,8 +193,8 @@ public class V3TeacherController extends BaseAdminSecurityController {
 
             PagedList<KPI> pagedList = expressionList
                     .orderBy().desc("id")
-                    .setFirstRow(queryPage * BusinessConstant.PAGE_SIZE_10)
-                    .setMaxRows(BusinessConstant.PAGE_SIZE_10)
+                    .setFirstRow(queryPage * size)
+                    .setMaxRows(size)
                     .findPagedList();
             List<KPI> list = pagedList.getList();
             int pages = pagedList.getTotalPageCount();
@@ -203,9 +208,66 @@ public class V3TeacherController extends BaseAdminSecurityController {
     }
 
     /**
-     * @api {POST} /v1/tk/kpi/with/other/list/  03 kpi下信息的连锁查询
+     * @api {POST} /v1/tk/kpi/list/noPage/  01 查询kpi(无分页)
+     * @apiName getKpi
+     * @apiGroup AnewCP
+     *
+     * @apiDescription 查询kpi
+     *
+     * @apiParam {String} title KPI标题
+     * @apiParam {String} createTime 创建时间
+     * @apiParam {String} endTime 截至时间
+     *
+     * @apiParamExample {json} 请求示例:
+     * {
+     *     //条件
+     *    "id":"",
+     *    "title": "",
+     *    "createTime":"",
+     *    "endTime":""
+     * }
+     *
+     * @apiSuccess (Success 200) {int} code 200
+     * @apiSuccess (Success 200) {JsonArray} list 数据
+     * @apiSuccess (Success 200) {int} pages 页数
+     *
+     * @apiSuccess (Error 40001) {int} code 40001
+     * @apiSuccess (Error 40001) {String} reason 所有缺失信息
+     *
+     * @apiSuccess (Error 40002) {int} code 40002
+     * @apiSuccess (Error 40002) {String} reason 所有出错信息
+     */
+    public CompletionStage<Result> getKpiNoPage(Http.Request request){
+        JsonNode jsonNode = request.body().asJson();
+        return CompletableFuture.supplyAsync(()->{
+            if(jsonNode==null) return okCustomJson(CODE40001,"参数出错");
+
+            //条件
+            long id = jsonNode.findPath("id").asLong();
+            String title = jsonNode.findPath("title").asText();
+            String createTime = jsonNode.findPath("createTime").asText();
+            String endTime = jsonNode.findPath("endTime").asText();
+
+            ExpressionList<KPI> expressionList = KPI.find.query().where();
+            if(id>0) expressionList.eq("id",id);
+            if(!ValidationUtil.isEmpty(title)) expressionList.icontains("title",title);
+            if(!ValidationUtil.isEmpty(createTime)) expressionList.ge("create_time",createTime);
+            if(!ValidationUtil.isEmpty(endTime)) expressionList.le("end_time",endTime);
+
+            List<KPI> list = expressionList
+                    .orderBy().desc("id")
+                    .findList();
+
+            ObjectNode node = Json.newObject();
+            node.put(CODE, CODE200);
+            node.set("list",Json.toJson(list));
+            return ok(node);
+        });
+    }
+    /**
+     * @api {POST} /v1/tk/kpi/with/other/list/  02 kpi下信息的连锁查询
      * @apiName allKpi
-     * @apiGroup Anew
+     * @apiGroup AnewCP
      *
      * @apiDescription 获取KPI以及详细的信息
      *

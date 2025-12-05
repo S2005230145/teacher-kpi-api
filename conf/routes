@@ -65,6 +65,7 @@ GET          /v1/tk/user_groups/                                                
 # 教师绩效
 POST         /v1/tk/kpi/add/                                                     controllers.school.teacher.kpi.V3TeacherController.addKpi(request:Request)
 POST         /v1/tk/kpi/list/                                                    controllers.school.teacher.kpi.V3TeacherController.getKpi(request:Request)
+POST         /v1/tk/kpi/list/noPage/                                             controllers.school.teacher.kpi.V3TeacherController.getKpiNoPage(request:Request)
 POST         /v1/tk/kpi/list/all/                                                controllers.school.teacher.kpi.V3TeacherController.allKpi(request:Request)
 POST         /v1/tk/kpi/update/                                                  controllers.school.teacher.kpi.V3TeacherController.updateKpi(request:Request)
 
