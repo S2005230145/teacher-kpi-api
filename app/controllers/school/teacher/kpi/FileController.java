@@ -72,7 +72,7 @@ public class FileController extends BaseAdminSecurityController {
 
             ObjectNode result = Json.newObject();
             result.put(CODE,CODE200);
-            int startIndex= Math.min(((start - 1) * size), mpList.size());
+            int startIndex= Math.min((start - 1) * size, mpList.size());
             int endIndex=(Math.min(startIndex + size, mpList.size()));
             result.put("pages",mpList.size()/size+(mpList.size()%size==0?0:1));
             result.set("list",Json.toJson(mpList.subList(startIndex,endIndex)));

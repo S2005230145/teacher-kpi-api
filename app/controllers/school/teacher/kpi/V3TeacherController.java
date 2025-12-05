@@ -132,9 +132,6 @@ public class V3TeacherController extends BaseAdminSecurityController {
         });
     }
 
-
-
-
     /**
      * @api {POST} /v1/tk/kpi/list/  01 查询kpi
      * @apiName getKpi
@@ -264,6 +261,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
             return ok(node);
         });
     }
+
     /**
      * @api {POST} /v1/tk/kpi/with/other/list/  02 kpi下信息的连锁查询
      * @apiName allKpi
