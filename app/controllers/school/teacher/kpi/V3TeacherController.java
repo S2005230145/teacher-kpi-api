@@ -131,7 +131,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
     }
 
     /**
-     * @api {POST} /v1/tk/kpi/list/  01 查询kpi
+     * @api {POST} /v1/tk/kpi/list/  01 ****查询kpi
      * @apiName getKpi
      * @apiGroup TeacherQuery
      *
@@ -313,7 +313,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
             node.put(CODE, CODE200);
 
             //indicatorList
-            ExpressionList<Indicator> indicatorExpressionList = Indicator.find.query().where();
+            ExpressionList<Indicator> indicatorExpressionList = Indicator.find.query().where().eq("kpi_id",kpiId);
 
             if(!ValidationUtil.isEmpty(indicatorName)) indicatorExpressionList.icontains("indicator_name",indicatorName);
 
@@ -1950,6 +1950,8 @@ public class V3TeacherController extends BaseAdminSecurityController {
             }catch (Exception e){
                 return okCustomJson(CODE40002,"更新状态失败,出错:"+e);
             }
+
+
 
             Pair<Boolean, List<String>> booleanListPair = v3TeacherRepository.dispatchAll(ids, kpiId);
 
@@ -3897,6 +3899,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
      * @apiGroup Standard
      *
      * @apiParam {String} name 标准名
+     * @apiParam {Integer} level 等级(5最高 1最低)
      * @apiParam {Double} leftLimitScore 左临界分
      * @apiParam {String} leftOperator 左符号
      * @apiParam {String} op 连接符
@@ -3907,6 +3910,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
      * @apiParamExample {json} 请求示例:
      * {
      *    "name":"",
+     *    "level":"",
      *    "leftLimitScore":
      *    "leftOperator":
      *    "op":
@@ -3926,6 +3930,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
         JsonNode jsonNode = request.body().asJson();
         return CompletableFuture.supplyAsync(()->{
             if(jsonNode==null) return okCustomJson(CODE40001,"参数错误");
+            int level=jsonNode.findPath("name").asInt();
             String name=jsonNode.findPath("name").asText();
             Double leftLimitScore=jsonNode.findPath("leftLimitScore").asDouble();
             String leftOperator=jsonNode.findPath("leftOperator").asText();
@@ -3938,6 +3943,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
             if(!ValidationUtil.isEmpty(leftOperator)) standard.setLeftOperator(leftOperator);
             if(!ValidationUtil.isEmpty(op)) standard.setOp(op);
             if(!ValidationUtil.isEmpty(rightOperator)) standard.setRightOperator(rightOperator);
+            if(level>=0) standard.setLevel(level);
             standard.setLeftLimitScore(leftLimitScore);
             standard.setRightLimitScore(rightLimitScore);
 
@@ -3958,6 +3964,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
      * @apiGroup Standard
      *
      * @apiParam {Long} id 标准ID
+     * @apiParam {Integer} level 等级(5最高 1最低)
      * @apiParam {String} name 标准名
      * @apiParam {Double} leftLimitScore 左临界分
      * @apiParam {String} leftOperator 左符号
@@ -3969,6 +3976,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
      * @apiParamExample {json} 请求示例:
      * {
      *    "name":"",
+     *    "level":"",
      *    "leftLimitScore":
      *    "leftOperator":
      *    "op":
@@ -3989,6 +3997,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
         return CompletableFuture.supplyAsync(()->{
             if(jsonNode==null) return okCustomJson(CODE40001,"参数错误");
             long id=jsonNode.findPath("id").asLong();
+            int level=jsonNode.findPath("name").asInt();
             String name=jsonNode.findPath("name").asText();
             Double leftLimitScore=jsonNode.findPath("leftLimitScore").asDouble();
             String leftOperator=jsonNode.findPath("leftOperator").asText();
@@ -4005,6 +4014,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
             if(!ValidationUtil.isEmpty(leftOperator)) standard.setLeftOperator(leftOperator);
             if(!ValidationUtil.isEmpty(op)) standard.setOp(op);
             if(!ValidationUtil.isEmpty(rightOperator)) standard.setRightOperator(rightOperator);
+            if(level>=0) standard.setLevel(level);
             standard.setLeftLimitScore(leftLimitScore);
             standard.setRightLimitScore(rightLimitScore);
 
