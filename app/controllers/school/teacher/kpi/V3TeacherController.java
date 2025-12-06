@@ -323,7 +323,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
                     .setFirstRow(queryPage * BusinessConstant.PAGE_SIZE_10)
                     .setMaxRows(BusinessConstant.PAGE_SIZE_10)
                     .findPagedList();
-            List<Indicator> allIndicatorList=Indicator.find.all();
+            List<Indicator> allIndicatorList=Indicator.find.query().where().eq("kpi_id",kpiId).findList();
             int kpiPages = pagedList.getTotalPageCount();
 
             //elementList
