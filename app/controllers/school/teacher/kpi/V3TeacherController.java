@@ -475,6 +475,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
             long kpiId = jsonNode.findPath("kpiId").asLong();
             String indicatorName = jsonNode.findPath("indicatorName").asText();
             String subName = jsonNode.findPath("subName").asText();
+            Double score = jsonNode.findPath("score").asDouble();
 
             if(kpiId<=0) return okCustomJson(CODE40002,"缺少对应的KPI");
 
@@ -482,6 +483,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
             indicator.setKpiId(kpiId);
             if(!ValidationUtil.isEmpty(indicatorName)) indicator.setIndicatorName(indicatorName);
             if(!ValidationUtil.isEmpty(subName)) indicator.setSubName(subName);
+            indicator.setScore(score);
 
             try(Transaction transaction = Indicator.find.db().beginTransaction()){
                 indicator.save();
@@ -602,6 +604,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
             long kpiId = jsonNode.findPath("kpiId").asLong();
             String indicatorName = jsonNode.findPath("indicatorName").asText();
             String subName = jsonNode.findPath("subName").asText();
+            Double score = jsonNode.findPath("score").asDouble();
 
             if(id<=0) return okCustomJson(CODE40001,"没有id");
 
@@ -611,6 +614,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
             if(kpiId>0) indicator.setKpiId(kpiId);
             if(!ValidationUtil.isEmpty(indicatorName)) indicator.setIndicatorName(indicatorName);
             if(!ValidationUtil.isEmpty(subName)) indicator.setSubName(subName);
+            indicator.setScore(score);
 
             try(Transaction transaction = Indicator.find.db().beginTransaction()){
                 indicator.update();
