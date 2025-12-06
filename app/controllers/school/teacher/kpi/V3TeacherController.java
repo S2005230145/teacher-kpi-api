@@ -58,7 +58,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
 
     ObjectMapper objectMapper = new ObjectMapper();
 
-    private static final Boolean is_DEV=true;
+    private static final Boolean is_DEV=false;
 
     private static String osName = System.getProperty("os.name").toLowerCase();
 
