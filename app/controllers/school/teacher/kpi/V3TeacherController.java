@@ -3930,13 +3930,13 @@ public class V3TeacherController extends BaseAdminSecurityController {
         JsonNode jsonNode = request.body().asJson();
         return CompletableFuture.supplyAsync(()->{
             if(jsonNode==null) return okCustomJson(CODE40001,"参数错误");
-            int level=jsonNode.findPath("name").asInt();
+            int level=jsonNode.findPath("level").asInt();
             String name=jsonNode.findPath("name").asText();
             Double leftLimitScore=jsonNode.findPath("leftLimitScore").asDouble();
             String leftOperator=jsonNode.findPath("leftOperator").asText();
-            String op=jsonNode.findPath("page").asText();
-            Double rightLimitScore=jsonNode.findPath("page").asDouble();
-            String rightOperator=jsonNode.findPath("page").asText();
+            String op=jsonNode.findPath("op").asText();
+            Double rightLimitScore=jsonNode.findPath("rightLimitScore").asDouble();
+            String rightOperator=jsonNode.findPath("rightOperator").asText();
 
             Standard standard = new Standard();
             if(!ValidationUtil.isEmpty(name)) standard.setName(name);
@@ -3997,13 +3997,13 @@ public class V3TeacherController extends BaseAdminSecurityController {
         return CompletableFuture.supplyAsync(()->{
             if(jsonNode==null) return okCustomJson(CODE40001,"参数错误");
             long id=jsonNode.findPath("id").asLong();
-            int level=jsonNode.findPath("name").asInt();
+            int level=jsonNode.findPath("level").asInt();
             String name=jsonNode.findPath("name").asText();
             Double leftLimitScore=jsonNode.findPath("leftLimitScore").asDouble();
             String leftOperator=jsonNode.findPath("leftOperator").asText();
-            String op=jsonNode.findPath("page").asText();
-            Double rightLimitScore=jsonNode.findPath("page").asDouble();
-            String rightOperator=jsonNode.findPath("page").asText();
+            String op=jsonNode.findPath("op").asText();
+            Double rightLimitScore=jsonNode.findPath("rightLimitScore").asDouble();
+            String rightOperator=jsonNode.findPath("rightOperator").asText();
 
             if(id<=0) return okCustomJson(CODE40001,"没有标准ID");
 
