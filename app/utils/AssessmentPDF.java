@@ -18,6 +18,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 public class AssessmentPDF {
@@ -71,11 +73,42 @@ public class AssessmentPDF {
         v3AddTitle(document,kpiId);
         v3AddTableTop(document);
         List<Indicator> indicatorList = Indicator.find.query().where().eq("kpi_id",kpiId).findList();
-        List<Indicator> indicatorListFirst=indicatorList.subList(0,2);//取前两个指标
+        List<Indicator> indicatorListFirst=indicatorList.subList(0,1);//取前两个指标
         List<Element> elementList = Element.find.query().where().in("indicator_id", indicatorList.stream().map(Indicator::getId).toList()).findList();
         List<Content> contentList = Content.find.query().where().in("element_id",elementList.stream().map(Element::getId).toList()).findList();
         List<TeacherElementScore> tes = TeacherElementScore.find.query().where().eq("user_id", userId).findList();
 
+        TeacherKPIScore tks = TeacherKPIScore.find.query().where()
+                .eq("user_id", userId)
+                .eq("kpi_id", kpiId)
+                .findOne();
+        AtomicReference<String> standards= new AtomicReference<>("");
+        if (tks != null){
+            List<Standard> allStandard = Standard.find.all();
+            AtomicInteger mx= new AtomicInteger(-1);
+            allStandard.forEach(standard -> {
+                boolean left=false,right=false;
+                if(standard.getLeftOperator().contains(">=")||standard.getLeftOperator().contains("=>")){
+                left=(tks.getFinalScore()>=standard.getLeftLimitScore());
+            }
+                else if(standard.getLeftOperator().contains("<=")||standard.getLeftOperator().contains("=<")){
+                left=(tks.getFinalScore()<=standard.getLeftLimitScore());
+            }
+
+                if(standard.getRightOperator().contains(">=")||standard.getRightOperator().contains("=>")){
+                right=(tks.getFinalScore()>=standard.getRightLimitScore());
+            }
+                else if(standard.getRightOperator().contains("<=")||standard.getRightOperator().contains("=<")){
+                right=(tks.getFinalScore()<=standard.getRightLimitScore());
+            }
+
+                if(((standard.getOp().contains("and")&&(left&&right))||(standard.getOp().contains("or")&&(left||right)))&&(standard.getLevel()>= mx.get())){
+                    standards.set(standard.getName());
+                    mx.set(standard.getLevel());
+                }
+            });
+        }
+        addItem1WithStandard(document,standards.get());
         v3AddItem1(document,indicatorListFirst,elementList,contentList,tes);
 
         document.add(new AreaBreak());
@@ -83,7 +116,7 @@ public class AssessmentPDF {
         //第二页
         v3AddTitle(document,kpiId);
         v3AddTableTop(document);
-        List<Indicator> indicatorListSecond=indicatorList.subList(2,indicatorList.size());
+        List<Indicator> indicatorListSecond=indicatorList.subList(1,indicatorList.size());
 
         v3AddItem1(document,indicatorListSecond,elementList,contentList,tes);
 
@@ -175,6 +208,18 @@ public class AssessmentPDF {
         table.addCell(createCell("师德\n师风\n\n（优、合格、不合格）",3,1).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
         table.addCell(createCellWithIndent("1、按照教育部《新时代中小学教师职业行为十项准则》、《新时代幼儿园教师职业行为十项准则》执行",1,2).setTextAlignment(TextAlignment.LEFT).setVerticalAlignment(VerticalAlignment.MIDDLE));
         table.addCell(createCell("是否合格，不设置分值",3,1).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
+        table.addCell(addScoreElement(null,3)).setPadding(0);
+
+        table.addCell(createCellWithIndent("2.未存在教育部《中小学教师违反职业道德行为处理办法(2018年修订)》、《幼儿园教师违反职业道德行为处理办法》中应予处理的教师违反职业道德的行为",1,2).setTextAlignment(TextAlignment.LEFT).setVerticalAlignment(VerticalAlignment.MIDDLE));
+        table.addCell(createCellWithIndent("3.未存在《福州市中小学(幼儿园)教师职业行为负面清单》及《福州市教师职业行为负面清单处理办法》中的师德失范行为",1,2).setTextAlignment(TextAlignment.LEFT).setVerticalAlignment(VerticalAlignment.MIDDLE));
+
+        document.add(table);
+    }
+    private static void addItem1WithStandard(Document document,String standard) {
+        Table table = new Table(UnitValue.createPercentArray(new float[]{1, 1, 2, 2, 1})).setWidth(UnitValue.createPercentValue(100)).setPadding(0).setMargin(0);
+        table.addCell(createCell("师德\n师风\n\n（优、合格、不合格）",3,1).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
+        table.addCell(createCellWithIndent("1、按照教育部《新时代中小学教师职业行为十项准则》、《新时代幼儿园教师职业行为十项准则》执行",1,2).setTextAlignment(TextAlignment.LEFT).setVerticalAlignment(VerticalAlignment.MIDDLE));
+        table.addCell(createCell(standard.isEmpty()?"是否合格，不设置分值":standard,3,1).setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE));
         table.addCell(addScoreElement(null,3)).setPadding(0);
 
         table.addCell(createCellWithIndent("2.未存在教育部《中小学教师违反职业道德行为处理办法(2018年修订)》、《幼儿园教师违反职业道德行为处理办法》中应予处理的教师违反职业道德的行为",1,2).setTextAlignment(TextAlignment.LEFT).setVerticalAlignment(VerticalAlignment.MIDDLE));

@@ -69,6 +69,7 @@ POST         /v1/tk/kpi/list/noPage/                                            
 POST         /v1/tk/kpi/with/other/list/                                         controllers.school.teacher.kpi.V3TeacherController.allKpi(request:Request)
 POST         /v1/tk/kpi/list/all/                                                controllers.school.teacher.kpi.V3TeacherController.allKpi(request:Request)
 POST         /v1/tk/kpi/update/                                                  controllers.school.teacher.kpi.V3TeacherController.updateKpi(request:Request)
+POST         /v1/tk/kpi/is/completed/                                            controllers.school.teacher.kpi.V3TeacherController.kpiIsCompleted(request:Request)
 
 POST         /v1/tk/indicator/add/                                               controllers.school.teacher.kpi.V3TeacherController.addIndicator(request:Request)
 POST         /v1/tk/indicator/list/                                              controllers.school.teacher.kpi.V3TeacherController.getIndicator(request:Request)

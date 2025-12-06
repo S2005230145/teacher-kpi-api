@@ -58,7 +58,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
 
     ObjectMapper objectMapper = new ObjectMapper();
 
-    private static final Boolean is_DEV=false;
+    private static final Boolean is_DEV=true;
 
     private static String osName = System.getProperty("os.name").toLowerCase();
 
@@ -4139,6 +4139,63 @@ public class V3TeacherController extends BaseAdminSecurityController {
             ObjectNode node = Json.newObject();
             node.put(CODE, CODE200);
             node.put("standards", standards.get());
+            return ok(node);
+        });
+    }
+
+    /**
+     * @api {POST} /v1/tk/kpi/is/completed/  03 所有的kpi是否完整(既至少一个内容)
+     * @apiName kpiIsCompleted
+     * @apiGroup Standard
+     *
+     * @apiDescription 是否完整
+     *
+     * @apiParamExample {json} 请求示例:
+     * {}
+     *
+     * @apiSuccess (Success 200){int} code 200
+     * @apiSuccess (Success 200){JsonArray} list 数据
+     * @apiSuccess (Success 200){Long} kpiId 对应的kpiId
+     * @apiSuccess (Success 200){boolean} isCompleted 是否完整
+     * @apiSuccessExample {json} 成功示例:
+     * {
+     *      "code":200,
+     *      "list":[
+     *          {
+     *              "kpiId":1,
+     *              "isCompleted":true
+     *          }
+     *      ]
+     * }
+     *
+     * @apiSuccess (Error 40001){int} code 40001
+     * @apiSuccess (Error 40001){msg} reason 所有缺失信息
+     *
+     * @apiSuccess (Error 40002){int} code 40002
+     * @apiSuccess (Error 40002){msg} reason 所有报错信息
+     */
+    public CompletionStage<Result> kpiIsCompleted(Http.Request request){
+        return CompletableFuture.supplyAsync(() -> {
+            List<KPI> allKPI = KPI.find.all();
+
+            List<Content> contentList=Content.find.all();
+            List<Long> elementIds = contentList.stream().map(Content::getElementId).toList();
+            List<Element> elementList=Element.find.query().where().in("id",elementIds).findList();
+            List<Long> indicatorIds = elementList.stream().map(Element::getIndicatorId).toList();
+            List<Indicator> indicatorList=Indicator.find.query().where().in("id",indicatorIds).findList();
+            Set<Long> kpiIds = indicatorList.stream().map(Indicator::getKpiId).collect(Collectors.toSet());
+
+            List<Map<String,Object>> mpList=new ArrayList<>();
+            allKPI.forEach(kpi->{
+                Map<String, Object> mp = new HashMap<>();
+                mp.put("kpiId",kpi.getId());
+                mp.put("isCompleted",kpiIds.contains(kpi.getId()));
+                mpList.add(mp);
+            });
+
+            ObjectNode node = Json.newObject();
+            node.put(CODE, CODE200);
+            node.set("list", Json.toJson(mpList));
             return ok(node);
         });
     }
