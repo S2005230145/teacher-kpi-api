@@ -24,6 +24,7 @@ import play.mvc.Result;
 import repository.V3TeacherRepository;
 import service.FileParseService;
 import utils.AssessmentPDF;
+import utils.CalculatorHelp;
 import utils.Pair;
 import utils.ValidationUtil;
 import utils.parse.WordParser;
@@ -4108,37 +4109,13 @@ public class V3TeacherController extends BaseAdminSecurityController {
             TeacherKPIScore tks = TeacherKPIScore.find.query().where()
                     .eq("user_id", userId)
                     .eq("kpi_id", kpiId)
+                    .setMaxRows(1)
                     .findOne();
             if (tks == null) return okCustomJson(CODE40001, "没有该教师的KPI");
-
-            List<Standard> allStandard = Standard.find.all();
-            AtomicReference<String> standards= new AtomicReference<>("");
-            AtomicInteger mx= new AtomicInteger(-1);
-            allStandard.forEach(standard -> {
-                boolean left=false,right=false;
-                if(standard.getLeftOperator().contains(">=")||standard.getLeftOperator().contains("=>")){
-                    left=(tks.getFinalScore()>=standard.getLeftLimitScore());
-                }
-                else if(standard.getLeftOperator().contains("<=")||standard.getLeftOperator().contains("=<")){
-                    left=(tks.getFinalScore()<=standard.getLeftLimitScore());
-                }
-
-                if(standard.getRightOperator().contains(">=")||standard.getRightOperator().contains("=>")){
-                    right=(tks.getFinalScore()>=standard.getRightLimitScore());
-                }
-                else if(standard.getRightOperator().contains("<=")||standard.getRightOperator().contains("=<")){
-                    right=(tks.getFinalScore()<=standard.getRightLimitScore());
-                }
-
-                if(((standard.getOp().contains("and")&&(left&&right))||(standard.getOp().contains("or")&&(left||right)))&&(standard.getLevel()>= mx.get())){
-                    standards.set(standard.getName());
-                    mx.set(standard.getLevel());
-                }
-            });
-
+            String standards = CalculatorHelp.calculatorKPIStandard(tks);
             ObjectNode node = Json.newObject();
             node.put(CODE, CODE200);
-            node.put("standards", standards.get());
+            node.put("standards", standards);
             return ok(node);
         });
     }
@@ -4150,7 +4127,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
      *
      * @apiDescription 是否完整
      *
-     * @apiParamExample {json} 请求示例:
+               * @apiParamExample {json} 请求示例:
      * {}
      *
      * @apiSuccess (Success 200){int} code 200

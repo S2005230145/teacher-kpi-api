@@ -81,34 +81,10 @@ public class AssessmentPDF {
         TeacherKPIScore tks = TeacherKPIScore.find.query().where()
                 .eq("user_id", userId)
                 .eq("kpi_id", kpiId)
+                .setMaxRows(1)
                 .findOne();
-        AtomicReference<String> standards= new AtomicReference<>("");
-        if (tks != null){
-            List<Standard> allStandard = Standard.find.all();
-            AtomicInteger mx= new AtomicInteger(-1);
-            allStandard.forEach(standard -> {
-                boolean left=false,right=false;
-                if(standard.getLeftOperator().contains(">=")||standard.getLeftOperator().contains("=>")){
-                left=(tks.getFinalScore()>=standard.getLeftLimitScore());
-            }
-                else if(standard.getLeftOperator().contains("<=")||standard.getLeftOperator().contains("=<")){
-                left=(tks.getFinalScore()<=standard.getLeftLimitScore());
-            }
-
-                if(standard.getRightOperator().contains(">=")||standard.getRightOperator().contains("=>")){
-                right=(tks.getFinalScore()>=standard.getRightLimitScore());
-            }
-                else if(standard.getRightOperator().contains("<=")||standard.getRightOperator().contains("=<")){
-                right=(tks.getFinalScore()<=standard.getRightLimitScore());
-            }
-
-                if(((standard.getOp().contains("and")&&(left&&right))||(standard.getOp().contains("or")&&(left||right)))&&(standard.getLevel()>= mx.get())){
-                    standards.set(standard.getName());
-                    mx.set(standard.getLevel());
-                }
-            });
-        }
-        addItem1WithStandard(document,standards.get());
+        String standards = CalculatorHelp.calculatorKPIStandard(tks);
+        addItem1WithStandard(document,standards);
         v3AddItem1(document,indicatorListFirst,elementList,contentList,tes);
 
         document.add(new AreaBreak());
