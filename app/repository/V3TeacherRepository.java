@@ -305,7 +305,7 @@ public class V3TeacherRepository {
             user.setRole(allRole.stream().filter(v1-> Objects.equals(v1.getId(), user.getRoleId())).findFirst().orElse(null));
         });
         String parentIds = allUser.stream()
-                .filter(v1 -> v1.getRole().getNickName().contains("管理员") || v1.getRole().getNickName().contains("领导"))
+                .filter(v1 -> v1.getRole().getNickName().contains("管理员") || v1.getRole().getNickName().contains("领导")|| v1.getRole().getNickName().contains("开发人员"))
                 .map(v1 -> v1.getId().toString())
                 .collect(Collectors.joining(","));
         List<TeacherTask> addTeacherTaskList=new ArrayList<>();

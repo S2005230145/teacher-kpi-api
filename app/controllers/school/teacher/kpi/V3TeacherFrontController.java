@@ -90,7 +90,11 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
                     .in("element_id",tesIds)
                     .findList();
 
-
+            TeacherKPIScore tks = TeacherKPIScore.find.query().where()
+                    .eq("user_id", userId)
+                    .eq("kpi_id", kpiId)
+                    .setMaxRows(1)
+                    .findOne();
             //获取所有KPI
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
             indicatorList.forEach(indicator -> {
@@ -152,6 +156,8 @@ public class V3TeacherFrontController extends BaseAdminSecurityController {
                     indicatorMpList.add(mp);
                 });
             result.set("indicator",Json.toJson(indicatorMpList));
+            result.put("kpiScore",tks.getScore());
+            result.put("kpiFinalScore",tks.getFinalScore());
             return ok(result);
         });
     }

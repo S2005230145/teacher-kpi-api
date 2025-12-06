@@ -96,7 +96,7 @@ public class AssessmentPDF {
 
         v3AddItem1(document,indicatorListSecond,elementList,contentList,tes);
 
-        Double score=Objects.requireNonNull(TeacherKPIScore.find.query().where().eq("user_id", userId).eq("kpi_id", kpiId).setMaxRows(1).findOne()).getScore();
+        Double score=Objects.requireNonNull(TeacherKPIScore.find.query().where().eq("user_id", userId).eq("kpi_id", kpiId).setMaxRows(1).findOne()).getFinalScore();
         addTotal(document,score);
 
         document.close();

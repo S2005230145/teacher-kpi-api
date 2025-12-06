@@ -23,10 +23,7 @@ import play.mvc.Http;
 import play.mvc.Result;
 import repository.V3TeacherRepository;
 import service.FileParseService;
-import utils.AssessmentPDF;
-import utils.CalculatorHelp;
-import utils.Pair;
-import utils.ValidationUtil;
+import utils.*;
 import utils.parse.WordParser;
 import utils.parse.WordTableTitleExtractor;
 
@@ -2522,6 +2519,7 @@ public class V3TeacherController extends BaseAdminSecurityController {
                     .or()
                         .eq("nick_name", "领导")
                         .eq("nick_name","管理员")
+                        .eq("nick_name","开发人员")
                     .endOr()
                     .findList();
             List<Long> roleIds = Objects.requireNonNull(roles).stream().map(Role::getId).toList();
@@ -2653,7 +2651,8 @@ public class V3TeacherController extends BaseAdminSecurityController {
 
                     tt.setIndicator(indicator);
                 }
-                List<String> leaderUserNameList = AllUserList.stream().filter(v1 -> tt.getParentIds().contains(String.valueOf(v1.getId()))).map(User::getUserName).toList();
+                List<Long> parentIds = Arrays.stream(tt.getParentIds().split(",")).map(Long::valueOf).toList();
+                List<String> leaderUserNameList = AllUserList.stream().filter(v1 -> parentIds.contains(v1.getId())).map(User::getUserName).toList();
                 tt.setParentName(String.join(",", leaderUserNameList));
             });
 
@@ -3277,12 +3276,39 @@ public class V3TeacherController extends BaseAdminSecurityController {
         });
     }
 
+    @Inject
+    EncodeUtils encodeUtils;
+
     //添加教师
     public CompletionStage<Result> addTeacher(Http.Request request){
         JsonNode jsonNode = request.body().asJson();
         return CompletableFuture.supplyAsync(()->{
+            if(jsonNode==null) return okCustomJson(CODE40001,"参数错误");
+            String userName=jsonNode.findPath("userName").asText();
+            String password=jsonNode.findPath("password").asText();
+            String phone=jsonNode.findPath("phone").asText();
+            String typeName=jsonNode.findPath("typeName").asText();
+            int status=jsonNode.findPath("status").asInt();
 
-            User user=objectMapper.convertValue(jsonNode, new TypeReference<>() {});
+            if (ValidationUtil.isEmpty(userName))
+                return okCustomJson(40006, "无效的用户名");
+            if (!ValidationUtil.isValidPassword(password))
+                return okCustomJson(CODE40001, "密码6-20位");
+            if (!ValidationUtil.isPhoneNumber(phone))
+                return okCustomJson(CODE40001, "手机号不正确");
+            if (!ValidationUtil.isValidStatus(status))
+                return okCustomJson(CODE40001, "状态异常");
+
+            User user = new User();
+            user.setUserName(userName);
+            user.setPhone(phone);
+            user.setTypeName(typeName);
+            user.setStatus(status);
+            if(password==null||password.isEmpty()){
+                user.setPassword(encodeUtils.getMd5WithSalt("123456"));
+            }else{
+                user.setPassword(encodeUtils.getMd5WithSalt(password));
+            }
 
             Role role = Role.find.query().where()
                     .or()

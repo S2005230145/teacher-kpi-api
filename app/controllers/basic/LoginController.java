@@ -297,7 +297,7 @@ public class LoginController extends BaseController {
      * @api {POST} /v1/tk/reset_login_password/ 01 重置登录密码
      * @apiName resetLoginPassword
      * @apiGroup UserPassword
-     * @apiParam {string} userName 帐号
+     * @apiParam {string} phone 手机号
      * @apiParam {string} newPassword 新密码
      * @apiSuccess (Success 200) {int} code 200
      * @apiSuccess (Error 40001) {int}code 40001无效的参数
@@ -310,16 +310,14 @@ public class LoginController extends BaseController {
     public CompletionStage<Result> resetLoginPassword(Http.Request request) {
         JsonNode node = request.body().asJson();
         return CompletableFuture.supplyAsync(() -> {
-            String userName = node.findPath("userName").asText();
-            userName = businessUtils.escapeHtml(userName);
+            String phone = node.findPath("phone").asText();
 
             String newPassword = node.findPath("newPassword").asText();
             if (!checkPassword(newPassword)) return okCustomJson(CODE40003, "无效的密码");
-            User member = User.find.query().where().eq("user_name", userName).setMaxRows(1).findOne();
+            User member = User.find.query().where().eq("phone", phone).setMaxRows(1).findOne();
             if (null == member) return okCustomJson(CODE40005, "该帐号不存在");
             member.setPassword(encodeUtils.getMd5WithSalt(newPassword));
             member.save();
-            businessUtils.deleteVcodeCache(userName);
             return okJSON200();
         });
     }
